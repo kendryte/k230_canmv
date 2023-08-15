@@ -1,0 +1,3 @@
+mainmenu "K230 MicroPython Project Configuration"
+
+source "micropython_port/Kconfig"

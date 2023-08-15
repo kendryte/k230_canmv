@@ -1,0 +1,6 @@
+[submodule "micropython"]
+	path = micropython
+	url = https://github.com/micropython/micropython.git
+[submodule "k230_sdk"]
+	path = k230_sdk
+	url = https://github.com/kendryte/k230_sdk.git

@@ -1,0 +1,178 @@
+menu "MicroPython Options"
+    choice MICROPY_CONFIG_ROM_LEVEL
+        bool "MicroPython Room Level"
+        default MICROPY_CONFIG_ROM_LEVEL_FULL_FEATURES
+
+        config MICROPY_CONFIG_ROM_LEVEL_MINIMUM
+            bool "Disable all optional features (i.e. minimal port)."
+        config MICROPY_CONFIG_ROM_LEVEL_CORE_FEATURES
+            bool "Only enable core features (constrained flash, e.g. STM32L072)"
+        config MICROPY_CONFIG_ROM_LEVEL_BASIC_FEATURES
+            bool "Enable most common features (small on-device flash, e.g. STM32F411)"
+        config MICROPY_CONFIG_ROM_LEVEL_EXTRA_FEATURES
+            bool "Enable convenience features (medium on-device flash, e.g. STM32F405)"
+        config MICROPY_CONFIG_ROM_LEVEL_FULL_FEATURES
+            bool "Enable all common features (large/external flash, rp2, unix)"
+        config MICROPY_CONFIG_ROM_LEVEL_EVERYTHING
+            bool "Enable everything (e.g. coverage)"
+    endchoice
+
+    config MICROPY_CONFIG_ROM_LEVEL
+        int
+        default 0 if MICROPY_CONFIG_ROM_LEVEL_MINIMUM
+        default 10 if MICROPY_CONFIG_ROM_LEVEL_CORE_FEATURES
+        default 20 if MICROPY_CONFIG_ROM_LEVEL_BASIC_FEATURES
+        default 30 if MICROPY_CONFIG_ROM_LEVEL_EXTRA_FEATURES
+        default 40 if MICROPY_CONFIG_ROM_LEVEL_FULL_FEATURES
+        default 50 if MICROPY_CONFIG_ROM_LEVEL_EVERYTHING
+
+    menu "MicroPython Internal debugging"
+        config MICROPY_MEM_STATS
+            bool "Enable collect memory allocation stats"
+            default n
+    endmenu
+
+    menu "MicroPython Optimisations"
+        config MICROPY_OPT_COMPUTED_GOTO
+            bool "Enable use computed gotos in the VM"
+            default n
+    endmenu
+
+    menu "MicroPython internal features"
+        choice MICROPY_LONGINT_IMPL
+            bool "Long int implementation"
+            default MICROPY_LONGINT_IMPL_MPZ
+
+            config MICROPY_LONGINT_IMPL_NONE
+                bool "None long int implementation" 
+            config MICROPY_LONGINT_IMPL_LONGLONG
+                bool "Long int is long long"
+            config MICROPY_LONGINT_IMPL_MPZ
+                bool "Long int is MPZ"
+        endchoice
+
+        config MICROPY_LONGINT_IMPL
+            int
+            default 0 if MICROPY_LONGINT_IMPL_NONE
+            default 1 if MICROPY_LONGINT_IMPL_LONGLONG
+            default 2 if MICROPY_LONGINT_IMPL_MPZ
+
+        choice MICROPY_FLOAT_IMPL
+            bool "Float and complex implementation"
+            default MICROPY_FLOAT_IMPL_DOUBLE
+
+            config MICROPY_FLOAT_IMPL_NONE
+                bool "None Float and complex implementation" 
+            config MICROPY_FLOAT_IMPL_FLOAT
+                bool "Float and complex is FLOAT"
+            config MICROPY_FLOAT_IMPL_DOUBLE
+                bool "Float and complex is DOUBLE"
+        endchoice
+
+        config MICROPY_FLOAT_IMPL
+            int
+            default 0 if MICROPY_FLOAT_IMPL_NONE
+            default 1 if MICROPY_FLOAT_IMPL_FLOAT
+            default 2 if MICROPY_FLOAT_IMPL_DOUBLE
+
+        menuconfig MICROPY_FROZEN_MANIFEST
+            bool "Enable frozen manifest files"
+            default n
+        if MICROPY_FROZEN_MANIFEST
+            config MICROPY_MODULE_FROZEN_STR
+                bool "Enable frozen string"
+                default y
+            config MICROPY_MODULE_FROZEN_MPY
+                bool "Enable frozen mpy"
+                default y
+        endif
+
+        menuconfig MICROPY_VFS
+            bool "Enable MicroPython VFS"
+            default y
+        if MICROPY_VFS
+            config MICROPY_VFS_POSIX
+                bool "Support for VFS POSIX component, to mount a POSIX filesystem within VFS"
+                default n
+            config MICROPY_VFS_FAT
+                bool "Support for VFS FAT component, to mount a FAT filesystem within VFS"
+                default n
+            config MICROPY_VFS_LFS1
+                bool "Support for VFS LittleFS v1 component, to mount a LFSv1 filesystem within VFS"
+                default n
+            config MICROPY_VFS_LFS2
+                bool "Support for VFS LittleFS v2 component, to mount a LFSv2 filesystem within VFS"
+                default n
+        endif
+    endmenu
+
+    menu "MicroPython builtins, classes, modules, etc"
+        config MICROPY_PY_USELECT_SELECT
+            bool "Enable `select`"
+            default n
+        config MICROPY_PY_UTIME_MP_HAL
+            bool "Enable `utime` implementation in mp_hal"
+            default n
+        config MICROPY_PY_THREAD
+            bool "Enable `_thread`"
+            default n
+
+        menuconfig MICROPY_PY_UHASHLIB
+            bool "Enable `uhashlib`"
+            default n
+        if MICROPY_PY_UHASHLIB
+            config MICROPY_PY_UHASHLIB_MD5
+                bool "Enable uhashlib md5"
+                default n
+            config MICROPY_PY_UHASHLIB_SHA1
+                bool "Enable uhashlib sha1"
+                default n
+            config MICROPY_PY_UHASHLIB_SHA256
+                bool "Enable uhashlib sha2"
+                default n
+        endif
+
+        menuconfig MICROPY_PY_UCRYPTOLIB
+            bool "Enable `ucryptolib`"
+            default n
+        if MICROPY_PY_UCRYPTOLIB
+            config MICROPY_PY_UCRYPTOLIB_CTR
+                bool "Enable ucryptolib ctr"
+                default n
+        endif
+
+        menuconfig MICROPY_PY_MACHINE
+            bool "Enable `machine`"
+            default n
+        if MICROPY_PY_MACHINE
+            config MICROPY_PY_MACHINE_BITSTREAM
+                bool "Enable machine bitstream"
+                default n
+            config MICROPY_PY_MACHINE_PULSE
+                bool "Enable machine pulse"
+                default n
+
+            config MICROPY_PY_MACHINE_I2C
+                bool "Enable machine i2c"
+                default n
+            if MICROPY_PY_MACHINE_I2C
+                config MICROPY_PY_MACHINE_I2C_TRANSFER_WRITE1
+                    bool "Whether the low-level I2C transfer function supports a separate write as the first transfer"
+                    default n
+            endif
+
+            config MICROPY_PY_MACHINE_SOFTI2C
+                bool "Enable machine soft i2c"
+                default n
+            config MICROPY_PY_MACHINE_SPI
+                bool "Enable machine spi"
+                default n
+            config MICROPY_PY_MACHINE_SOFTSPI
+                bool "Enable machine soft spi"
+                default n
+            config MICROPY_PY_MACHINE_TIMER
+                bool "Enable machine timer"
+                default n
+        endif
+    endmenu
+endmenu
