@@ -72,7 +72,7 @@ all .DEFAULT: prepare_memory mpp rt-smart-apps rt-smart-kernel big-core-opensbi 
 
 .PHONY: test_url
 test_url:
-	source tools/get_download_url.sh
+	@source tools/get_download_url.sh
 
 ifeq ($(NATIVE_BUILD),1)
 .PHONY: download_toolchain
@@ -87,7 +87,6 @@ download_toolchain:test_url
 
 .PHONY: extract_toolchain
 extract_toolchain: download_toolchain
-	@echo "test1"
 	@set -e; \
 	if [ ! -f toolchain/.toolchain_ready ];then \
 	echo "extract toolchain"; \
@@ -114,8 +113,7 @@ prepare_sourcecode:prepare_toolchain
 #big utils
 	@echo "download big utils"
 	@wget -qc $(DOWNLOAD_URL)/downloads/big/utils/utils.tar.gz -O - | tar -xzC src/big/
-	@cd src/big/utils/lib/;ln -s opencv_thead opencv;cd -
-
+	@cd src/big/utils/lib/;ln -s opencv_thead opencv;cd - >> /dev/null
 	@touch src/.src_fetched
 
 check_toolchain:
@@ -213,6 +211,7 @@ rt-smart-apps: defconfig prepare_memory  check_src
 	cp configs/def_config_riscv64 .config; \
 	scons -j16 || exit $?; \
 	cd -;
+	mkdir -p $(RT-SMART_SRC_PATH)/userapps/root;
 	python3 $(RT-SMART_SRC_PATH)/tools/mkromfs.py $(RT-SMART_SRC_PATH)/userapps/root $(RT-SMART_SRC_PATH)/kernel/bsp/maix3/applications/romfs.c
 
 .PHONY: rt-smart-apps-clean

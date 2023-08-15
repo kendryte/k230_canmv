@@ -20,15 +20,21 @@ fast_dl:
 	@$(k230_sdk_dl)
 	@$(micropython_dl)
 
+k230_sdk_clean_exclude_file = "\
+	-e toolchain \
+	-e output \
+	-e src\.src_fetched \
+	"
+
 .PHONY: sync_submodule
 sync_submodule:
 	@echo "sync_submodule"
 	@cd ${PROJECT_ROOT_DIR}
 	@git submodule update --init -f k230_sdk
-	@git -C k230_sdk clean -fd -e toolchain
-	@rsync -a -v -q k230_sdk_overlay/ k230_sdk/ --exclude=/CMakeLists.txt
+	@git -C k230_sdk clean -fdq ${k230_sdk_clean_exclude_file}
+	@rsync -a -q k230_sdk_overlay/ k230_sdk/ --exclude=/CMakeLists.txt
 	@git submodule update --init -f micropython
-	@git -C micropython clean -fd
+	@git -C micropython clean -fdq
 	@touch .sync_k230_sdk_overlay_dir
 	@touch .sync_k230_sdk_overlay_file
 
@@ -39,15 +45,15 @@ K230_SDK_OVERLAY_FILE := $(shell find ${K230_SDK_OVERLAY} -type f)
 .sync_k230_sdk_overlay_dir: ${K230_SDK_OVERLAY_DIR}
 	@echo "sync_k230_sdk_overlay_dir"
 	@cd ${PROJECT_ROOT_DIR}
-	@git -C k230_sdk clean -fd -e toolchain -e output
-	@rsync -a -v -q k230_sdk_overlay/ k230_sdk/ --exclude=/CMakeLists.txt
+	@git -C k230_sdk clean -fdq ${k230_sdk_clean_exclude_file}
+	@rsync -a -q k230_sdk_overlay/ k230_sdk/ --exclude=/CMakeLists.txt
 	@touch .sync_k230_sdk_overlay_dir
 	@touch .sync_k230_sdk_overlay_file
 
 .sync_k230_sdk_overlay_file: ${K230_SDK_OVERLAY_FILE}
 	@echo "sync_k230_sdk_overlay_file"
 	@cd ${PROJECT_ROOT_DIR}
-	@rsync -a -v -q k230_sdk_overlay/ k230_sdk/ --exclude=/CMakeLists.txt
+	@rsync -a -q k230_sdk_overlay/ k230_sdk/ --exclude=/CMakeLists.txt
 	@touch .sync_k230_sdk_overlay_file
 
 .PHONY: sync_k230_sdk_overlay
