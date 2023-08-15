@@ -1,0 +1,137 @@
+/* Copyright (c) 2023, Canaan Bright Sight Co., Ltd
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+#include "k230.dtsi"
+#include "clock_provider.dtsi"          /* k230 soc clock tree */
+#include "clock_consumer.dtsi"          /* k230 soc clock consumer */
+#include "reset_provider.dtsi"          /* k230 soc reset provider */
+#include "reset_consumer.dtsi"          /* k230 soc reset consumer */
+#include "power_provider.dtsi"          /* k230 soc power provider */
+#include "power_consumer.dtsi"          /* k230 soc power consumer */
+#include "gpio_provider.dtsi"           /* k230 soc gpio provider */
+#include "gpio_consumer.dtsi"           /* k230 soc gpio consumer */
+
+
+/ {
+	chosen {
+		bootargs = "console=ttyS0,115200  crashkernel=256M-:128M earlycon=sbi";
+		linux,initrd-start = <0x0 0xa100000>;
+		linux,initrd-end = <0x0 0x0>;
+		stdout-path = "/soc/serial@91400000:115200";
+	};
+
+	gpio52: gpio52@9140c000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "canaan,k230-apb-gpio";
+		reg = <0x0 0x9140c000 0x0 0x1000>;
+		interrupt-controller;
+		interrupt-parent = <&intc>;
+		#interrupt-cells = <2>;
+		interrupts = <84 IRQ_TYPE_EDGE_BOTH>;
+		hardlock = <0>;
+
+		port52: gpio-controller@0 {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <1>;
+			reg-bank = <0>;
+			id =<52>;
+		};
+	};
+
+	gpio53: gpio53@9140c000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "canaan,k230-apb-gpio";
+		reg = <0x0 0x9140c000 0x0 0x1000>;
+		interrupt-controller;
+		interrupt-parent = <&intc>;
+		#interrupt-cells = <2>;
+		interrupts = <85 IRQ_TYPE_EDGE_BOTH>;
+		hardlock = <0>;
+
+		port53: gpio-controller@0 {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <1>;
+			reg-bank = <0>;
+			id =<53>;
+		};
+	};
+
+};
+&ddr {
+	reg = <0x0 0x8200000 0x0 0x7dff000>;  /*linux memory config*/
+};
+
+&i2c4 {
+	status = "disabled";
+};
+
+&spi0 {
+	spi-flash@0 {
+		compatible = "jedec,spi-nor";
+		//compatible = "spi-nand";
+		//compatible = "rohm,dh2228fv";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0>;
+		spi-max-frequency = <100000000>;
+		spi-tx-bus-width = <8>;
+		spi-rx-bus-width = <8>;
+		status = "okay";
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+			/* spl boot */
+			reg = <0x0 0x00080000>;
+			label = "spl_boot";
+			};
+			partition@2000000 {
+			/* 32MB for  update image*/
+			reg = <0 0x2000000>;
+			label = "all_flash";
+			};
+		};
+	};
+
+};
+&usbotg1 {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&gpio_key {
+	S2 {
+		label = "gpio-key-52";
+		linux,code = <106>;
+		gpios = <&port52 0 GPIO_ACTIVE_LOW>;
+		debounce-interval = <3>;
+	};
+
+	S1 {
+		label = "gpio-key-53";
+		linux,code = <105>;
+		gpios = <&port53 0 GPIO_ACTIVE_HIGH>;
+		debounce-interval = <3>;
+	};
+};
+
+&mmc_sd0{
+    status = "disabled";
+};
+
+&mmc_sd1{
+    status = "disabled";
+};
+
+&usbotg0{
+	status = "disabled";
+};

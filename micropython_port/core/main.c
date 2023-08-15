@@ -25,12 +25,16 @@
  * THE SOFTWARE.
  */
 
+#include <fcntl.h>
+#include <pthread.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <sys/select.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <sys/stat.h>
@@ -38,6 +42,7 @@
 #include <errno.h>
 #include <signal.h>
 
+#include "nlr.h"
 #include "py/compile.h"
 #include "py/runtime.h"
 #include "py/builtin.h"
@@ -47,6 +52,7 @@
 #include "py/stackctrl.h"
 #include "py/mphal.h"
 #include "py/mpthread.h"
+#include "shared/runtime/pyexec.h"
 #include "extmod/misc.h"
 #include "extmod/modplatform.h"
 #include "extmod/vfs.h"
@@ -61,7 +67,7 @@ STATIC uint emit_opt = MP_EMIT_OPT_NONE;
 #if MICROPY_ENABLE_GC
 // Heap size of GC heap (if enabled)
 // Make it larger on a 64 bit machine, because pointers are larger.
-long heap_size = 1024 * 1024 * (sizeof(mp_uint_t) / 4);
+long heap_size = 1024 * 1024 * 16;
 #endif
 
 // Number of heaps to assign by default if MICROPY_GC_SPLIT_HEAP=1
@@ -77,11 +83,10 @@ long heap_size = 1024 * 1024 * (sizeof(mp_uint_t) / 4);
 #error "The unix port requires MICROPY_PY_SYS_ARGV=1"
 #endif
 
-STATIC void stderr_print_strn(void *env, const char *str, size_t len) {
-    (void)env;
-    ssize_t ret;
-    MP_HAL_RETRY_SYSCALL(ret, write(STDERR_FILENO, str, len), {});
-    mp_os_dupterm_tx_strn(str, len);
+void mpy_stdout_tx(const char* data, size_t size);
+
+void stderr_print_strn(void *env, const char *str, size_t len) {
+    mp_hal_stdout_tx_strn_cooked(str, len);
 }
 
 const mp_print_t mp_stderr_print = {NULL, stderr_print_strn};
@@ -191,10 +196,16 @@ STATIC char *strjoin(const char *s1, int sep_char, const char *s2) {
 }
 #endif
 
+STATIC void mp_hal_stdout_tx_str_cooked(const char* str) {
+    mp_hal_stdout_tx_strn_cooked(str, strlen(str));
+}
+
+volatile bool repl_script_running = false;
+
 STATIC int do_repl(void) {
-    mp_hal_stdout_tx_str(MICROPY_BANNER_NAME_AND_VERSION);
-    mp_hal_stdout_tx_str("; " MICROPY_BANNER_MACHINE);
-    mp_hal_stdout_tx_str("\nUse Ctrl-D to exit, Ctrl-E for paste mode\n");
+    mp_hal_stdout_tx_str_cooked(MICROPY_BANNER_NAME_AND_VERSION);
+    mp_hal_stdout_tx_str_cooked("; " MICROPY_BANNER_MACHINE);
+    mp_hal_stdout_tx_str_cooked("\nUse Ctrl-D to exit, Ctrl-E for paste mode\n");
 
     #if MICROPY_USE_READLINE == 1
 
@@ -203,7 +214,7 @@ STATIC int do_repl(void) {
     vstr_t line;
     vstr_init(&line, 16);
     for (;;) {
-        mp_hal_stdio_mode_raw();
+        // mp_hal_stdio_mode_raw();
 
     input_restart:
         vstr_reset(&line);
@@ -267,8 +278,9 @@ STATIC int do_repl(void) {
         }
 
         mp_hal_stdio_mode_orig();
-
+        repl_script_running = true;
         ret = execute_from_lexer(LEX_SRC_VSTR, &line, parse_input_kind, true);
+        repl_script_running = false;
         if (ret & FORCED_EXIT) {
             return ret;
         }
@@ -310,6 +322,7 @@ STATIC int do_file(const char *file) {
 }
 
 STATIC int do_str(const char *str) {
+    fprintf(stderr, "run script:\n%s", str);
     return execute_from_lexer(LEX_SRC_STR, str, MP_PARSE_FILE_INPUT, false);
 }
 
@@ -462,17 +475,20 @@ STATIC void sys_set_excecutable(char *argv0) {
 #endif
 
 MP_NOINLINE int main_(int argc, char **argv);
+void ide_dbg_init(void);
+#define SDCARD_MOUNT "/sdcard"
 
 int main(int argc, char **argv) {
-    #if MICROPY_PY_THREAD
-    mp_thread_init();
-    #endif
+    fprintf(stderr, "Built %s %s\n", __DATE__, __TIME__);
+    // wait /dev/ttyUSB1 and /sdcard ready
+    usleep(1000000);
+    ide_dbg_init();
+    //dup2(usb_cdc_fd, STDOUT_FILENO);
     // We should capture stack top ASAP after start, and it should be
     // captured guaranteedly before any other stack variables are allocated.
     // For this, actual main (renamed main_) should not be inlined into
     // this function. main_() itself may have other functions inlined (with
     // their own stack variables), that's why we need this main/main_ split.
-    mp_stack_ctrl_init();
     return main_(argc, argv);
 }
 
@@ -491,8 +507,19 @@ MP_NOINLINE int main_(int argc, char **argv) {
     signal(SIGPIPE, SIG_IGN);
     #endif
 
+    int usb_cdc_fd = open("/dev/ttyUSB1", O_RDWR);
+    if (usb_cdc_fd < 0) {
+        perror("open /dev/ttyUSB1 error");
+        return -1;
+    }
+
     // Define a reasonable stack limit to detect stack overflow.
-    mp_uint_t stack_limit = 40000 * (sizeof(void *) / 4);
+    mp_uint_t stack_limit = 1024 * 1024 * (sizeof(void *) / 4);
+    soft_reset:
+    #if MICROPY_PY_THREAD
+    mp_thread_init();
+    #endif
+    mp_stack_ctrl_init();
     #if defined(__arm__) && !defined(__thumb2__)
     // ARM (non-Thumb) architectures require more stack.
     stack_limit *= 2;
@@ -620,11 +647,11 @@ MP_NOINLINE int main_(int argc, char **argv) {
 
     const int NOTHING_EXECUTED = -2;
     int ret = NOTHING_EXECUTED;
-    bool inspect = false;
+    //bool inspect = false;
     for (int a = 1; a < argc; a++) {
         if (argv[a][0] == '-') {
             if (strcmp(argv[a], "-i") == 0) {
-                inspect = true;
+                //inspect = true;
             } else if (strcmp(argv[a], "-c") == 0) {
                 if (a + 1 >= argc) {
                     return invalid_args();
@@ -702,40 +729,80 @@ MP_NOINLINE int main_(int argc, char **argv) {
                 return invalid_args();
             }
         } else {
-            char *pathbuf = malloc(PATH_MAX);
-            char *basedir = realpath(argv[a], pathbuf);
-            if (basedir == NULL) {
-                mp_printf(&mp_stderr_print, "%s: can't open file '%s': [Errno %d] %s\n", argv[0], argv[a], errno, strerror(errno));
-                free(pathbuf);
-                // CPython exits with 2 in such case
-                ret = 2;
-                break;
-            }
-
-            // Set base dir of the script as first entry in sys.path.
-            char *p = strrchr(basedir, '/');
-            mp_obj_list_store(mp_sys_path, MP_OBJ_NEW_SMALL_INT(0), mp_obj_new_str_via_qstr(basedir, p - basedir));
-            free(pathbuf);
-
             set_sys_argv(argv, argc, a);
             ret = do_file(argv[a]);
             break;
         }
     }
 
-    const char *inspect_env = getenv("MICROPYINSPECT");
-    if (inspect_env && inspect_env[0] != '\0') {
-        inspect = true;
-    }
-    if (ret == NOTHING_EXECUTED || inspect) {
-        if (isatty(0) || inspect) {
-            prompt_read_history();
-            ret = do_repl();
-            prompt_write_history();
-        } else {
-            ret = execute_from_lexer(LEX_SRC_STDIN, NULL, MP_PARSE_FILE_INPUT, false);
+    extern bool ide_dbg_attach(void);
+    extern void ide_dbg_on_script_start(void);
+    extern void ide_dbg_on_script_end(void);
+    if (!ide_dbg_attach()) {
+        // boot.py
+
+        FILE* script_file;
+        long script_size;
+        char* script_str;
+        script_file = fopen(SDCARD_MOUNT "/boot.py", "r");
+        if (script_file == NULL) {
+            goto skip_bootpy;
         }
+        fseek(script_file, 0, SEEK_END);
+        script_size = ftell(script_file);
+        script_str = malloc(script_size + 1);
+        fseek(script_file, 0, SEEK_SET);
+        fread(script_str, 1, script_size, script_file);
+        fclose(script_file);
+        script_str[script_size] = '\0';
+        ide_dbg_on_script_start();
+        do_str(script_str);
+        ide_dbg_on_script_end();
+        skip_bootpy:
+
+        // main.py
+        script_file = fopen(SDCARD_MOUNT "/main.py", "r");
+        if (script_file == NULL) {
+            goto skip_mainpy;
+        }
+        fseek(script_file, 0, SEEK_END);
+        script_size = ftell(script_file);
+        script_str = malloc(script_size + 1);
+        fseek(script_file, 0, SEEK_SET);
+        fread(script_str, 1, script_size, script_file);
+        fclose(script_file);
+        script_str[script_size] = '\0';
+        ide_dbg_on_script_start();
+        do_str(script_str);
+        ide_dbg_on_script_end();
+        skip_mainpy:
+        // pass
+        ;
     }
+
+    if (ide_dbg_attach()) {
+        fprintf(stdout, "[mpy] enter script\n");
+        nlr_buf_t nlr;
+        if (nlr_push(&nlr) == 0) {
+            extern char* ide_dbg_get_script();
+            gc_collect();
+            char* script = ide_dbg_get_script();
+            if (script) {
+                do_str(script);
+            }
+            nlr_pop();
+        } else {
+            mp_obj_print_exception(&mp_plat_print, (mp_obj_t)nlr.ret_val);
+        }
+        ide_dbg_on_script_end();
+    } else {
+        fprintf(stdout, "[mpy] enter repl\n");
+        // FIXME: DO NOT CLEAR
+        // clear terminal
+        // mp_hal_stdout_tx_strn("\033[H\033[2J", 7);
+        do_repl();
+    }
+    fprintf(stderr, "[mpy] exit, reset\n");
 
     #if MICROPY_PY_SYS_SETTRACE
     MP_STATE_THREAD(prof_trace_callback) = MP_OBJ_NULL;
@@ -782,6 +849,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
     #endif
 
     // printf("total bytes = %d\n", m_get_total_bytes_allocated());
+    goto soft_reset;
     return ret & 0xff;
 }
 

@@ -1,54 +1,98 @@
+# helper.mk
 
-define k230_sdk_dl
-	if [ ! -f .ready_k230_sdk_dl ]; then \
-		echo "download k230_sdk"; \
-		wget -cq ${K230_SDK_DOWNLOAD_URL} -O - | tar -xz ; \
-		touch .ready_k230_sdk_dl; \
-	fi
-endef
-
-define micropython_dl
-	if [ ! -f .ready_micropython_dl ]; then \
-		echo "download micropython"; \
-		wget -cq ${MICROPYTHON_DOWNLOAD_URL} -O - | tar -xz ; \
-		touch .ready_micropython_dl; \
-	fi
-endef
-
+ifeq ($(MAKECMDGOALS), fast_dl)
 .PHONY: fast_dl
+ifeq ($(FAST_DL),0)
 fast_dl:
-	@$(k230_sdk_dl)
-	@$(micropython_dl)
+else
+ifeq ($(NATIVE_BUILD),1)
+server_url = https://ai.b-bug.org/k230
+k230_sdk_download_url = $(server_url)/release/sdk/github/k230_sdk.tar.gz
+else
+server_url = https://kendryte-download.canaan-creative.com/k230
+k230_sdk_download_url = $(server_url)/release/sdk/k230_sdk.tar.gz
+endif # ifeq ($(NATIVE_BUILD),1)
+micropython_download_url = $(server_url)/downloads/canmv/micropython.tar.gz
+
+fast_dl:
+	@set -e; \
+	if [ ! -f k230_sdk_overlay/.ready_dl_src ]; then \
+		echo "download k230_sdk"; \
+		if [ $(NATIVE_BUILD) -ne 1 ]; then \
+		wget -c --show-progress $(k230_sdk_download_url) -O - | tar -xz ; fi; \
+		touch k230_sdk_overlay/.ready_dl_src; \
+	fi; \
+	if [ ! -f micropython_port/.ready_dl_src ]; then \
+		echo "download micropython"; \
+		wget -c --show-progress $(micropython_download_url) -O - | tar -xz ; \
+		touch micropython_port/.ready_dl_src; \
+	fi;
+
+endif # end ifeq ($(FAST_DL),0)
+endif # end ifeq ($(MAKECMDGOALS), fast_dl)
+
+k230_sdk_clean_exclude_file = \
+	-e toolchain -e output \
+	-e .config -e .config.old -e .last_conf \
+	-e src/big/kmodel -e src/big/nncase -e src/big/utils \
+	-e src/.src_fetched \
+	-e src/little/buildroot-ext/dl \
+	-e src/little/buildroot-ext/buildroot-9d1d4818c39d97ad7a1cdf6e075b9acae6dfff71 \
+	-e src/little/buildroot-ext/package/tuning-server \
+	-e src/big/rt-smart/kernel/bsp/maix3/.sconsign.dblite \
+	-e src/big/rt-smart/userapps/.sconsign.dblite
+
+k230_sdk_overlay_rsync_exclude_file = \
+	--exclude=/.ready*
 
 .PHONY: sync_submodule
 sync_submodule:
-	@echo "sync_submodule"
-	@cd ${PROJECT_ROOT_DIR}
 	@git submodule update --init -f k230_sdk
-	@git -C k230_sdk clean -fd -e toolchain
-	@rsync -a -v -q k230_sdk_overlay/ k230_sdk/ --exclude=/CMakeLists.txt
+	@git -C k230_sdk clean -fdq $(k230_sdk_clean_exclude_file)
+	@rsync -a -q k230_sdk_overlay/ k230_sdk/ $(k230_sdk_overlay_rsync_exclude_file)
+	@rm -f k230_sdk/src/big/rt-smart/kernel/bsp/maix3/.sconsign.dblite
+	@rm -f k230_sdk/src/big/rt-smart/userapps/.sconsign.dblite
 	@git submodule update --init -f micropython
-	@git -C micropython clean -fd
-	@touch .sync_k230_sdk_overlay_dir
-	@touch .sync_k230_sdk_overlay_file
+	@git -C micropython clean -fdq
+	@rsync -a -q micropython_port/micropython_overlay/ micropython/
+	@touch micropython_port/.ready_sync_file
+	@touch micropython_port/.ready_sync_dir
+	@touch k230_sdk_overlay/.ready_sync_file
+	@touch k230_sdk_overlay/.ready_sync_dir
 
-K230_SDK_OVERLAY := ${PROJECT_ROOT_DIR}/k230_sdk_overlay
-K230_SDK_OVERLAY_DIR := $(shell find ${K230_SDK_OVERLAY} -type d)
-K230_SDK_OVERLAY_FILE := $(shell find ${K230_SDK_OVERLAY} -type f)
+ifeq ($(MAKECMDGOALS), sync_overlay)
+k230_sdk_overlay_dir = $(shell find k230_sdk_overlay -type d)
+k230_sdk_overlay_file = $(shell find k230_sdk_overlay -type f -a -not -name ".ready*")
+micropython_overlay_dir = $(shell find micropython_port/micropython_overlay -type d)
+micropython_overlay_file = $(shell find micropython_port/micropython_overlay -type f)
+endif
 
-.sync_k230_sdk_overlay_dir: ${K230_SDK_OVERLAY_DIR}
+k230_sdk_overlay/.ready_sync_dir: $(k230_sdk_overlay_dir)
 	@echo "sync_k230_sdk_overlay_dir"
-	@cd ${PROJECT_ROOT_DIR}
-	@git -C k230_sdk clean -fd -e toolchain -e output
-	@rsync -a -v -q k230_sdk_overlay/ k230_sdk/ --exclude=/CMakeLists.txt
-	@touch .sync_k230_sdk_overlay_dir
-	@touch .sync_k230_sdk_overlay_file
+	@git -C k230_sdk clean -fdq $(k230_sdk_clean_exclude_file)
+	@rsync -a -q k230_sdk_overlay/ k230_sdk/ $(k230_sdk_overlay_rsync_exclude_file)
+	@touch k230_sdk_overlay/.ready_sync_file
+	@touch k230_sdk_overlay/.ready_sync_dir
 
-.sync_k230_sdk_overlay_file: ${K230_SDK_OVERLAY_FILE}
+k230_sdk_overlay/.ready_sync_file: $(k230_sdk_overlay_file)
 	@echo "sync_k230_sdk_overlay_file"
-	@cd ${PROJECT_ROOT_DIR}
-	@rsync -a -v -q k230_sdk_overlay/ k230_sdk/ --exclude=/CMakeLists.txt
-	@touch .sync_k230_sdk_overlay_file
+	@rsync -a -q k230_sdk_overlay/ k230_sdk/ $(k230_sdk_overlay_rsync_exclude_file)
+	@touch k230_sdk_overlay/.ready_sync_file
 
-.PHONY: sync_k230_sdk_overlay
-sync_k230_sdk_overlay: .sync_k230_sdk_overlay_dir .sync_k230_sdk_overlay_file
+micropython_port/.ready_sync_dir: $(micropython_overlay_dir)
+	@echo "sync_micropython_overlay_dir"
+	@git -C micropython clean -fdq
+	@rsync -a -q micropython_port/micropython_overlay/ micropython/
+	@touch micropython_port/.ready_sync_file
+	@touch micropython_port/.ready_sync_dir
+
+micropython_port/.ready_sync_file: $(micropython_overlay_file)
+	@echo "sync_micropython_overlay_file"
+	@rsync -a -q micropython_port/micropython_overlay/ micropython/
+	@touch micropython_port/.ready_sync_file
+
+.PHONY: sync_overlay
+sync_overlay: k230_sdk_overlay/.ready_sync_dir k230_sdk_overlay/.ready_sync_file micropython_port/.ready_sync_dir micropython_port/.ready_sync_file
+
+$(K230_CANMV_BUILD_DIR)/.k230_sdk_all: k230_sdk_overlay/.ready_sync_dir k230_sdk_overlay/.ready_sync_file
+	@make -C k230_sdk all CONF=$(CONF) && touch $@

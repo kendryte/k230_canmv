@@ -1,109 +1,51 @@
-# CANMV
+<img height=230 src="images/CanMV_logo_800x260.png">
 
-## 编译环境
+**CanMV, 让 AIOT 更简单～**
 
-### 参考K230_SDK编译环境
+CanMV 的目的是让 AIOT 编程更简单， 基于 [Micropython](http://www.micropython.org) 语法, 运行在[Canaan](https://www.canaan-creative.com/)强大的嵌入式AI SOC系列上。目前它在K230上运行。
 
-### 安装genimage
+## 快速开始
 
-```sh
-sudo apt-get install libconfuse-dev
-wget https://github.com/pengutronix/genimage/releases/download/v16/genimage-16.tar.xz
-tar -xf genimage-16.tar.xz
-cd genimage-16
-./configure
-make -j
-sudo make install
-```
-
-## 编译流程
+### 编译
 
 ```sh
 git clone k230_canmv
 cd k230_canmv
-cmake -B build
-make -C build
+make prepare_sourcecode
+# 生成docker镜像（第一次编译需要，已经生成docker镜像后跳过此步骤，可选）
+docker build -f k230_sdk/tools/docker/Dockerfile -t k230_docker k230_sdk/tools/docker
+# 启动docker环境(可选)
+docker run -u root -it -v $(pwd):$(pwd) -v $(pwd)/k230_sdk/toolchain:/opt/toolchain -w $(pwd) k230_docker /bin/bash
+# 默认使用canmv板卡，如果需要使用其他板卡，请使用 make CONF=k230_xx_defconfig，支持的板卡在configs目录下
+make
 ```
 
-编译完成后会在`build/images`目录下生成`sysimage-sdcard.img`镜像
+编译完成后会在`output/k230_xx_defconfig/images`目录下生成`sysimage-sdcard.img`镜像
 
-## 项目结构
+### 烧录
+
+linux下直接使用dd命令进行烧录，windows下使用烧录工具进行烧录
+
+### 获取更新
 
 ```sh
-k230_canmv/
-├── cmake
-├── configs
-├── k230_sdk
-├── k230_sdk_overlay
-├── micropython
-├── micropython_port
-└── scripts
+git pull
+# 更新后如果编译报错，可使用此命令清除之前编译生成的文件(可选)
+make clean
+make prepare_sourcecode
+make
 ```
 
-目录介绍:
+详情流程建议参考[K230 CanMV 使用说明](https://github.com/kendryte/k230_canmv_docs/blob/main/zh/01_software/K230_CanMV%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E.md)
 
-1. `cmake`: cmake脚本
-1. `configs`: 各种板级配置
-1. `k230_sdk`: k230_sdk源码
-1. `k230_sdk_overlay`: 基于k230源码的修改
-1. `micropython`: micropython源码
-1. `micropython_port`: k230 micropython 移植
-1. `scripts`: 各种脚本
+## 贡献指南
 
-其中`k230_sdk`, `micropython`是git submodule, 子项目地址为:
+如果您对本项目感兴趣，想要反馈问题或提交代码，请参考[CONTRIBUTING](.github/CONTRIBUTING.md)
 
-- `k230_sdk`: <https://github.com/kendryte/k230_sdk.git>
-- `micropython`: <https://github.com/micropython/micropython.git>
+## 联系我们
 
-`k230_sdk_overlay`中的目录结构与`k230_sdk`相同, 编译时会将`k230_sdk_overlay`同步到`k230_sdk`
+北京嘉楠捷思信息技术有限公司
 
-## micropython模块添加
+网址:[www.canaan-creative.com](https://www.canaan-creative.com/)
 
-`micropython_port`目录大体如下:
-
-```sh
-micropython_port/
-├── boards
-│   └── k230_evb
-│       └── mpconfigboard.h
-├── CMakeLists.txt
-├── core
-│   ├── coverage.c
-│   ├── coveragecpp.cpp
-│   ├── gccollect.c
-│   ├── input.c
-│   ├── main.c
-│   ├── modmachine.c
-│   ├── modos.c
-│   ├── modtermios.c
-│   ├── modtime.c
-│   ├── mphalport.c
-│   └── mpthreadport.c
-├── include
-│   ├── core
-│   │   ├── input.h
-│   │   ├── mpconfigport.h
-│   │   └── mphalport.h
-│   ├── kpu
-│   ├── machine
-│   ├── maix
-│   ├── mpp
-│   └── omv
-├── Kconfig
-├── kpu
-├── machine
-├── maix
-├── mpp
-└── omv
-```
-
-目录介绍:
-
-1. `boards`: 各种板级配置
-1. `core`: micropython core模块
-1. `machine`: machine模块, 包含GPIO, SPI, IIC, UART, PWM, WDT等
-1. `kpu`: k230 kpu模块, 包含KPU, AI2D
-1. `mpp`: k230 mpp模块, 包含VO, VI, AI, AO, MMZ, VPU, DPU等
-1. `maix`: k230 其他模块, 包含IOMUX, PM等
-1. `omv`: openmv模块
-1. `include`: 各模块头文件
+商务垂询:[salesAI@canaan-creative.com](salesAI@canaan-creative.com)

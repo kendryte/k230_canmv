@@ -7,11 +7,10 @@
 # for more information.
 
 # Build directories
-build/
-build-*/
+output/
+.read*
+.conf
 
 # Python cache files
 __pycache__
-
-.read*
-.sync*
+.vscode/

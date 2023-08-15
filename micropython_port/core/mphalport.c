@@ -24,6 +24,9 @@
  * THE SOFTWARE.
  */
 
+#include <stddef.h>
+#include <stdio.h>
+#include <sys/select.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,6 +50,9 @@
 #include <signal.h>
 
 STATIC void sighandler(int signum) {
+    fprintf(stderr, "get sig(%d), exit\n", signum);
+    exit(0);
+    return;
     if (signum == SIGINT) {
         #if MICROPY_ASYNC_KBD_INTR
         #if MICROPY_PY_THREAD_GIL
@@ -122,26 +128,49 @@ void mp_hal_stdio_mode_orig(void) {
 #endif
 
 int mp_hal_stdin_rx_chr(void) {
-    unsigned char c;
-    ssize_t ret;
-    MP_HAL_RETRY_SYSCALL(ret, read(STDIN_FILENO, &c, 1), {});
-
+    extern int usb_rx(void);
+    char c = usb_rx();
+    fprintf(stderr, "[mpy] stdin rx %d\n", c);
     return c;
 }
 
 void mp_hal_stdout_tx_strn(const char *str, size_t len) {
-    ssize_t ret;
-    MP_HAL_RETRY_SYSCALL(ret, write(STDOUT_FILENO, str, len), {});
+    extern bool ide_dbg_attach(void);
+    if (ide_dbg_attach()) {
+        extern void mpy_stdout_tx(const char* data, size_t size);
+        mpy_stdout_tx(str, len);
+    } else {
+        extern int usb_tx(const void* buffer, size_t size);
+        fprintf(stderr, "[usb] print: ");
+        extern void print_raw(uint8_t* data, size_t size);
+        fwrite(str, 1, len, stderr);
+        fwrite("\r\n", 1, 2, stderr);
+        usb_tx(str, len);
+    }
     mp_os_dupterm_tx_strn(str, len);
 }
 
-// cooked is same as uncooked because the terminal does some postprocessing
+// replace \n to \r\n
 void mp_hal_stdout_tx_strn_cooked(const char *str, size_t len) {
-    mp_hal_stdout_tx_strn(str, len);
+    size_t last_seg = 0;
+
+    for (size_t i = 0; i < len; i++) {
+        if (str[i] == '\n') {
+            mp_hal_stdout_tx_strn(str + last_seg, i - last_seg);
+            mp_hal_stdout_tx_strn("\r\n", 2);
+            last_seg = i + 1;
+        }
+    }
+    if (last_seg < len)
+        mp_hal_stdout_tx_strn(str + last_seg, len - last_seg);
 }
 
 void mp_hal_stdout_tx_str(const char *str) {
     mp_hal_stdout_tx_strn(str, strlen(str));
+}
+
+void mp_hal_stdout_tx_str_cooked(const char* str) {
+    mp_hal_stdout_tx_strn_cooked(str, strlen(str));
 }
 
 #ifndef mp_hal_ticks_ms
