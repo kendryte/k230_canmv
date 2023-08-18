@@ -6,18 +6,14 @@ SHELL=/bin/bash
 BUILD_TYPE ?= product
 NATIVE_BUILD ?= 1
 
-MPP_SRC_DIR="${K230_SDK_ROOT}/src/big/mpp"
-CDK_SRC_DIR="${K230_SDK_ROOT}/src/common/cdk"
-BUILDROOT_EXT_SRC_PATH="src/little/buildroot-ext"
-POST_COPY_ROOTFS_PATH=tools/post_copy_rootfs
-
-#DOWNLOAD_URL=https://ai.b-bug.org/k230
-DOWNLOAD_URL?=https://kendryte-download.canaan-creative.com/k230
-
 ifeq ($(NATIVE_BUILD),1)
+DOWNLOAD_URL=https://ai.b-bug.org/k230
+else
+DOWNLOAD_URL?=https://kendryte-download.canaan-creative.com/k230
+endif
+
 RTT_TOOLCHAIN_URL = $(DOWNLOAD_URL)/toolchain/riscv64-unknown-linux-musl-rv64imafdcv-lp64d-20230420.tar.bz2
 LINUX_TOOLCHAIN_URL = $(DOWNLOAD_URL)/toolchain/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.0.tar.bz2
-endif
 
 export K230_SDK_ROOT := $(shell pwd)
 ifeq ("$(origin CONF)", "command line")
@@ -70,19 +66,13 @@ endef
 .PHONY: all
 all .DEFAULT: prepare_memory mpp rt-smart-apps rt-smart-kernel big-core-opensbi uboot build-image
 
-.PHONY: test_url
-test_url:
-	@source tools/get_download_url.sh
-
-ifeq ($(NATIVE_BUILD),1)
 .PHONY: download_toolchain
-download_toolchain:test_url
+download_toolchain:
 	@set -e; \
 	if [ ! -f toolchain/.toolchain_ready ];then \
 	echo "download toolchain"; \
-	echo $(DOWNLOAD_URL); \
-	wget -qc -P $(K230_SDK_ROOT)/toolchain $(RTT_TOOLCHAIN_URL); \
-	wget -qc -P $(K230_SDK_ROOT)/toolchain $(LINUX_TOOLCHAIN_URL); \
+	wget -c -P $(K230_SDK_ROOT)/toolchain $(RTT_TOOLCHAIN_URL); \
+	wget -c -P $(K230_SDK_ROOT)/toolchain $(LINUX_TOOLCHAIN_URL); \
 	fi;
 
 .PHONY: extract_toolchain
@@ -99,7 +89,6 @@ prepare_toolchain: extract_toolchain
 	touch toolchain/.toolchain_ready; \
 	fi;
 	@echo "toolchain is ready"
-endif
 
 .PHONY: prepare_sourcecode check_toolchain
 prepare_sourcecode:prepare_toolchain
@@ -295,7 +284,6 @@ uboot-clean: defconfig
 
 .PHONY: build-image
 build-image: defconfig  prepare_memory  check_src
-	@export CANMV_BUILD_DIR=${CANMV_BUILD_DIR}
 	mkdir -p $(BUILD_DIR)/images/big-core
 	cp -rf $(RT-SMART_SRC_PATH)/userapps/root $(BUILD_DIR)/images/big-core/
 	cp -f $(RTT_SDK_BUILD_DIR)/rtthread.* $(BUILD_DIR)/images/big-core/

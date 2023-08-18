@@ -9,9 +9,11 @@
 # Build directories
 build/
 build-*/
+output/
 
 # Python cache files
 __pycache__
 
+.vscode/
+
 .read*
-.sync*
