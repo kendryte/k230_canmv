@@ -21,6 +21,10 @@ INC += -I$(TOP)
 INC += -I$(BUILD)
 INC += -I${BOARD_DIR}
 INC += -Iinclude/core
+INC += -Iinclude/machine
+INC += -Iinclude/maix
+INC += -Iinclude/mpp
+INC += -Iinclude/kpu
 
 # compiler settings
 CWARN = -Wall -Werror
@@ -69,6 +73,17 @@ SRC_C += \
 	core/mphalport.c \
 	core/input.c \
 	$(wildcard $(BOARD_DIR)/*.c)
+
+MACHINE_SRC_C = $(wildcard machine/*.c)
+MAIX_SRC_C = $(wildcard maix/*.c)
+MPP_SRC_C = $(wildcard mpp/*.c)
+KPU_SRC_C = $(wildcard kpu/*.c)
+
+SRC_C += \
+	${MACHINE_SRC_C} \
+	${MAIX_SRC_C} \
+	${MPP_SRC_C} \
+	${KPU_SRC_C}
 
 SHARED_SRC_C += $(addprefix shared/,\
 	runtime/gchelper_generic.c \
