@@ -33,7 +33,7 @@ endif # end ifeq (${MAKECMDGOALS}, fast_dl)
 k230_sdk_clean_exclude_file = \
 	-e toolchain \
 	-e output \
-	-e src\.src_fetched \
+	-e src/.src_fetched \
 	-e src/big/rt-smart/kernel/bsp/maix3/.sconsign.dblite \
 	-e src/big/rt-smart/userapps/.sconsign.dblite
 
