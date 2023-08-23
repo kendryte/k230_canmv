@@ -21,17 +21,16 @@ sudo make install
 ```sh
 git clone k230_canmv
 cd k230_canmv
-cmake -B build
-make -C build
+make prepare_sourcecode
+make
 ```
 
-编译完成后会在`build/images`目录下生成`sysimage-sdcard.img`镜像
+编译完成后会在`output/k230_evb_defconfig/images`目录下生成`sysimage-sdcard.img`镜像
 
 ## 项目结构
 
 ```sh
 k230_canmv/
-├── cmake
 ├── configs
 ├── k230_sdk
 ├── k230_sdk_overlay
@@ -42,7 +41,6 @@ k230_canmv/
 
 目录介绍:
 
-1. `cmake`: cmake脚本
 1. `configs`: 各种板级配置
 1. `k230_sdk`: k230_sdk源码
 1. `k230_sdk_overlay`: 基于k230源码的修改
@@ -66,7 +64,6 @@ micropython_port/
 ├── boards
 │   └── k230_evb
 │       └── mpconfigboard.h
-├── CMakeLists.txt
 ├── core
 │   ├── coverage.c
 │   ├── coveragecpp.cpp

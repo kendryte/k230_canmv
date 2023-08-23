@@ -31,11 +31,7 @@
 
 // For size_t and ssize_t
 #include <unistd.h>
-
-// Variant-specific definitions.
 #include "mpconfigboard.h"
-#include "autoconf.h"
-
 
 #ifndef MICROPY_CONFIG_ROM_LEVEL
 #define MICROPY_CONFIG_ROM_LEVEL (MICROPY_CONFIG_ROM_LEVEL_EVERYTHING)

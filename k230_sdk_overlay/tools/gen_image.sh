@@ -339,7 +339,7 @@ gen_rtt_bin;
 gen_env_bin;
 
 mkdir -p ${BUILD_DIR}/images/big-core/app
-cp ${CANMV_BUILD_DIR}/images/app/*   ${BUILD_DIR}/images/big-core/app
+cp ${K230_CANMV_BUILD_DIR}/images/app/*   ${BUILD_DIR}/images/big-core/app
 # cp ${K230_SDK_ROOT}/src/big/mpp/userapps/sample/elf/*   ${BUILD_DIR}/images/big-core/app
 # cp ${K230_SDK_ROOT}/src/common/cdk/user/out/big/*  ${BUILD_DIR}/images/big-core/app
 
@@ -362,7 +362,7 @@ fi
 
 cd  ${BUILD_DIR}/images/
 rm -rf  sysimage-sdcard_aes.img  sysimage-sdcard_sm.img  *.vfat
-cp sysimage-sdcard.img ${CANMV_BUILD_DIR}/images/
+cp sysimage-sdcard.img ${K230_CANMV_BUILD_DIR}/images/
 
 
 
