@@ -246,7 +246,7 @@ STATIC mp_obj_t machine_pwm_enable(mp_obj_t self_o, mp_obj_t enable) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(machine_pwm_enable_obj, machine_pwm_enable);
 
 STATIC const mp_rom_map_elem_t machine_pwm_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&machine_pwm_deinit_obj) },
+    { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&machine_pwm_deinit_obj) },
     { MP_ROM_QSTR(MP_QSTR_freq), MP_ROM_PTR(&machine_pwm_freq_obj) },
     { MP_ROM_QSTR(MP_QSTR_duty), MP_ROM_PTR(&machine_pwm_duty_obj) },
     { MP_ROM_QSTR(MP_QSTR_enable), MP_ROM_PTR(&machine_pwm_enable_obj) },
