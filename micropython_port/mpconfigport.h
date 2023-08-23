@@ -99,10 +99,6 @@ typedef long long mp_off_t;
 #define MICROPY_COMP_CONST (0)
 #endif
 
-// Unix-specific configuration of machine.mem*.
-#define MICROPY_MACHINE_MEM_GET_READ_ADDR   mod_machine_mem_get_addr
-#define MICROPY_MACHINE_MEM_GET_WRITE_ADDR  mod_machine_mem_get_addr
-
 // #define MICROPY_FATFS_ENABLE_LFN       (1)
 // #define MICROPY_FATFS_RPATH            (2)
 // #define MICROPY_FATFS_MAX_SS           (4096)
@@ -303,5 +299,4 @@ static inline unsigned long mp_random_seed_init(void) {
 #define MICROPY_PY_WEBSOCKET           (0)
 
 // Enable the "machine" module, mostly for machine.mem*.
-#define MICROPY_PY_MACHINE             (0)
-#define MICROPY_PY_MACHINE_PULSE       (1)
+#define MICROPY_PY_MACHINE             (1)

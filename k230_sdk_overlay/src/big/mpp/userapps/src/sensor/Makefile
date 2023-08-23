@@ -16,7 +16,7 @@ YMLS = $(wildcard $(LOCAL_SRC_DIR)/dewarp/*.yml)
 DWCFGS = $(patsubst %.yml,%.bin,$(YMLS))
 
 all: $(LIB) $(DWCFGS)
-	@-rm -f $(OBJS)
+	# @-rm -f $(OBJS)
 	# mkdir -p $(RTSMART_SRC_DIR)/userapps/root/bin/
 	# cp $(PWD)/config/* $(RTSMART_SRC_DIR)/userapps/root/bin/
 	# cp $(PWD)/dewarp/*.bin $(RTSMART_SRC_DIR)/userapps/root/bin/
