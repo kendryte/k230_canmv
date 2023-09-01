@@ -73,4 +73,5 @@ build-image: micropython
 	@make -C k230_sdk rt-smart-apps
 	@make -C k230_sdk big-core-opensbi
 	@make -C k230_sdk uboot
+	@cp -r tests ${K230_CANMV_BUILD_DIR}/images/app
 	@make -C k230_sdk build-image

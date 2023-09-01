@@ -6,6 +6,11 @@ SHELL=/bin/bash
 BUILD_TYPE ?= product
 NATIVE_BUILD ?= 1
 
+MPP_SRC_DIR="${K230_SDK_ROOT}/src/big/mpp"
+CDK_SRC_DIR="${K230_SDK_ROOT}/src/common/cdk"
+BUILDROOT_EXT_SRC_PATH="src/little/buildroot-ext"
+POST_COPY_ROOTFS_PATH=board/common/post_copy_rootfs
+
 ifeq ($(NATIVE_BUILD),1)
 DOWNLOAD_URL=https://ai.b-bug.org/k230
 else
@@ -17,16 +22,13 @@ LINUX_TOOLCHAIN_URL = $(DOWNLOAD_URL)/toolchain/Xuantie-900-gcc-linux-5.10.4-gli
 
 export K230_SDK_ROOT := $(shell pwd)
 ifeq ("$(origin CONF)", "command line")
-$(shell echo CONF=$(CONF)>.last_conf;)
+$(shell echo CONF=$(CONF)>.last_conf;cp configs/$(CONF) .config)
 else
-$(shell [ -f .last_conf ] || echo CONF=k230_evb_defconfig>.last_conf )
+$(shell [ -f .last_conf ] || ( echo CONF=k230_evb_defconfig>.last_conf; cp configs/$(CONF) .config ) )
 endif
 
-ifneq ($(wildcard .last_conf),)
+
 include .last_conf
-endif
-
-CONF ?= k230_evb_defconfig
 export BUILD_DIR := $(K230_SDK_ROOT)/output/$(CONF)
 
 DEFCONFIG = configs/$(CONF)
@@ -46,7 +48,6 @@ export MPP_SRC_DIR=$(K230_SDK_ROOT)/$(MPP_SRC_PATH)
 KCONFIG_PATH= tools/kconfig/
 KCONFIG_MCONF_EXE = tools/kconfig/mconf
 KCONFIG_CFG = Kconfig
-
 
 
 define CLEAN
@@ -96,8 +97,8 @@ prepare_sourcecode:prepare_toolchain
 #ai
 	@echo "download nncase sdk"
 	@rm -rf src/big/utils/; rm -rf src/big/ai;
-	@wget -qc $(DOWNLOAD_URL)/downloads/kmodel/kmodel_v2.1.0.tgz -O - | tar -xzC src/big/
-	@wget -qc $(DOWNLOAD_URL)/downloads/nncase/nncase_k230_v2.1.0.tgz -O - | tar -xzC src/big/
+	@wget -qc $(DOWNLOAD_URL)/downloads/kmodel/kmodel_v2.3.0.tgz -O - | tar -xzC src/big/
+	@wget -qc $(DOWNLOAD_URL)/downloads/nncase/nncase_k230_v2.3.0.tgz -O - | tar -xzC src/big/
 
 #big utils
 	@echo "download big utils"
@@ -144,10 +145,12 @@ prepare_memory: defconfig  .config  tools/menuconfig_to_code.sh  parse.mak
 	@if [ ! -f tools/kconfig/conf ];then cd $(KCONFIG_PATH);make  conf;cd -;fi
 	@mkdir -p  include/generated/  include/config/;
 	@./tools/kconfig/conf --silentoldconfig  --olddefconfig $(KCONFIG_CFG)
-	@cp include/generated/autoconf.h src/little/uboot/board/canaan/k230_evb/sdk_autoconf.h
+	@cp include/generated/autoconf.h src/little/uboot/board/canaan/common/sdk_autoconf.h
+	@cp include/generated/autoconf.h src/big/mpp/include/comm/k_autoconf_comm.h
+
 #	#@cp include/generated/autoconf.h src/little/buildroot-ext/package/feature_opreation/src/sdk_autoconf.h
 	@rm -rf include;
-	@$(call CONFIG_MEM_RTT)
+	@./tools/menuconfig_to_code.sh
 	@touch $@
 
 .PHONY: mpp-kernel
@@ -197,10 +200,10 @@ rt-smart-apps: defconfig prepare_memory  check_src
 	export RTT_EXEC_PATH=$(RTT_EXEC_PATH); \
 	cp -rf $(UNITTEST_SRC_PATH)/testcases $(RT-SMART_SRC_PATH)/userapps; \
 	cd $(RT-SMART_SRC_PATH)/userapps; \
+	mkdir -p $(RTSMART_SRC_DIR)/userapps/root; \
 	cp configs/def_config_riscv64 .config; \
 	scons -j16 || exit $?; \
 	cd -;
-	mkdir -p $(RT-SMART_SRC_PATH)/userapps/root;
 	python3 $(RT-SMART_SRC_PATH)/tools/mkromfs.py $(RT-SMART_SRC_PATH)/userapps/root $(RT-SMART_SRC_PATH)/kernel/bsp/maix3/applications/romfs.c
 
 .PHONY: rt-smart-apps-clean
@@ -235,6 +238,23 @@ big-core-opensbi: rt-smart-kernel
 	export CROSS_COMPILE=$(LINUX_EXEC_PATH)/$(LINUX_CC_PREFIX); \
 	export PLATFORM=kendryte/fpgac908; \
 	make FW_FDT_PATH=hw.dtb FW_PAYLOAD_PATH=rtthread.bin O=$(BIG_OPENSBI_BUILD_DIR) OPENSBI_QUIET=1 || exit $?; \
+	cd -
+rtt_update_romfs: 
+	@export RTT_CC=$(RTT_CC); \
+	export RTT_CC_PREFIX=$(RTT_CC_PREFIX); \
+	export RTT_EXEC_PATH=$(RTT_EXEC_PATH); \
+	cd $(RT-SMART_SRC_PATH)/kernel/bsp/maix3; \
+	rm -f rtthread.elf; \
+	scons   -j16    || exit $?; \
+	mkdir -p $(RTT_SDK_BUILD_DIR); \
+	cp rtthread.bin rtthread.elf $(RTT_SDK_BUILD_DIR)/; \
+	cd -;
+	@mkdir -p $(BIG_OPENSBI_BUILD_DIR); \
+	cp $(RT-SMART_SRC_PATH)/kernel/bsp/maix3/rtthread.bin $(OPENSBI_SRC_PATH)/; \
+	cd $(OPENSBI_SRC_PATH); \
+	export CROSS_COMPILE=$(LINUX_EXEC_PATH)/$(LINUX_CC_PREFIX); \
+	export PLATFORM=kendryte/fpgac908; \
+	$(MAKE) FW_FDT_PATH=hw.dtb FW_PAYLOAD_PATH=rtthread.bin O=$(BIG_OPENSBI_BUILD_DIR) OPENSBI_QUIET=1 || exit $?; \
 	cd -
 
 .PHONY: big-core-opensbi-clean
@@ -288,7 +308,7 @@ build-image: defconfig  prepare_memory  check_src
 	cp -rf $(RT-SMART_SRC_PATH)/userapps/root $(BUILD_DIR)/images/big-core/
 	cp -f $(RTT_SDK_BUILD_DIR)/rtthread.* $(BUILD_DIR)/images/big-core/
 	cp -rf $(BIG_OPENSBI_BUILD_DIR)/ $(BUILD_DIR)/images/big-core/
-	$(K230_SDK_ROOT)/tools/gen_image.sh; \
+	$(K230_SDK_ROOT)/$(CONFIG_GEN_IMG_SCRIPT)
 	cd $(K230_SDK_ROOT)
 
 .PHONY: clean
