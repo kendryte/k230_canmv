@@ -24,40 +24,27 @@
  */
 
 #include <stdio.h>
-#include <stdint.h>
-
-#include "py/runtime.h"
-#include "py/obj.h"
-
-#include "extmod/machine_mem.h"
-#include "machine_pwm.h"
-
-#if MICROPY_PY_MACHINE
-
-#if MICROPY_PLAT_DEV_MEM
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#define MICROPY_PAGE_SIZE 4096
-#define MICROPY_PAGE_MASK (MICROPY_PAGE_SIZE - 1)
-#endif
+#include "py/runtime.h"
+#include "py/mphal.h"
+#include "mpi_vo_api.h"
 
-STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_machine) },
+#define FUNC_IMPL
+#define FUNC_FILE "vo_func_def.h"
+#include "func_def.h"
 
-    { MP_ROM_QSTR(MP_QSTR_mem8), MP_ROM_PTR(&machine_mem8_obj) },
-    { MP_ROM_QSTR(MP_QSTR_mem16), MP_ROM_PTR(&machine_mem16_obj) },
-    { MP_ROM_QSTR(MP_QSTR_mem32), MP_ROM_PTR(&machine_mem32_obj) },
-    { MP_ROM_QSTR(MP_QSTR_PWM), MP_ROM_PTR(&machine_pwm_type) },
+STATIC const mp_rom_map_elem_t vo_api_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_vo_api) },
+#define FUNC_ADD
+#define FUNC_FILE "vo_func_def.h"
+#include "func_def.h"
 };
+STATIC MP_DEFINE_CONST_DICT(vo_api_locals_dict, vo_api_locals_dict_table);
 
-STATIC MP_DEFINE_CONST_DICT(machine_module_globals, machine_module_globals_table);
-
-const mp_obj_module_t mp_module_machine = {
+const mp_obj_module_t mp_module_vo_api = {
     .base = { &mp_type_module },
-    .globals = (mp_obj_dict_t *)&machine_module_globals,
+    .globals = (mp_obj_dict_t *)&vo_api_locals_dict,
 };
-
-MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_machine, mp_module_machine);
-
-#endif // MICROPY_PY_MACHINE
