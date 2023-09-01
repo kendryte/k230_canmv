@@ -8,6 +8,7 @@ BUILD = ${K230_CANMV_BUILD_DIR}/micropython
 include ../micropython/py/mkenv.mk
 
 # Use the default frozen manifest, variants may override this.
+FROZEN_MANIFEST ?= ${BOARD_DIR}/manifest.py
 
 # This should be configured by the mpconfigvariant.mk
 PROG ?= micropython
@@ -25,6 +26,10 @@ INC += -Iinclude/machine
 INC += -Iinclude/maix
 INC += -Iinclude/mpp
 INC += -Iinclude/kpu
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/comm
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/ioctl
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/api
 
 # compiler settings
 CWARN = -Wall -Werror
@@ -51,6 +56,11 @@ CFLAGS += -g
 LDFLAGS_ARCH = -Wl,-Map=$@.map,--cref -Wl,--gc-sections
 LDFLAGS += -T core/link.lds --static
 LDFLAGS += $(LDFLAGS_MOD) $(LDFLAGS_ARCH) -lm $(LDFLAGS_EXTRA)
+
+LDFLAGS_MPP = -L$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/lib \
+	-lvo -lsys
+
+LDFLAGS += $(LDFLAGS_MPP)
 
 # Flags to link with pthread library
 LIBPTHREAD = -lpthread
@@ -104,10 +114,6 @@ SRC_QSTR += $(SRC_C) $(SRC_CXX) $(SHARED_SRC_C)
 # Append any auto-generated sources that are needed by sources listed in
 # SRC_QSTR
 SRC_QSTR_AUTO_DEPS +=
-
-ifneq ($(FROZEN_MANIFEST),)
-CFLAGS += -DMPZ_DIG_SIZE=16 # force 16 bits to work on both 32 and 64 bit archs
-endif
 
 CXXFLAGS += $(filter-out -Wmissing-prototypes -Wold-style-definition -std=gnu99,$(CFLAGS) $(CXXFLAGS_MOD))
 
