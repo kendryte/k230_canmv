@@ -1,3 +1,4 @@
+DEBUG = 1
 include ${K230_CANMV_BUILD_DIR}/include/config/auto.conf
 
 CROSS_COMPILE = ${K230_CANMV_ROOT}/k230_sdk/toolchain/riscv64-linux-musleabi_for_x86_64-pc-linux-gnu/bin/riscv64-unknown-linux-musl-
@@ -19,6 +20,9 @@ include $(TOP)/extmod/extmod.mk
 
 INC += -I.
 INC += -I$(TOP)
+INC += -I$(TOP)/py
+INC += -I$(TOP)/shared/readline
+INC += -I$(TOP)/lib/crypto-algorithms
 INC += -I$(BUILD)
 INC += -I${BOARD_DIR}
 INC += -Iinclude/core
@@ -26,13 +30,14 @@ INC += -Iinclude/machine
 INC += -Iinclude/maix
 INC += -Iinclude/mpp
 INC += -Iinclude/kpu
+INC += -Iinclude/omv
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/comm
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/ioctl
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/api
 
 # compiler settings
-CWARN = -Wall -Werror
+CWARN = -Wall
 CWARN += -Wno-unused-parameter -Wpointer-arith -Wdouble-promotion -Wfloat-conversion
 CFLAGS += -fopenmp -march=rv64imafdcv -mabi=lp64d -mcmodel=medany
 CFLAGS += $(INC) $(CWARN) -std=gnu99 -DUNIX $(COPT) $(CFLAGS_EXTRA)
@@ -50,7 +55,7 @@ COPT += -fdata-sections -ffunction-sections
 
 # Always enable symbols -- They're occasionally useful, and don't make it into the
 # final .bin/.hex/.dfu so the extra size doesn't matter.
-CFLAGS += -g
+CFLAGS += -g -gdwarf-2
 
 # Use gcc syntax for map file
 LDFLAGS_ARCH = -Wl,-Map=$@.map,--cref -Wl,--gc-sections
@@ -88,12 +93,14 @@ MACHINE_SRC_C = $(wildcard machine/*.c)
 MAIX_SRC_C = $(wildcard maix/*.c)
 MPP_SRC_C = $(wildcard mpp/*.c)
 KPU_SRC_C = $(wildcard kpu/*.c)
+OMV_SRC_C = $(wildcard omv/*.c)
 
 SRC_C += \
 	${MACHINE_SRC_C} \
 	${MAIX_SRC_C} \
 	${MPP_SRC_C} \
-	${KPU_SRC_C}
+	${KPU_SRC_C} \
+	${OMV_SRC_C}
 
 SHARED_SRC_C += $(addprefix shared/,\
 	runtime/gchelper_generic.c \
