@@ -18,7 +18,6 @@ fast_dl:
 	@set -e; \
 	if [ ! -f k230_sdk_overlay/.ready_dl_src ]; then \
 		echo "download k230_sdk"; \
-		wget -c ${k230_sdk_download_url} -O - | tar -xz ; \
 		touch k230_sdk_overlay/.ready_dl_src; \
 	fi; \
 	if [ ! -f micropython_port/.ready_dl_src ]; then \

@@ -10,6 +10,8 @@ include ../micropython/py/mkenv.mk
 
 # Use the default frozen manifest, variants may override this.
 FROZEN_MANIFEST ?= ${BOARD_DIR}/manifest.py
+include boards/mpconfigport.mk
+-include ${BOARD_DIR}/mpconfigport.mk
 
 # This should be configured by the mpconfigvariant.mk
 PROG ?= micropython

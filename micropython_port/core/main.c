@@ -729,21 +729,6 @@ MP_NOINLINE int main_(int argc, char **argv) {
                 return invalid_args();
             }
         } else {
-            char *pathbuf = malloc(PATH_MAX);
-            char *basedir = realpath(argv[a], pathbuf);
-            if (basedir == NULL) {
-                mp_printf(&mp_stderr_print, "%s: can't open file '%s': [Errno %d] %s\n", argv[0], argv[a], errno, strerror(errno));
-                free(pathbuf);
-                // CPython exits with 2 in such case
-                ret = 2;
-                break;
-            }
-
-            // Set base dir of the script as first entry in sys.path.
-            char *p = strrchr(basedir, '/');
-            mp_obj_list_store(mp_sys_path, MP_OBJ_NEW_SMALL_INT(0), mp_obj_new_str_via_qstr(basedir, p - basedir));
-            free(pathbuf);
-
             set_sys_argv(argv, argc, a);
             ret = do_file(argv[a]);
             break;
