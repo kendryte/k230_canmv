@@ -60,15 +60,9 @@ typedef long long mp_off_t;
 #endif
 
 #define MICROPY_USE_READLINE        (1)
-
 // Always enable GC.
 #define MICROPY_ENABLE_GC           (1)
-
-#if !(defined(MICROPY_GCREGS_SETJMP) || defined(__x86_64__) || defined(__i386__) || defined(__thumb2__) || defined(__thumb__) || defined(__arm__))
-// Fall back to setjmp() implementation for discovery of GC pointers in registers.
-#define MICROPY_GCREGS_SETJMP (1)
-#endif
-
+#define MICROPY_GCREGS_SETJMP       (1)
 // Enable the VFS, and enable the posix "filesystem".
 #define MICROPY_ENABLE_FINALISER    (1)
 #define MICROPY_VFS                 (1)
@@ -79,32 +73,27 @@ typedef long long mp_off_t;
 #ifndef MICROPY_TRACKED_ALLOC
 #define MICROPY_TRACKED_ALLOC       (0)
 #endif
-
 // VFS stat functions should return time values relative to 1970/1/1
 #define MICROPY_EPOCH_IS_1970       (1)
-
 // Assume that select() call, interrupted with a signal, and erroring
 // with EINTR, updates remaining timeout value.
 #define MICROPY_SELECT_REMAINING_TIME (1)
-
 // Disable stackless by default.
 #ifndef MICROPY_STACKLESS
 #define MICROPY_STACKLESS           (0)
 #define MICROPY_STACKLESS_STRICT    (0)
 #endif
-
 // If settrace is enabled then we need code saving.
 #if MICROPY_PY_SYS_SETTRACE
 #define MICROPY_PERSISTENT_CODE_SAVE (1)
 #define MICROPY_COMP_CONST (0)
 #endif
 
-// #define MICROPY_FATFS_ENABLE_LFN       (1)
-// #define MICROPY_FATFS_RPATH            (2)
-// #define MICROPY_FATFS_MAX_SS           (4096)
-// #define MICROPY_FATFS_LFN_CODE_PAGE    437 /* 1=SFN/ANSI 437=LFN/U.S.(OEM) */
-
 #define MICROPY_ALLOC_PATH_MAX      (PATH_MAX)
+#define MICROPY_PY_HASHLIB_MD5      (1)
+#define MICROPY_PY_HASHLIB_SHA1     (1)
+#define MICROPY_PY_HASHLIB_SHA256   (1)
+#define MICROPY_PY_SELECT           (1)
 
 // Ensure builtinimport.c works with -m.
 #define MICROPY_MODULE_OVERRIDE_MAIN_IMPORT (1)
@@ -146,20 +135,6 @@ static inline unsigned long mp_random_seed_init(void) {
 }
 #endif
 
-#ifdef __linux__
-// Can access physical memory using /dev/mem
-#define MICROPY_PLAT_DEV_MEM  (1)
-#endif
-
-#ifdef __ANDROID__
-#include <android/api-level.h>
-#if __ANDROID_API__ < 4
-// Bionic libc in Android 1.5 misses these 2 functions
-#define MP_NEED_LOG2 (1)
-#define nan(x) NAN
-#endif
-#endif
-
 // From "man readdir": "Under glibc, programs can check for the availability
 // of the fields [in struct dirent] not defined in POSIX.1 by testing whether
 // the macros [...], _DIRENT_HAVE_D_TYPE are defined."
@@ -174,10 +149,7 @@ static inline unsigned long mp_random_seed_init(void) {
 #define _DIRENT_HAVE_D_INO (1)
 #endif
 
-#ifndef __APPLE__
-// For debugging purposes, make printf() available to any source file.
 #include <stdio.h>
-#endif
 
 // If threading is enabled, configure the atomic section.
 #if MICROPY_PY_THREAD
@@ -267,12 +239,12 @@ static inline unsigned long mp_random_seed_init(void) {
 #define MICROPY_PY_SYS_EXC_INFO        (1)
 
 // Configure the "os" module with extra unix features.
-// #define MICROPY_PY_OS_INCLUDEFILE      "ports/unix/modos.c"
-// #define MICROPY_PY_OS_ERRNO            (1)
-// #define MICROPY_PY_OS_GETENV_PUTENV_UNSETENV (1)
-// #define MICROPY_PY_OS_SEP              (1)
-// #define MICROPY_PY_OS_SYSTEM           (1)
-// #define MICROPY_PY_OS_URANDOM          (1)
+#define MICROPY_PY_OS_INCLUDEFILE      "core/modos.c"
+#define MICROPY_PY_OS_ERRNO            (1)
+#define MICROPY_PY_OS_GETENV_PUTENV_UNSETENV (1)
+#define MICROPY_PY_OS_SEP              (1)
+#define MICROPY_PY_OS_SYSTEM           (1)
+#define MICROPY_PY_OS_URANDOM          (0)
 
 // Enable the unix-specific "time" module.
 #define MICROPY_PY_TIME                (0)
@@ -286,14 +258,7 @@ static inline unsigned long mp_random_seed_init(void) {
 #define MICROPY_PY_CRYPTOLIB           (1)
 #endif
 
-// Use the posix implementation of the "select" module (unless the variant
-// specifically asks for the MicroPython version).
-#ifndef MICROPY_PY_SELECT
-#define MICROPY_PY_SELECT              (0)
-#endif
-#ifndef MICROPY_PY_SELECT_POSIX
-#define MICROPY_PY_SELECT_POSIX        (!MICROPY_PY_SELECT)
-#endif
+
 
 // Enable the "websocket" module.
 #define MICROPY_PY_WEBSOCKET           (0)
