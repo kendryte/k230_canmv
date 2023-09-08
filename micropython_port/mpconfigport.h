@@ -247,10 +247,10 @@ static inline unsigned long mp_random_seed_init(void) {
 #define MICROPY_PY_OS_URANDOM          (0)
 
 // Enable the unix-specific "time" module.
-#define MICROPY_PY_TIME                (0)
+#define MICROPY_PY_TIME                (1)
 #define MICROPY_PY_TIME_TIME_TIME_NS   (1)
 #define MICROPY_PY_TIME_CUSTOM_SLEEP   (1)
-#define MICROPY_PY_TIME_INCLUDEFILE    "ports/unix/modtime.c"
+#define MICROPY_PY_TIME_INCLUDEFILE    "core/modtime.c"
 
 #if MICROPY_PY_SSL
 #define MICROPY_PY_HASHLIB_MD5         (1)

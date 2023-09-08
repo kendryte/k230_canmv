@@ -1,15 +1,10 @@
 from mpp.vo import *
 from mpp import *
+from time import *
 
 def display_hardware_init():
     kd_display_set_backlight()
     kd_display_reset()
-
-def usleep(n):
-    n = n * 4
-    count = 0
-    while (count < n):
-        count = count + 1
 
 hx8399 = k_vo_display_resolution(
     pclk = 74250,
@@ -72,9 +67,9 @@ def hx8399_v2_init(test_mode_en):
     kd_mpi_dsi_send_cmd(param16, len(param16))
     kd_mpi_dsi_send_cmd(param22, len(param22))
     kd_mpi_dsi_send_cmd(param23, 1)
-    usleep(300000)
+    sleep_ms(300)
     kd_mpi_dsi_send_cmd(param24, 1)
-    usleep(100000)
+    sleep_ms(100)
 
 def dwc_dsi_lpmode_test():
     enable = 1
@@ -185,7 +180,7 @@ def vo_background_init():
 
 def test_case(index):
     display_hardware_init()
-    usleep(200000)
+    sleep_ms(200)
 
     if (index == 0):
         print("DISPLAY_DSI_LP_MODE_TEST ------------------ \n");
