@@ -62,25 +62,18 @@ CFLAGS += -g -gdwarf-2
 # Use gcc syntax for map file
 LDFLAGS_ARCH = -Wl,-Map=$@.map,--cref -Wl,--gc-sections
 LDFLAGS += -T core/link.lds --static
-LDFLAGS += $(LDFLAGS_MOD) $(LDFLAGS_ARCH) -lm $(LDFLAGS_EXTRA)
+LDFLAGS += $(LDFLAGS_MOD) $(LDFLAGS_ARCH) -lm  -lpthread $(LDFLAGS_EXTRA)
 
 LDFLAGS_MPP = -L$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/lib \
 	-lvo -lsys
 
 LDFLAGS += $(LDFLAGS_MPP)
 
-# Flags to link with pthread library
-LIBPTHREAD = -lpthread
-
 ifeq ($(MICROPY_PY_TERMIOS),1)
 CFLAGS += -DMICROPY_PY_TERMIOS=1
 endif
 ifeq ($(MICROPY_PY_SOCKET),1)
 CFLAGS += -DMICROPY_PY_SOCKET=1
-endif
-ifeq ($(MICROPY_PY_THREAD),1)
-CFLAGS += -DMICROPY_PY_THREAD=1 -DMICROPY_PY_THREAD_GIL=0
-LDFLAGS += $(LIBPTHREAD)
 endif
 
 # source files
@@ -89,6 +82,7 @@ SRC_C += \
 	core/gccollect.c \
 	core/mphalport.c \
 	core/input.c \
+	core/mpthreadport.c \
 	$(wildcard $(BOARD_DIR)/*.c)
 
 MACHINE_SRC_C = $(wildcard machine/*.c)

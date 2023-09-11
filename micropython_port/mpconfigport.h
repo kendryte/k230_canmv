@@ -94,6 +94,8 @@ typedef long long mp_off_t;
 #define MICROPY_PY_HASHLIB_SHA1     (1)
 #define MICROPY_PY_HASHLIB_SHA256   (1)
 #define MICROPY_PY_SELECT           (1)
+#define MICROPY_PY_THREAD           (1)
+#define MICROPY_PY_OS_DUPTERM       (1)
 
 // Ensure builtinimport.c works with -m.
 #define MICROPY_MODULE_OVERRIDE_MAIN_IMPORT (1)
@@ -171,17 +173,9 @@ static inline unsigned long mp_random_seed_init(void) {
 #include <sched.h>
 #define MICROPY_UNIX_MACHINE_IDLE sched_yield();
 
-#ifndef MICROPY_PY_BLUETOOTH_ENABLE_CENTRAL_MODE
-#define MICROPY_PY_BLUETOOTH_ENABLE_CENTRAL_MODE (1)
-#endif
-
-#ifndef MICROPY_PY_BLUETOOTH_ENABLE_L2CAP_CHANNELS
-#define MICROPY_PY_BLUETOOTH_ENABLE_L2CAP_CHANNELS (MICROPY_BLUETOOTH_NIMBLE)
-#endif
-
 // Send raise KeyboardInterrupt directly from the signal handler rather than
 // scheduling it into the VM.
-#define MICROPY_ASYNC_KBD_INTR         (1)
+#define MICROPY_ASYNC_KBD_INTR         (0)
 
 // Enable helpers for printing debugging information.
 #ifndef MICROPY_DEBUG_PRINTERS

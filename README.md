@@ -4,7 +4,19 @@
 
 ### 参考K230_SDK编译环境
 
-### 安装genimage
+#### docker环境
+
+```sh
+docker pull ai.b-bug.org:5000/k230_sdk:latest
+cd /path/to/k230_canmv
+docker run -u root -it -v $(pwd):$(pwd) -v $(pwd)/k230_sdk/toolchain:/opt/toolchain -w $(pwd) ai.b-bug.org:5000/k230_sdk /bin/bash
+```
+
+#### 本地环境
+
+参考K230_SDK本地编译环境搭建
+
+##### 安装genimage
 
 ```sh
 sudo apt-get install libconfuse-dev
@@ -21,6 +33,7 @@ sudo make install
 ```sh
 git clone k230_canmv
 cd k230_canmv
+# 启动docker环境(可选)
 make prepare_sourcecode
 make
 ```
