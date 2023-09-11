@@ -145,6 +145,7 @@ void mp_hal_stdout_tx_strn(const char *str, size_t len) {
         fwrite("\r\n", 1, 2, stderr);
         usb_tx(str, len);
     }
+    mp_os_dupterm_tx_strn(str, len);
 }
 
 // replace \n to \r\n
