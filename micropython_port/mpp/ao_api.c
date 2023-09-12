@@ -30,21 +30,21 @@
 #include <errno.h>
 #include "py/runtime.h"
 #include "py/obj.h"
-#include "mpi_vb_api.h"
+#include "mpi_ao_api.h"
 
 #define FUNC_IMPL
-#define FUNC_FILE "vb_func_def.h"
+#define FUNC_FILE "ao_func_def.h"
 #include "func_def.h"
 
-STATIC const mp_rom_map_elem_t vb_api_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_vb_api) },
+STATIC const mp_rom_map_elem_t ao_api_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_ao_api) },
 #define FUNC_ADD
-#define FUNC_FILE "vb_func_def.h"
+#define FUNC_FILE "ao_func_def.h"
 #include "func_def.h"
 };
-STATIC MP_DEFINE_CONST_DICT(vb_api_locals_dict, vb_api_locals_dict_table);
+STATIC MP_DEFINE_CONST_DICT(ao_api_locals_dict, ao_api_locals_dict_table);
 
-const mp_obj_module_t mp_module_vb_api = {
+const mp_obj_module_t mp_module_ao_api = {
     .base = { &mp_type_module },
-    .globals = (mp_obj_dict_t *)&vb_api_locals_dict,
+    .globals = (mp_obj_dict_t *)&ao_api_locals_dict,
 };

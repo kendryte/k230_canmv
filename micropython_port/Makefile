@@ -40,7 +40,7 @@ INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/api
 
 # compiler settings
 CWARN = -Wall
-CWARN += -Wno-unused-parameter -Wpointer-arith -Wdouble-promotion -Wfloat-conversion
+CWARN += -Wno-unused-parameter -Wpointer-arith -Wdouble-promotion -Wfloat-conversion -Wno-int-conversion
 CFLAGS += -fopenmp -march=rv64imafdcv -mabi=lp64d -mcmodel=medany
 CFLAGS += $(INC) $(CWARN) -std=gnu99 -DUNIX $(COPT) $(CFLAGS_EXTRA)
 

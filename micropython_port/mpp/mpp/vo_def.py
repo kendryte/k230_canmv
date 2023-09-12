@@ -339,12 +339,3 @@ k_vo_phyaddr_desc = {
 def k_vo_phyaddr_parse(s, kwargs):
     s.layer = kwargs.get("layer", 0)
     s.phy_addr = kwargs.get("phy_addr", 0)
-
-# k_vo_chn_vf_info_desc = {
-# chn_num
-# timeout_ms
-# info
-# }
-
-# def k_vo_chn_vf_info_parse(s, kwargs):
-

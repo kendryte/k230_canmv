@@ -29,7 +29,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include "py/runtime.h"
-#include "py/mphal.h"
+#include "py/obj.h"
 #include "mpi_sys_api.h"
 
 #define FUNC_IMPL_MMZ_ALLOC(x)                                          \
@@ -37,7 +37,7 @@ STATIC mp_obj_t _##x(size_t n_args, const mp_obj_t *args) {             \
     mp_buffer_info_t bufinfo[2];                                        \
     mp_get_buffer_raise(args[0], &bufinfo[0], MP_BUFFER_READ);          \
     mp_get_buffer_raise(args[1], &bufinfo[1], MP_BUFFER_READ);          \
-    size_t ret = x((k_u64 *)(bufinfo[0].buf), (k_u64 *)(bufinfo[1].buf),\
+    size_t ret = x((k_u64 *)(bufinfo[0].buf), (void **)(bufinfo[1].buf),\
         mp_obj_str_get_str(args[2]), mp_obj_str_get_str(args[3]),       \
         mp_obj_get_int(args[4]));                                       \
     return mp_obj_new_int(ret);                                         \

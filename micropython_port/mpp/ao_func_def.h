@@ -23,28 +23,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include "py/runtime.h"
-#include "py/obj.h"
-#include "mpi_vb_api.h"
-
-#define FUNC_IMPL
-#define FUNC_FILE "vb_func_def.h"
-#include "func_def.h"
-
-STATIC const mp_rom_map_elem_t vb_api_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_vb_api) },
-#define FUNC_ADD
-#define FUNC_FILE "vb_func_def.h"
-#include "func_def.h"
-};
-STATIC MP_DEFINE_CONST_DICT(vb_api_locals_dict, vb_api_locals_dict_table);
-
-const mp_obj_module_t mp_module_vb_api = {
-    .base = { &mp_type_module },
-    .globals = (mp_obj_dict_t *)&vb_api_locals_dict,
-};
+DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_ao_set_pub_attr, k_aio_dev_attr)
+DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_ao_get_pub_attr, k_aio_dev_attr)
+DEF_INT_FUNC_INT(kd_mpi_ao_enable)
+DEF_INT_FUNC_INT(kd_mpi_ao_disable)
+DEF_INT_FUNC_INT_INT(kd_mpi_ao_enable_chn)
+DEF_INT_FUNC_INT_INT(kd_mpi_ao_disable_chn)
+DEF_INT_FUNC_INT_INT_STRUCTPTR_INT(kd_mpi_ao_send_frame, k_audio_frame)
