@@ -23,25 +23,28 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
 #include "py/runtime.h"
-#include "py/obj.h"
+#include "py/mphal.h"
+#include "mpi_vb_api.h"
 
-extern const mp_obj_module_t mp_module_sys_api;
-extern const mp_obj_module_t mp_module_vb_api;
-extern const mp_obj_module_t mp_module_vo_api;
+#define FUNC_IMPL
+#define FUNC_FILE "vb_func_def.h"
+#include "func_def.h"
 
-STATIC const mp_rom_map_elem_t mpp_module_globals_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_mpp) },
-    { MP_ROM_QSTR(MP_QSTR_sys_api), MP_ROM_PTR(&mp_module_sys_api) },
-    { MP_ROM_QSTR(MP_QSTR_vb_api), MP_ROM_PTR(&mp_module_vb_api) },
-    { MP_ROM_QSTR(MP_QSTR_vo_api), MP_ROM_PTR(&mp_module_vo_api) },
+STATIC const mp_rom_map_elem_t vb_api_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_vb_api) },
+#define FUNC_ADD
+#define FUNC_FILE "vb_func_def.h"
+#include "func_def.h"
 };
+STATIC MP_DEFINE_CONST_DICT(vb_api_locals_dict, vb_api_locals_dict_table);
 
-STATIC MP_DEFINE_CONST_DICT(mpp_module_globals, mpp_module_globals_table);
-
-const mp_obj_module_t mp_module_mpp = {
+const mp_obj_module_t mp_module_vb_api = {
     .base = { &mp_type_module },
-    .globals = (mp_obj_dict_t *)&mpp_module_globals,
+    .globals = (mp_obj_dict_t *)&vb_api_locals_dict,
 };
-
-MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_mpp, mp_module_mpp);

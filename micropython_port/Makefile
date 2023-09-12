@@ -65,7 +65,7 @@ LDFLAGS += -T core/link.lds --static
 LDFLAGS += $(LDFLAGS_MOD) $(LDFLAGS_ARCH) -lm  -lpthread $(LDFLAGS_EXTRA)
 
 LDFLAGS_MPP = -L$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/lib \
-	-lvo -lsys
+	-lsys -lvb -lvo -lvicap -lvenc -lvdec -lai -lao -laenc -ladec
 
 LDFLAGS += $(LDFLAGS_MPP)
 
