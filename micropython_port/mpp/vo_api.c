@@ -29,7 +29,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include "py/runtime.h"
-#include "py/mphal.h"
+#include "py/obj.h"
 #include "mpi_vo_api.h"
 
 #define FUNC_IMPL

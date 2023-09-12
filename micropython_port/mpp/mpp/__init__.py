@@ -18,6 +18,9 @@ def k_u32_ptr(*args):
 def k_u8_ptr(*args):
     return _k_ptr_base(uctypes.UINT8, args)
 
+def k_bool_ptr(*args):
+    return _k_ptr_base(uctypes.UINT32, args)
+
 def struct_ptr(s):
     return uctypes.addressof(s)
 

@@ -269,11 +269,3 @@ def k_vo_phyaddr(**kwargs):
     s = uctypes.struct(uctypes.addressof(buf), vo_def.k_vo_phyaddr_desc, layout)
     vo_def.k_vo_phyaddr_parse(s, kwargs)
     return s
-
-def k_vo_chn_vf_info(**kwargs):
-    # layout = uctypes.NATIVE
-    # buf = bytearray(uctypes.sizeof(vo_def.k_vo_chn_vf_info_desc, layout))
-    # s = uctypes.struct(uctypes.addressof(buf), vo_def.k_vo_chn_vf_info_desc, layout)
-    # vo_def.k_vo_chn_vf_info_parse(s, kwargs)
-    # return s
-    pass

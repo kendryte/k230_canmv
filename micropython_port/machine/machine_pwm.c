@@ -32,7 +32,7 @@
 #include "sys/ioctl.h"
 #include "machine_pwm.h"
 #include "py/runtime.h"
-#include "py/mphal.h"
+#include "py/obj.h"
 
 #define PWM_DEVICE_NAME     "/dev/pwm"
 #define PWM_CHANNEL_MAX     6
