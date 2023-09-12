@@ -23,25 +23,22 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "py/runtime.h"
-#include "py/obj.h"
-
-extern const mp_obj_module_t mp_module_sys_api;
-extern const mp_obj_module_t mp_module_vb_api;
-extern const mp_obj_module_t mp_module_vo_api;
-
-STATIC const mp_rom_map_elem_t mpp_module_globals_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_mpp) },
-    { MP_ROM_QSTR(MP_QSTR_sys_api), MP_ROM_PTR(&mp_module_sys_api) },
-    { MP_ROM_QSTR(MP_QSTR_vb_api), MP_ROM_PTR(&mp_module_vb_api) },
-    { MP_ROM_QSTR(MP_QSTR_vo_api), MP_ROM_PTR(&mp_module_vo_api) },
-};
-
-STATIC MP_DEFINE_CONST_DICT(mpp_module_globals, mpp_module_globals_table);
-
-const mp_obj_module_t mp_module_mpp = {
-    .base = { &mp_type_module },
-    .globals = (mp_obj_dict_t *)&mpp_module_globals,
-};
-
-MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_mpp, mp_module_mpp);
+DEF_INT_FUNC_STRUCTPTR(kd_mpi_vb_create_pool, k_vb_pool_config)
+DEF_INT_FUNC_INT(kd_mpi_vb_destory_pool)
+DEF_INT_FUNC_INT_INT_STR(kd_mpi_vb_get_block)
+DEF_INT_FUNC_INT(kd_mpi_vb_release_block)
+DEF_INT_FUNC_INT(kd_mpi_vb_phyaddr_to_handle)
+DEF_INT_FUNC_INT(kd_mpi_vb_handle_to_phyaddr)
+DEF_INT_FUNC_INT(kd_mpi_vb_handle_to_pool_id)
+DEF_INT_FUNC_INT(kd_mpi_vb_inquire_user_cnt)
+DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_vb_get_supplement_attr, k_video_supplement)
+DEF_INT_FUNC_STRUCTPTR(kd_mpi_vb_set_supplement_config, k_vb_supplement_config)
+DEF_INT_FUNC_STRUCTPTR(kd_mpi_vb_get_supplement_config, k_vb_supplement_config)
+DEF_INT_FUNC_VOID(kd_mpi_vb_init)
+DEF_INT_FUNC_VOID(kd_mpi_vb_exit)
+DEF_INT_FUNC_STRUCTPTR(kd_mpi_vb_set_config, k_vb_config)
+DEF_INT_FUNC_STRUCTPTR(kd_mpi_vb_get_config, k_vb_config)
+DEF_INT_FUNC_INT(kd_mpi_vb_init_mod_common_pool)
+DEF_INT_FUNC_INT(kd_mpi_vb_exit_mod_common_pool)
+DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_vb_set_mod_pool_config, k_vb_config)
+DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_vb_get_mod_pool_config, k_vb_config)

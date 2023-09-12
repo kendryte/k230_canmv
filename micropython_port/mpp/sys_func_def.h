@@ -23,25 +23,19 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "py/runtime.h"
-#include "py/obj.h"
-
-extern const mp_obj_module_t mp_module_sys_api;
-extern const mp_obj_module_t mp_module_vb_api;
-extern const mp_obj_module_t mp_module_vo_api;
-
-STATIC const mp_rom_map_elem_t mpp_module_globals_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_mpp) },
-    { MP_ROM_QSTR(MP_QSTR_sys_api), MP_ROM_PTR(&mp_module_sys_api) },
-    { MP_ROM_QSTR(MP_QSTR_vb_api), MP_ROM_PTR(&mp_module_vb_api) },
-    { MP_ROM_QSTR(MP_QSTR_vo_api), MP_ROM_PTR(&mp_module_vo_api) },
-};
-
-STATIC MP_DEFINE_CONST_DICT(mpp_module_globals, mpp_module_globals_table);
-
-const mp_obj_module_t mp_module_mpp = {
-    .base = { &mp_type_module },
-    .globals = (mp_obj_dict_t *)&mpp_module_globals,
-};
-
-MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_mpp, mp_module_mpp);
+DEF_INT_FUNC_INT_INT(kd_mpi_sys_mmap)
+DEF_INT_FUNC_INT_INT(kd_mpi_sys_mmap_cached)
+DEF_INT_FUNC_INT_INT(kd_mpi_sys_munmap)
+DEF_INT_FUNC_INT_INT_INT(kd_mpi_sys_mmz_flush_cache)
+DEF_INT_FUNC_INT_INT(kd_mpi_sys_mmz_free)
+DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_sys_get_virmem_info, k_sys_virmem_info)
+DEF_INT_FUNC_STRUCTPTR_STRUCTPTR(kd_mpi_sys_bind, k_mpp_chn, k_mpp_chn)
+DEF_INT_FUNC_STRUCTPTR_STRUCTPTR(kd_mpi_sys_unbind, k_mpp_chn, k_mpp_chn)
+DEF_INT_FUNC_STRUCTPTR_STRUCTPTR(kd_mpi_sys_get_bind_by_dest, k_mpp_chn, k_mpp_chn)
+DEF_INT_FUNC_STRUCTPTR(kd_mpi_log_set_level_conf, k_log_level_conf)
+DEF_INT_FUNC_STRUCTPTR(kd_mpi_log_get_level_conf, k_log_level_conf)
+DEF_INT_FUNC_INT(kd_mpi_log_set_wait_flag)
+DEF_INT_FUNC_ARRAY_INT(kd_mpi_log_read, k_char)
+DEF_VOID_FUNC_VOID(kd_mpi_log_close)
+DEF_INT_FUNC_INT(kd_mpi_log_set_console)
+DEF_INT_FUNC_STRUCTPTR(kd_mpi_log_get_console, k_bool)
