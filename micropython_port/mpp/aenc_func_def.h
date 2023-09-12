@@ -23,33 +23,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "py/runtime.h"
-#include "py/obj.h"
-
-extern const mp_obj_module_t mp_module_sys_api;
-extern const mp_obj_module_t mp_module_vb_api;
-extern const mp_obj_module_t mp_module_vo_api;
-extern const mp_obj_module_t mp_module_ai_api;
-extern const mp_obj_module_t mp_module_ao_api;
-extern const mp_obj_module_t mp_module_aenc_api;
-extern const mp_obj_module_t mp_module_adec_api;
-
-STATIC const mp_rom_map_elem_t mpp_module_globals_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_mpp) },
-    { MP_ROM_QSTR(MP_QSTR_sys_api), MP_ROM_PTR(&mp_module_sys_api) },
-    { MP_ROM_QSTR(MP_QSTR_vb_api), MP_ROM_PTR(&mp_module_vb_api) },
-    { MP_ROM_QSTR(MP_QSTR_vo_api), MP_ROM_PTR(&mp_module_vo_api) },
-    { MP_ROM_QSTR(MP_QSTR_ai_api), MP_ROM_PTR(&mp_module_ai_api) },
-    { MP_ROM_QSTR(MP_QSTR_ao_api), MP_ROM_PTR(&mp_module_ao_api) },
-    { MP_ROM_QSTR(MP_QSTR_aenc_api), MP_ROM_PTR(&mp_module_aenc_api) },
-    { MP_ROM_QSTR(MP_QSTR_adec_api), MP_ROM_PTR(&mp_module_adec_api) },
-};
-
-STATIC MP_DEFINE_CONST_DICT(mpp_module_globals, mpp_module_globals_table);
-
-const mp_obj_module_t mp_module_mpp = {
-    .base = { &mp_type_module },
-    .globals = (mp_obj_dict_t *)&mpp_module_globals,
-};
-
-MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_mpp, mp_module_mpp);
+DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_aenc_create_chn, k_aenc_chn_attr)
+DEF_INT_FUNC_INT(kd_mpi_aenc_destroy_chn)
+DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_aenc_send_frame, k_audio_frame)
+DEF_INT_FUNC_INT_STRUCTPTR_INT(kd_mpi_aenc_get_stream, k_audio_stream)
+DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_aenc_release_stream, k_audio_stream)
