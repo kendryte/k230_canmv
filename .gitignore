@@ -17,3 +17,4 @@ __pycache__
 .vscode/
 
 .read*
+.k230_sdk_all

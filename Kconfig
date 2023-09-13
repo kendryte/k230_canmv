@@ -6,13 +6,13 @@ choice BOARD
 
     config K230_EVB
         bool "k230 evb"
-    config K230_PI
-        bool "k230 pi"
+    config K230_CANMV
+        bool "k230 pi canmv"
 endchoice
 
 config BOARD
     string
     default "k230_evb" if K230_EVB
-    default "k230_pi" if K230_PI
+    default "k230_canmv" if K230_CANMV
 
 # source "micropython_port/Kconfig"
