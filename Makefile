@@ -56,23 +56,18 @@ prepare_sourcecode: sync_submodule
 .sync_overlay: .autoconf
 	@make -f scripts/helper.mk sync_overlay
 
-.PHONY: .rt-smart-kernel
-.rt-smart-kernel: .sync_overlay
-	@make -C k230_sdk rt-smart-kernel
-	@make -C k230_sdk mpp-kernel
-	@make -C k230_sdk mpp-apps
+.PHONY: k230_sdk_build
+k230_sdk_build:.sync_overlay
+	@make -f scripts/helper.mk $(K230_CANMV_BUILD_DIR)/.k230_sdk_all
 
 .PHONY: micropython
-micropython: .rt-smart-kernel
+micropython: k230_sdk_build
 	@make -C micropython_port
 	@mkdir -p ${K230_CANMV_BUILD_DIR}/images/app
 	@cd ${K230_CANMV_BUILD_DIR}; cp micropython/micropython images/app
 
 .PHONY: build-image
 build-image: micropython
-	@make -C k230_sdk rt-smart-apps
-	@make -C k230_sdk big-core-opensbi
-	@make -C k230_sdk uboot
 	@cp -r tests ${K230_CANMV_BUILD_DIR}/images/app
 	@make -C k230_sdk build-image
 

@@ -63,7 +63,6 @@ endif
 
 k230_sdk_overlay/.ready_sync_dir: ${k230_sdk_overlay_dir}
 	@echo "sync_k230_sdk_overlay_dir"
-	@git -C k230_sdk clean -fdq ${k230_sdk_clean_exclude_file}
 	@rsync -a -q k230_sdk_overlay/ k230_sdk/ ${k230_sdk_overlay_rsync_exclude_file}
 	@touch k230_sdk_overlay/.ready_sync_file
 	@touch k230_sdk_overlay/.ready_sync_dir
@@ -87,3 +86,6 @@ micropython_port/.ready_sync_file: ${micropython_overlay_file}
 
 .PHONY: sync_overlay
 sync_overlay: k230_sdk_overlay/.ready_sync_dir k230_sdk_overlay/.ready_sync_file micropython_port/.ready_sync_dir micropython_port/.ready_sync_file
+
+$(K230_CANMV_BUILD_DIR)/.k230_sdk_all:k230_sdk_overlay/.ready_sync_dir k230_sdk_overlay/.ready_sync_file micropython_port/.ready_sync_dir micropython_port/.ready_sync_file
+	@make -C k230_sdk   all && touch $@
