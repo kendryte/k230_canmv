@@ -154,6 +154,6 @@
 &mmc_sd1{
 			cd-gpios = <&port53 0 GPIO_ACTIVE_LOW>;
 };
-&usbotg1{
+&usbotg0{
 	status = "disabled";
 };

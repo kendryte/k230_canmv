@@ -7,8 +7,6 @@
 # for more information.
 
 # Build directories
-build/
-build-*/
 output/
 
 # Python cache files
@@ -18,3 +16,4 @@ __pycache__
 
 .read*
 .k230_sdk_all
+.conf

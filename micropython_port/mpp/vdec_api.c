@@ -23,37 +23,28 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
 #include "py/runtime.h"
 #include "py/obj.h"
+#include "mpi_vdec_api.h"
 
-extern const mp_obj_module_t mp_module_sys_api;
-extern const mp_obj_module_t mp_module_vb_api;
-extern const mp_obj_module_t mp_module_vo_api;
-extern const mp_obj_module_t mp_module_ai_api;
-extern const mp_obj_module_t mp_module_ao_api;
-extern const mp_obj_module_t mp_module_aenc_api;
-extern const mp_obj_module_t mp_module_adec_api;
-extern const mp_obj_module_t mp_module_venc_api;
-extern const mp_obj_module_t mp_module_vdec_api;
+#define FUNC_IMPL
+#define FUNC_FILE "vdec_func_def.h"
+#include "func_def.h"
 
-STATIC const mp_rom_map_elem_t mpp_module_globals_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_mpp) },
-    { MP_ROM_QSTR(MP_QSTR_sys_api), MP_ROM_PTR(&mp_module_sys_api) },
-    { MP_ROM_QSTR(MP_QSTR_vb_api), MP_ROM_PTR(&mp_module_vb_api) },
-    { MP_ROM_QSTR(MP_QSTR_vo_api), MP_ROM_PTR(&mp_module_vo_api) },
-    { MP_ROM_QSTR(MP_QSTR_ai_api), MP_ROM_PTR(&mp_module_ai_api) },
-    { MP_ROM_QSTR(MP_QSTR_ao_api), MP_ROM_PTR(&mp_module_ao_api) },
-    { MP_ROM_QSTR(MP_QSTR_aenc_api), MP_ROM_PTR(&mp_module_aenc_api) },
-    { MP_ROM_QSTR(MP_QSTR_adec_api), MP_ROM_PTR(&mp_module_adec_api) },
-    { MP_ROM_QSTR(MP_QSTR_venc_api), MP_ROM_PTR(&mp_module_venc_api) },
-    { MP_ROM_QSTR(MP_QSTR_vdec_api), MP_ROM_PTR(&mp_module_vdec_api) },
+STATIC const mp_rom_map_elem_t vdec_api_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_vdec_api) },
+#define FUNC_ADD
+#define FUNC_FILE "vdec_func_def.h"
+#include "func_def.h"
 };
+STATIC MP_DEFINE_CONST_DICT(vdec_api_locals_dict, vdec_api_locals_dict_table);
 
-STATIC MP_DEFINE_CONST_DICT(mpp_module_globals, mpp_module_globals_table);
-
-const mp_obj_module_t mp_module_mpp = {
+const mp_obj_module_t mp_module_vdec_api = {
     .base = { &mp_type_module },
-    .globals = (mp_obj_dict_t *)&mpp_module_globals,
+    .globals = (mp_obj_dict_t *)&vdec_api_locals_dict,
 };
-
-MP_REGISTER_EXTENSIBLE_MODULE(MP_QSTR_mpp, mp_module_mpp);

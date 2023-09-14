@@ -39,10 +39,10 @@ INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/ioctl
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/api
 
 # compiler settings
-CWARN = -Wall
-CWARN += -Wno-unused-parameter -Wpointer-arith -Wdouble-promotion -Wfloat-conversion -Wno-int-conversion
+CWARN = -Wall -Werror
+CWARN += -Wno-int-conversion
 CFLAGS += -fopenmp -march=rv64imafdcv -mabi=lp64d -mcmodel=medany
-CFLAGS += $(INC) $(CWARN) -std=gnu99 -DUNIX $(COPT) $(CFLAGS_EXTRA)
+CFLAGS += $(INC) $(CWARN) -std=gnu99 $(COPT) $(CFLAGS_EXTRA)
 
 # Debugging/Optimization
 ifdef DEBUG
@@ -62,7 +62,7 @@ CFLAGS += -g -gdwarf-2
 # Use gcc syntax for map file
 LDFLAGS_ARCH = -Wl,-Map=$@.map,--cref -Wl,--gc-sections
 LDFLAGS += -T core/link.lds --static
-LDFLAGS += $(LDFLAGS_MOD) $(LDFLAGS_ARCH) -lm  -lpthread $(LDFLAGS_EXTRA)
+LDFLAGS += $(LDFLAGS_MOD) $(LDFLAGS_ARCH) -lm -lpthread $(LDFLAGS_EXTRA)
 
 LDFLAGS_MPP = -L$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/lib \
 	-lsys -lvb -lvo -lvicap -lvenc -lvdec -lai -lao -laenc -ladec

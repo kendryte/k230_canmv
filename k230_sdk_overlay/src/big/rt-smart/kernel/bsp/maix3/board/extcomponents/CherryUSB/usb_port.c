@@ -18,7 +18,7 @@
 #include <unistd.h>
 
 uint32_t SystemCoreClock = 32000000 * 2U;   // for cherryusb dwc2 use
-uintptr_t g_usb_otg_base = (uintptr_t)0x91540000UL;
+uintptr_t g_usb_otg_base = (uintptr_t)0x91500000UL;
 
 static void dcd_int_handler_wrap(int irq, void *param)
 {
@@ -120,8 +120,8 @@ void usb_dc_low_level_init(void)
     *hs_reg = 0;
     rt_iounmap(hs_reg);
 
-    rt_hw_interrupt_install(174, dcd_int_handler_wrap, NULL, "usb");
-    rt_hw_interrupt_umask(174);
+    rt_hw_interrupt_install(173, dcd_int_handler_wrap, NULL, "usb");
+    rt_hw_interrupt_umask(173);
 
     // CDC uart
     rt_err_t err = rt_device_register(device, DEV_NAME, RT_DEVICE_OFLAG_RDWR);
@@ -203,7 +203,7 @@ int usbd_msc_sector_write(uint32_t sector, uint8_t *buffer, uint32_t length)
 
 void usb_dc_low_level_deinit(void)
 {
-    rt_hw_interrupt_mask(174);
+    rt_hw_interrupt_mask(173);
     rt_sem_detach(&cdc_read_sem);
     rt_sem_detach(&cdc_write_sem);
 }
@@ -231,7 +231,7 @@ int usb_init(void)
     rt_kprintf("set %p - %p no cache\n", &_cherryusb_no_cache_start, &_cherryusb_no_cache_end);
 #endif
 
-    g_usb_otg_base = (uintptr_t)rt_ioremap_nocache((void *)0x91540000UL, 0x10000);
+    g_usb_otg_base = (uintptr_t)rt_ioremap_nocache((void *)0x91500000UL, 0x10000);
 
     rt_kprintf("usb_init end\n");
 }
