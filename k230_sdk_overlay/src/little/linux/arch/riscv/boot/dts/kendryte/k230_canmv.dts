@@ -123,6 +123,6 @@
 		debounce-interval = <3>;
 	};
 };
-&usbotg1{
+&usbotg0{
 	status = "disabled";
 };
