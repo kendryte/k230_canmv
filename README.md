@@ -31,12 +31,21 @@ sudo make install
 ```sh
 git clone k230_canmv
 cd k230_canmv
-# 启动docker环境(可选)
 make prepare_sourcecode
+# 启动docker环境(可选)
 make
+# 默认使用EVB板卡，如果需要使用其他板卡，请使用 make CONF=k230_xx_defconfig，支持的板卡在configs目录下
 ```
 
-编译完成后会在`output/k230_evb_defconfig/images`目录下生成`sysimage-sdcard.img`镜像
+编译完成后会在`output/k230_xx_defconfig/images`目录下生成`sysimage-sdcard.img`镜像
+
+## 烧录
+
+linux下直接使用dd命令进行烧录，windows下使用烧录工具进行烧录
+
+## 启动micropython
+
+在rt-smart命令行下输入`./sdcard/app/micropython`， micropython REPL会在`ttyACMx`上开始交互
 
 ## 项目结构
 
