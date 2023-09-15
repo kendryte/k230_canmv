@@ -30,40 +30,37 @@
 #include <errno.h>
 #include "py/runtime.h"
 #include "py/obj.h"
-#include "mpi_sys_api.h"
-
-#define DEF_FUNC_IMPL_MMZ_ALLOC(x)                                      \
-STATIC mp_obj_t _##x(size_t n_args, const mp_obj_t *args) {             \
-    mp_buffer_info_t bufinfo[2];                                        \
-    mp_get_buffer_raise(args[0], &bufinfo[0], MP_BUFFER_READ);          \
-    mp_get_buffer_raise(args[1], &bufinfo[1], MP_BUFFER_READ);          \
-    size_t ret = x((k_u64 *)(bufinfo[0].buf), (void **)(bufinfo[1].buf),\
-        mp_obj_str_get_str(args[2]), mp_obj_str_get_str(args[3]),       \
-        mp_obj_get_int(args[4]));                                       \
-    return mp_obj_new_int(ret);                                         \
-}                                                                       \
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(x##_obj, 5, 5, _##x);
+#include "mpi_connector_api.h"
 
 #define DEF_FUNC_ADD(x) { MP_ROM_QSTR(MP_QSTR_##x), MP_ROM_PTR(&x##_obj) },
 
-DEF_FUNC_IMPL_MMZ_ALLOC(kd_mpi_sys_mmz_alloc)
-DEF_FUNC_IMPL_MMZ_ALLOC(kd_mpi_sys_mmz_alloc_cached)
+STATIC mp_obj_t _kd_mpi_connector_init(mp_obj_t obj0, mp_obj_t obj1) {
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(obj1, &bufinfo, MP_BUFFER_READ);
+    if (sizeof(k_connector_info) != bufinfo.len)
+        mp_raise_msg_varg(&mp_type_TypeError,
+            MP_ERROR_TEXT("struct expect size: %u, actual size: %u"),
+            sizeof(k_connector_info), bufinfo.len);
+    size_t ret = kd_mpi_connector_init(mp_obj_get_int(obj0),
+        *(k_connector_info*)(bufinfo.buf));
+    return mp_obj_new_int(ret);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(kd_mpi_connector_init_obj, _kd_mpi_connector_init);
 
 #define FUNC_IMPL
-#define FUNC_FILE "sys_func_def.h"
+#define FUNC_FILE "connector_func_def.h"
 #include "func_def.h"
 
-STATIC const mp_rom_map_elem_t sys_api_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_sys_api) },
-    DEF_FUNC_ADD(kd_mpi_sys_mmz_alloc)
-    DEF_FUNC_ADD(kd_mpi_sys_mmz_alloc_cached)
+STATIC const mp_rom_map_elem_t connector_api_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_connector_api) },
+    DEF_FUNC_ADD(kd_mpi_connector_init)
 #define FUNC_ADD
-#define FUNC_FILE "sys_func_def.h"
+#define FUNC_FILE "connector_func_def.h"
 #include "func_def.h"
 };
-STATIC MP_DEFINE_CONST_DICT(sys_api_locals_dict, sys_api_locals_dict_table);
+STATIC MP_DEFINE_CONST_DICT(connector_api_locals_dict, connector_api_locals_dict_table);
 
-const mp_obj_module_t mp_module_sys_api = {
+const mp_obj_module_t mp_module_connector_api = {
     .base = { &mp_type_module },
-    .globals = (mp_obj_dict_t *)&sys_api_locals_dict,
+    .globals = (mp_obj_dict_t *)&connector_api_locals_dict,
 };

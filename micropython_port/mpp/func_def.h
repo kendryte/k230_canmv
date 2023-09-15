@@ -46,6 +46,13 @@ STATIC mp_obj_t _##x(mp_obj_t obj) {            \
 }                                               \
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(x##_obj, _##x);
 
+#define DEF_INT_FUNC_STR(x)                     \
+STATIC mp_obj_t _##x(mp_obj_t obj) {            \
+    size_t ret = x(mp_obj_str_get_str(obj));    \
+    return mp_obj_new_int(ret);                 \
+}                                               \
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(x##_obj, _##x);
+
 #define DEF_INT_FUNC_INT_INT(x)                                 \
 STATIC mp_obj_t _##x(mp_obj_t obj0, mp_obj_t obj1) {            \
     size_t ret = x(mp_obj_get_int(obj0), mp_obj_get_int(obj1)); \
@@ -199,6 +206,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(x##_obj, 4, 4, _##x);
 { MP_ROM_QSTR(MP_QSTR_##x), MP_ROM_PTR(&x##_obj) },
 #define DEF_VOID_FUNC_VOID(x) DEF_INT_FUNC_VOID(x)
 #define DEF_INT_FUNC_INT(x) DEF_INT_FUNC_VOID(x)
+#define DEF_INT_FUNC_STR(x) DEF_INT_FUNC_VOID(x)
 #define DEF_INT_FUNC_INT_INT(x) DEF_INT_FUNC_VOID(x)
 #define DEF_INT_FUNC_INT_INT_INT(x) DEF_INT_FUNC_VOID(x)
 #define DEF_INT_FUNC_INT_INT_STR(x) DEF_INT_FUNC_VOID(x)
@@ -225,6 +233,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(x##_obj, 4, 4, _##x);
 #undef DEF_INT_FUNC_VOID
 #undef DEF_VOID_FUNC_VOID
 #undef DEF_INT_FUNC_INT
+#undef DEF_INT_FUNC_STR
 #undef DEF_INT_FUNC_INT_INT
 #undef DEF_INT_FUNC_INT_INT_INT
 #undef DEF_INT_FUNC_INT_INT_STR
