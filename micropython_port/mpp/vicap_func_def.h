@@ -23,28 +23,18 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include "py/runtime.h"
-#include "py/obj.h"
-#include "mpi_connector_api.h"
-
-#define FUNC_IMPL
-#define FUNC_FILE "connector_func_def.h"
-#include "func_def.h"
-
-STATIC const mp_rom_map_elem_t connector_api_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_connector_api) },
-#define FUNC_ADD
-#define FUNC_FILE "connector_func_def.h"
-#include "func_def.h"
-};
-STATIC MP_DEFINE_CONST_DICT(connector_api_locals_dict, connector_api_locals_dict_table);
-
-const mp_obj_module_t mp_module_connector_api = {
-    .base = { &mp_type_module },
-    .globals = (mp_obj_dict_t *)&connector_api_locals_dict,
-};
+DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_vicap_get_sensor_info, k_vicap_sensor_info)
+DEF_INT_FUNC_STRUCTPTR(kd_mpi_vicap_get_sensor_fd, k_vicap_sensor_attr)
+DEF_INT_FUNC_INT_STRUCT(kd_mpi_vicap_set_dev_attr, k_vicap_dev_attr)
+DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_vicap_get_dev_attr, k_vicap_dev_attr)
+DEF_INT_FUNC_INT_INT_STRUCT(kd_mpi_vicap_set_chn_attr, k_vicap_chn_attr)
+DEF_INT_FUNC_INT_INT_STRUCTPTR(kd_mpi_vicap_get_chn_attr, k_vicap_chn_attr)
+DEF_INT_FUNC_INT(kd_mpi_vicap_init)
+DEF_INT_FUNC_INT(kd_mpi_vicap_deinit)
+DEF_INT_FUNC_INT(kd_mpi_vicap_start_stream)
+DEF_INT_FUNC_INT(kd_mpi_vicap_stop_stream)
+DEF_INT_FUNC_INT_INT_STRUCTPTR(kd_mpi_vicap_dump_release, k_video_frame_info)
+DEF_INT_FUNC_INT_STRUCTPTR_INT(kd_mpi_vicap_set_vi_drop_frame, k_vicap_drop_frame)
+DEF_INT_FUNC_INT_INT(kd_mpi_vicap_set_database_parse_mode)
+DEF_INT_FUNC_INT(kd_mpi_vicap_tpg_enable)
+DEF_INT_FUNC_INT_ARRAY_INT(kd_mpi_vicap_load_image, void)

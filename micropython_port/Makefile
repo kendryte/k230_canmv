@@ -64,8 +64,10 @@ LDFLAGS_ARCH = -Wl,-Map=$@.map,--cref -Wl,--gc-sections
 LDFLAGS += -T core/link.lds --static
 LDFLAGS += $(LDFLAGS_MOD) $(LDFLAGS_ARCH) -lm -lpthread $(LDFLAGS_EXTRA)
 
-LDFLAGS_MPP = -L$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/lib \
-	-lsys -lvb -lvo -lconnector -lvicap -lvenc -lvdec -lai -lao -laenc -ladec
+MPP_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/lib
+MPP_LIBS = $(addprefix -l, $(subst lib, ,$(basename $(notdir $(foreach dir, $(MPP_LIB_PATH), $(wildcard $(dir)/*))))))
+
+LDFLAGS_MPP = -L$(MPP_LIB_PATH) -Wl,--start-group $(MPP_LIBS) -Wl,--end-group
 
 LDFLAGS += $(LDFLAGS_MPP)
 
