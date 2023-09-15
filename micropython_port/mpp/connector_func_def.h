@@ -23,6 +23,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+DEF_INT_FUNC_INT_STRUCT(kd_mpi_connector_init, k_connector_info)
 DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_connector_id_get, k_u32)
 DEF_INT_FUNC_INT_INT(kd_mpi_connector_power_set)
 DEF_INT_FUNC_INT(kd_mpi_connector_close)

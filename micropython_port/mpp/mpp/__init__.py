@@ -8,3 +8,4 @@ from mpp.venc import *
 from mpp.vdec import *
 from mpp.vo import *
 from mpp.connector import *
+from mpp.vicap import *
