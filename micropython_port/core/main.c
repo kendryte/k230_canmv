@@ -484,15 +484,11 @@ int main(int argc, char **argv) {
     usleep(1000000);
     ide_dbg_init();
     //dup2(usb_cdc_fd, STDOUT_FILENO);
-    #if MICROPY_PY_THREAD
-    mp_thread_init();
-    #endif
     // We should capture stack top ASAP after start, and it should be
     // captured guaranteedly before any other stack variables are allocated.
     // For this, actual main (renamed main_) should not be inlined into
     // this function. main_() itself may have other functions inlined (with
     // their own stack variables), that's why we need this main/main_ split.
-    mp_stack_ctrl_init();
     return main_(argc, argv);
 }
 
@@ -520,6 +516,10 @@ MP_NOINLINE int main_(int argc, char **argv) {
     // Define a reasonable stack limit to detect stack overflow.
     mp_uint_t stack_limit = 40000 * (sizeof(void *) / 4);
     soft_reset:
+    #if MICROPY_PY_THREAD
+    mp_thread_init();
+    #endif
+    mp_stack_ctrl_init();
     #if defined(__arm__) && !defined(__thumb2__)
     // ARM (non-Thumb) architectures require more stack.
     stack_limit *= 2;

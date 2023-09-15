@@ -64,8 +64,8 @@ int usb_tx(const void* buffer, size_t size) {
     return write(usb_cdc_fd, buffer, size);
 }
 
-void print_raw(uint8_t* data, size_t size) {
-    fprintf(stderr, "raw \"");
+void print_raw(const uint8_t* data, size_t size) {
+    fprintf(stderr, "raw: \"");
     for (size_t i = 0; i < size; i++) {
         fprintf(stderr, "\\x%02X", ((unsigned char*)data)[i]);
     }
@@ -142,7 +142,15 @@ static void interrupt_repl(void) {
     sem_post(&stdin_sem);
 }
 
-static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, uint8_t* data, size_t length) {
+static volatile bool enable_pic = true;
+
+#define TEST_PIC 0
+
+static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* data, size_t length) {
+    static unsigned pic_idx = 0;
+    extern unsigned long num_jpeg;
+    extern unsigned long index_jpeg[];
+    extern unsigned char data_jpeg[];
     for (size_t i = 0; i < length;) {
         switch (state->state) {
             case FRAME_HEAD:
@@ -158,16 +166,22 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, uint8_t* data, si
                 break;
             case FRAME_DATA_LENGTH:
                 // recv 4 bytes
-                state->state = FRAME_RECV;
                 state->recv_lack = 4;
+                state->state = FRAME_RECV;
                 state->recv_next = FRAME_DISPATCH;
                 state->recv_data = &state->data_length;
                 break;
             case FRAME_DISPATCH:
+                #define PRINT_ALL 0
+                #if !PRINT_ALL
                 if ((state->cmd != USBDBG_SCRIPT_RUNNING) &&
                     (state->cmd != USBDBG_FRAME_SIZE) &&
-                    (state->cmd != USBDBG_TX_BUF_LEN)) {
+                    (state->cmd != USBDBG_TX_BUF_LEN) &&
+                    (state->cmd != USBDBG_FRAME_DUMP))
+                #endif
+                {
                     print_raw(data, length);
+                    pr("cmd: %x", state->cmd);
                 }
                 switch (state->cmd) {
                     case USBDBG_NONE:
@@ -202,6 +216,9 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, uint8_t* data, si
                     case USBDBG_SCRIPT_EXEC: {
                         // TODO
                         pr("cmd: USBDBG_SCRIPT_EXEC size %u", state->data_length);
+                        #if TEST_PIC
+                        ide_script_running = 1;
+                        #else
                         // recv script string
                         if (script_string != NULL) {
                             free(script_string);
@@ -212,11 +229,15 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, uint8_t* data, si
                         // into script mode, interrupt REPL, send CTRL-D
                         ide_script_running = 1;
                         sem_post(&script_sem);
+                        #endif
                         break;
                     }
                     case USBDBG_SCRIPT_STOP: {
                         // TODO
                         pr("cmd: USBDBG_SCRIPT_STOP");
+                        #if TEST_PIC
+                        ide_script_running = 0;
+                        #else
                         // raise IDE interrupt
                         if (ide_script_running) {
                             mp_obj_exception_clear_traceback(mp_const_ide_interrupt);
@@ -228,6 +249,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, uint8_t* data, si
                             #endif
                         }
                         ide_script_running = 0;
+                        #endif
                         break;
                     }
                     case USBDBG_SCRIPT_SAVE: {
@@ -236,7 +258,6 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, uint8_t* data, si
                         break;
                     }
                     case USBDBG_QUERY_FILE_STAT: {
-                        // TODO
                         pr("cmd: USBDBG_QUERY_FILE_STAT");
                         usb_tx(&ide_dbg_sv_file.errcode, sizeof(ide_dbg_sv_file.errcode));
                         break;
@@ -265,8 +286,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, uint8_t* data, si
                     }
                     case USBDBG_VERIFYFILE: {
                         pr("cmd: USBDBG_VERIFYFILE");
-                        // FIXME: DO VERIFY!!!
-                        // TODO: v1.0 use hardware sha256
+                        // TODO: use hardware sha256
                         uint32_t resp = USBDBG_SVFILE_VERIFY_ERR_NONE;
                         if (ide_dbg_sv_file.file == NULL) {
                             resp = USBDBG_SVFILE_VERIFY_NOT_OPEN;
@@ -302,7 +322,6 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, uint8_t* data, si
                         break;
                     }
                     case USBDBG_CREATEFILE: {
-                        // TODO
                         pr("cmd: USBDBG_CREATEFILE");
                         memset(&ide_dbg_sv_file.info, 0, sizeof(ide_dbg_sv_file.info));
                         if (sizeof(ide_dbg_sv_file.info) != state->data_length) {
@@ -337,16 +356,20 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, uint8_t* data, si
                         break;
                     }
                     case USBDBG_SCRIPT_RUNNING: {
-                        // TODO
                         // DO NOT PRINT
+                        #if PRINT_ALL
+                        pr("cmd: USBDBG_SCRIPT_RUNNING");
+                        #endif
                         usb_tx(&ide_script_running, sizeof(ide_script_running));
                         break;
                     }
                     case USBDBG_TX_BUF_LEN: {
-                        // TODO
                         // DO NOT PRINT
                         pthread_mutex_lock(&tx_buf_mutex);
-                        if (tx_buf_len) {
+                        #if !PRINT_ALL
+                        if (tx_buf_len)
+                        #endif
+                        {
                             pr("cmd: USBDBG_TX_BUF_LEN %u", tx_buf_len);
                         }
                         uint32_t tmp = tx_buf_len;
@@ -365,12 +388,51 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, uint8_t* data, si
                     case USBDBG_FRAME_SIZE: {
                         // TODO
                         // DO NOT PRINT
+                        #if PRINT_ALL
+                        pr("cmd: USBDBG_FRAME_SIZE");
+                        #endif
+                        #if TEST_PIC
+                        uint32_t resp[3] = {
+                            640, // width
+                            680, // height
+                            index_jpeg[pic_idx + 1] - index_jpeg[pic_idx], // size
+                        };
+                        if (!ide_script_running) {
+                            resp[0] = 0;
+                            resp[1] = 0;
+                            resp[2] = 0;
+                        }
+                        #else
                         uint32_t resp[3] = {
                             0, // width
                             0, // height
                             0, // size
                         };
+                        #endif
                         usb_tx(&resp, sizeof(resp));
+                        break;
+                    }
+                    case USBDBG_FRAME_DUMP: {
+                        // TODO
+                        // DO NOT PRINT
+                        #if PRINT_ALL
+                        pr("cmd: USBDBG_FRAME_DUMP");
+                        #endif
+                        if (state->data_length != index_jpeg[pic_idx + 1] - index_jpeg[pic_idx]) {
+                            pr("cmd: USBDBG_FRAME_DUMP, expected size %lu, got %u",
+                                index_jpeg[pic_idx + 1] - index_jpeg[pic_idx],
+                                state->data_length);
+                        }
+                        // 1024bytes fragment
+                        size_t x = 0;
+                        for (; x < state->data_length; x += 1024) {
+                            usb_tx(data_jpeg + index_jpeg[pic_idx] + x, 1024);
+                        }
+                        if (x < state->data_length) {
+                            usb_tx(data_jpeg + index_jpeg[pic_idx] + x, state->data_length - x);
+                        }
+                        pic_idx += 1;
+                        pic_idx %= num_jpeg;
                         break;
                     }
                     case USBDBG_SYS_RESET: {
@@ -386,10 +448,11 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, uint8_t* data, si
                         break;
                     }
                     case USBDBG_FB_ENABLE: {
-                        // TODO
-                        //uint16_t enable;
-                        //read_until(usb_cdc_fd, &enable, 2);
-                        pr("cmd: USBDBG_FB_ENABLE");
+                        // FIXME: stream parse
+                        if (i + 1 < length) {
+                            enable_pic = data[i++];
+                        }
+                        pr("cmd: USBDBG_FB_ENABLE, enable(%u)", enable_pic);
                         break;
                     }
                     default:
@@ -403,9 +466,10 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, uint8_t* data, si
             case FRAME_RECV:
                 if (length - i >= state->recv_lack) {
                     memcpy(state->recv_data, data + i, state->recv_lack);
-                    state->recv_lack = 0;
                     state->state = state->recv_next;
-                    i += state->recv_lack;
+                    // FIXME
+                    i += state->recv_lack - 1;
+                    state->recv_lack = 0;
                 } else {
                     memcpy(state->recv_data, data + i, length - i - 1);
                     state->recv_lack -= length - i - 1;
@@ -482,6 +546,7 @@ static void* ide_dbg_task(void* args) {
 }
 
 void ide_dbg_init(void) {
+    pr("IDE debugger built %s %s", __DATE__, __TIME__);
     usb_cdc_fd = open("/dev/ttyUSB1", O_RDWR);
     if (usb_cdc_fd < 0) {
         perror("open /dev/ttyUSB1 error");
