@@ -147,10 +147,12 @@ static volatile bool enable_pic = true;
 #define TEST_PIC 0
 
 static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* data, size_t length) {
+    #if TEST_PIC
     static unsigned pic_idx = 0;
     extern unsigned long num_jpeg;
     extern unsigned long index_jpeg[];
     extern unsigned char data_jpeg[];
+    #endif
     for (size_t i = 0; i < length;) {
         switch (state->state) {
             case FRAME_HEAD:
@@ -418,6 +420,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         #if PRINT_ALL
                         pr("cmd: USBDBG_FRAME_DUMP");
                         #endif
+                        #if TEST_PIC
                         if (state->data_length != index_jpeg[pic_idx + 1] - index_jpeg[pic_idx]) {
                             pr("cmd: USBDBG_FRAME_DUMP, expected size %lu, got %u",
                                 index_jpeg[pic_idx + 1] - index_jpeg[pic_idx],
@@ -433,6 +436,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         }
                         pic_idx += 1;
                         pic_idx %= num_jpeg;
+                        #endif
                         break;
                     }
                     case USBDBG_SYS_RESET: {
