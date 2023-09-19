@@ -150,10 +150,14 @@
 	};
 };
 
+&mmc_sd0{
+    status = "disabled";
+};
 
 &mmc_sd1{
-			cd-gpios = <&port53 0 GPIO_ACTIVE_LOW>;
+    status = "disabled";
 };
+
 &usbotg0{
 	status = "disabled";
 };
