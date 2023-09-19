@@ -4,7 +4,7 @@ k_vicap_mclk_desc = {
     "id": 0 | uctypes.UINT32,
     "mclk_sel": 4 | uctypes.UINT32,
     "mclk_div": 8 | uctypes.UINT8,
-    "mclk_en": 10 | uctypes.UINT8,
+    "mclk_en": 9 | uctypes.UINT8,
 }
 
 def k_vicap_mclk_parse(s, kwargs):
@@ -166,11 +166,11 @@ k_vicap_dev_attr_desc = {
     "image_pat": 16 | uctypes.UINT32,
     "pipe_ctrl": (20, k_vicap_isp_pipe_ctrl_desc),
     "cpature_frame": 24 | uctypes.UINT32,
-    "sensor_info": (28, k_vicap_sensor_info_desc),
-    "dw_enable": 84 | uctypes.UINT32,
-    "dev_enable": 88 | uctypes.UINT32,
-    "buffer_num": 92 | uctypes.UINT32,
-    "buffer_size": 96 | uctypes.UINT32,
+    "sensor_info": (32, k_vicap_sensor_info_desc),
+    "dw_enable": 88 | uctypes.UINT32,
+    "dev_enable": 92 | uctypes.UINT32,
+    "buffer_num": 96 | uctypes.UINT32,
+    "buffer_size": 100 | uctypes.UINT32,
 }
 
 def k_vicap_dev_attr_parse(s, kwargs):
@@ -236,6 +236,9 @@ k_vicap_vb_info_desc = {
     "height": 48 | uctypes.UINT32,
     "format": 52 | uctypes.UINT32,
     "alignment": 56 | uctypes.UINT8,
+    "fill_light_state": 57 | uctypes.UINT8,
+    "frame_num": 60 | uctypes.UINT32,
+    "timestamp": 64 | uctypes.UINT64,
 }
 
 def k_vicap_vb_info_parse(s, kwargs):
@@ -247,6 +250,9 @@ def k_vicap_vb_info_parse(s, kwargs):
     s.height = kwargs.get("height", 0)
     s.format = kwargs.get("format", 0)
     s.alignment = kwargs.get("alignment", 0)
+    s.fill_light_state = kwargs.get("fill_light_state", 0)
+    s.frame_num = kwargs.get("frame_num", 0)
+    s.timestamp = kwargs.get("timestamp", 0)
 
 k_vicap_attr_info_desc = {
     "vicap_dev": 0 | uctypes.UINT32,

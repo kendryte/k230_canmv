@@ -48,8 +48,8 @@ sync_submodule:
 	@git submodule update --init -f k230_sdk
 	@git -C k230_sdk clean -fdq $(k230_sdk_clean_exclude_file)
 	@rsync -a -q k230_sdk_overlay/ k230_sdk/ $(k230_sdk_overlay_rsync_exclude_file)
-	@rm k230_sdk/src/big/rt-smart/kernel/bsp/maix3/.sconsign.dblite
-	@rm k230_sdk/src/big/rt-smart/userapps/.sconsign.dblite
+	@rm -f k230_sdk/src/big/rt-smart/kernel/bsp/maix3/.sconsign.dblite
+	@rm -f k230_sdk/src/big/rt-smart/userapps/.sconsign.dblite
 	@git submodule update --init -f micropython
 	@git -C micropython clean -fdq
 	@rsync -a -q micropython_port/micropython_overlay/ micropython/

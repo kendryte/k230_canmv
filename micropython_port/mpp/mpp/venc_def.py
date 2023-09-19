@@ -212,11 +212,11 @@ k_venc_2d_osd_attr_desc = {
     "starty": 6 | uctypes.UINT16,
     "phys_addr": (8 | uctypes.ARRAY, 3 | uctypes.UINT32),
     "bg_alpha": 20 | uctypes.UINT8,
-    "osd_alpha": 22 | uctypes.UINT8,
-    "video_alpha": 24 | uctypes.UINT8,
-    "add_order": 28 | uctypes.UINT32,
-    "bg_color": 32 | uctypes.UINT32,
-    "fmt": 36 | uctypes.UINT32,
+    "osd_alpha": 21 | uctypes.UINT8,
+    "video_alpha": 22 | uctypes.UINT8,
+    "add_order": 24 | uctypes.UINT32,
+    "bg_color": 28 | uctypes.UINT32,
+    "fmt": 32 | uctypes.UINT32,
 }
 
 def k_venc_2d_osd_attr_parse(s, kwargs):

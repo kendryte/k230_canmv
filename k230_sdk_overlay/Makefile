@@ -72,11 +72,11 @@ endef
 
 .PHONY: all
 ifeq ($(CONFIG_SUPPORT_RTSMART)$(CONFIG_SUPPORT_LINUX),yy)
-all .DEFAULT: check_src prepare_memory linux mpp cdk-kernel cdk-kernel-install cdk-user cdk-user-install rt-smart-apps rt-smart-kernel big-core-opensbi little-core-opensbi buildroot uboot build-image
+all .DEFAULT: check_src prepare_memory linux mpp cdk-kernel cdk-kernel-install cdk-user cdk-user-install rt-smart-apps rt-smart-kernel big-core-opensbi little-core-opensbi buildroot uboot
 else  ifeq  ($(CONFIG_SUPPORT_RTSMART),y)
-all .DEFAULT: check_src prepare_memory  mpp  rt-smart-apps rt-smart-kernel big-core-opensbi   uboot build-image
+all .DEFAULT: check_src prepare_memory  mpp  rt-smart-apps rt-smart-kernel big-core-opensbi   uboot
 else  ifeq  ($(CONFIG_SUPPORT_LINUX),y)
-all .DEFAULT: check_src prepare_memory linux   little-core-opensbi buildroot uboot build-image
+all .DEFAULT: check_src prepare_memory linux   little-core-opensbi buildroot uboot
 endif 
 
 ifeq ($(NATIVE_BUILD),1)
@@ -519,10 +519,9 @@ build-image: defconfig  prepare_memory  check_src
 	$(K230_SDK_ROOT)/$(CONFIG_GEN_IMG_SCRIPT) ;cd $(K230_SDK_ROOT);
 
 .PHONY: clean
-clean:
+clean: uboot-clean little-core-opensbi-clean linux-clean rt-smart-clean
 	@rm -rf defconfig
 	@rm -rf prepare_memory
-	@$(call CLEAN)
 
 
 

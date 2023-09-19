@@ -21,7 +21,7 @@ def k_mpp_bind_dest_parse(s, kwargs):
 
 k_log_level_conf_desc = {
     "mod_id": 0 | uctypes.UINT32,
-    "level": 4 | uctypes.UINT32,
+    "level": 4 | uctypes.INT32,
     "mod_name": (8 | uctypes.ARRAY, 16 | uctypes.UINT8),
 }
 

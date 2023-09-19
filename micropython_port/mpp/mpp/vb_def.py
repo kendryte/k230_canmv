@@ -14,7 +14,7 @@ def k_vb_pool_config_parse(s, kwargs):
 
 k_vb_config_desc = {
     "max_pool_cnt": 0 | uctypes.UINT32,
-    "comm_pool": (4 | uctypes.ARRAY, 16, k_vb_pool_config_desc),
+    "comm_pool": (8 | uctypes.ARRAY, 16, k_vb_pool_config_desc),
 }
 
 def k_vb_config_parse(s, kwargs):
@@ -22,7 +22,7 @@ def k_vb_config_parse(s, kwargs):
 
 k_vb_mod_config_desc = {
     "uid": 0 | uctypes.UINT32,
-    "mod_config": (4, k_vb_config_desc),
+    "mod_config": (8, k_vb_config_desc),
 }
 
 def k_vb_mod_config_parse(s, kwargs):
