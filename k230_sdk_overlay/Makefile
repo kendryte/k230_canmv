@@ -136,7 +136,7 @@ prepare_sourcecode:prepare_toolchain
 
 #buildroot
 	@echo "download buildroot dl"
-	@wget $(DOWNLOAD_URL)/downloads/dl/dl.tar.gz -O - | tar -xzC src/little/buildroot-ext/
+	@wget -qc $(DOWNLOAD_URL)/downloads/dl/dl.tar.gz -O - | tar -xzC src/little/buildroot-ext/
 
 	@touch src/.src_fetched
 check_toolchain:

@@ -123,6 +123,15 @@
 		debounce-interval = <3>;
 	};
 };
+
+&mmc_sd0{
+    status = "disabled";
+};
+
+&mmc_sd1{
+    status = "disabled";
+};
+
 &usbotg0{
 	status = "disabled";
 };
