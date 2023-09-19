@@ -14,7 +14,7 @@ def k_connectori_phy_attr_parse(s, kwargs):
     s.voc = kwargs.get("voc", 0)
     s.hs_freq = kwargs.get("hs_freq", 0)
 
-k_connectori_phy_attr_desc = {
+k_connector_info_desc = {
     "connector_name": 0 | uctypes.UINT64,
     "screen_test_mode": 8 | uctypes.UINT32,
     "dsi_test_mode": 12 | uctypes.UINT32,
@@ -23,12 +23,12 @@ k_connectori_phy_attr_desc = {
     "lan_num": 24 | uctypes.UINT32,
     "work_mode": 28 | uctypes.UINT32,
     "cmd_mode": 32 | uctypes.UINT32,
-    "phy_attr": (40, k_connectori_phy_attr_desc),
-    "resolution": (64, vo_def.k_vo_display_resolution_desc),
-    "type": 112 | uctypes.UINT32,
+    "phy_attr": (36, k_connectori_phy_attr_desc),
+    "resolution": (52, vo_def.k_vo_display_resolution_desc),
+    "type": 100 | uctypes.UINT32,
 }
 
-def k_connectori_phy_attr_parse(s, kwargs):
+def k_connector_info_parse(s, kwargs):
     s.connector_name = kwargs.get("connector_name", 0)
     s.screen_test_mode = kwargs.get("screen_test_mode", 0)
     s.dsi_test_mode = kwargs.get("dsi_test_mode", 0)

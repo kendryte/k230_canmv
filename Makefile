@@ -84,5 +84,9 @@ build-image: micropython
 micropython-clean:
 	@rm -rf $(K230_CANMV_BUILD_DIR)/micropython
 
+.PHONY: k230_sdk-clean
+k230_sdk-clean:
+	@make -C k230_sdk clean
+
 .PHONY: clean
-clean: micropython-clean
+clean: micropython-clean k230_sdk-clean

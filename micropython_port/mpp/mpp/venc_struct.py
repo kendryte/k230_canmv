@@ -118,131 +118,131 @@ def k_venc_cbr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_cbr_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_cbr_desc, layout)
-    venc_def.k_venc_cbr_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_cbr_parse(s, kwargs)
     return s
 
 def k_venc_vbr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_vbr_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_vbr_desc, layout)
-    venc_def.k_venc_vbr_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_vbr_parse(s, kwargs)
     return s
 
 def k_venc_fixqp(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_fixqp_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_fixqp_desc, layout)
-    venc_def.k_venc_fixqp_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_fixqp_parse(s, kwargs)
     return s
 
 def k_venc_mjpeg_fixqp(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_mjpeg_fixqp_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_mjpeg_fixqp_desc, layout)
-    venc_def.k_venc_mjpeg_fixqp_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_mjpeg_fixqp_parse(s, kwargs)
     return s
 
 def k_venc_rc_attr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_rc_attr_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_rc_attr_desc, layout)
-    venc_def.k_venc_rc_attr_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_rc_attr_parse(s, kwargs)
     return s
 
 def k_venc_chn_attr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_chn_attr_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_chn_attr_desc, layout)
-    venc_def.k_venc_chn_attr_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_chn_attr_parse(s, kwargs)
     return s
 
 def k_venc_pack(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_pack_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_pack_desc, layout)
-    venc_def.k_venc_pack_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_pack_parse(s, kwargs)
     return s
 
 def k_venc_stream(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_stream_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_stream_desc, layout)
-    venc_def.k_venc_stream_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_stream_parse(s, kwargs)
     return s
 
 def k_venc_stream_info(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_stream_info_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_stream_info_desc, layout)
-    venc_def.k_venc_stream_info_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_stream_info_parse(s, kwargs)
     return s
 
 def k_venc_chn_status(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_chn_status_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_chn_status_desc, layout)
-    venc_def.k_venc_chn_status_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_chn_status_parse(s, kwargs)
     return s
 
 def k_venc_h265_sao(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_h265_sao_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_h265_sao_desc, layout)
-    venc_def.k_venc_h265_sao_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_h265_sao_parse(s, kwargs)
     return s
 
 def k_venc_rect(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_rect_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_rect_desc, layout)
-    venc_def.k_venc_rect_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_rect_parse(s, kwargs)
     return s
 
 def k_venc_roi_attr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_roi_attr_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_roi_attr_desc, layout)
-    venc_def.k_venc_roi_attr_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_roi_attr_parse(s, kwargs)
     return s
 
 def k_venc_h264_entropy(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_h264_entropy_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_h264_entropy_desc, layout)
-    venc_def.k_venc_h264_entropy_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_h264_entropy_parse(s, kwargs)
     return s
 
 def k_venc_h265_entropy(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_h265_entropy_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_h265_entropy_desc, layout)
-    venc_def.k_venc_h265_entropy_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_h265_entropy_parse(s, kwargs)
     return s
 
 def k_venc_2d_csc_attr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_2d_csc_attr_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_2d_csc_attr_desc, layout)
-    venc_def.k_venc_2d_csc_attr_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_2d_csc_attr_parse(s, kwargs)
     return s
 
 def k_venc_2d_osd_attr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_2d_osd_attr_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_2d_osd_attr_desc, layout)
-    venc_def.k_venc_2d_osd_attr_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_2d_osd_attr_parse(s, kwargs)
     return s
 
 def k_venc_2d_border_attr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_2d_border_attr_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_2d_border_attr_desc, layout)
-    venc_def.k_venc_2d_border_attr_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_2d_border_attr_parse(s, kwargs)
     return s
 
 def k_venc_2d_coef_attr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(venc_def.k_venc_2d_coef_attr_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), venc_def.k_venc_2d_coef_attr_desc, layout)
-    venc_def.k_venc_2d_coef_attr_pak_venc_attr_parse(s, kwargs)
+    venc_def.k_venc_2d_coef_attr_parse(s, kwargs)
     return s

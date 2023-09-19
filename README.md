@@ -47,6 +47,15 @@ linux下直接使用dd命令进行烧录，windows下使用烧录工具进行烧
 
 在rt-smart命令行下输入`./sdcard/app/micropython`， micropython REPL会在`ttyACMx`上开始交互
 
+## 获取项目更新
+
+```sh
+git pull
+make clean
+make prepare_sourcecode
+make
+```
+
 ## 项目结构
 
 ```sh

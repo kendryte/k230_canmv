@@ -4,7 +4,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
-#include "k230_evb.dtsi"
+#include "k230.dtsi"
 #include "clock_provider.dtsi"          /* k230 soc clock tree */
 #include "clock_consumer.dtsi"          /* k230 soc clock consumer */
 #include "reset_provider.dtsi"          /* k230 soc reset provider */
