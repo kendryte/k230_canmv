@@ -1,0 +1,576 @@
+variables:
+    DEFAULT_CONF: k230_evb_defconfig
+    HW_TYPE: k230
+    HW_MODEL: canmv
+    HW_VER: v0.1
+
+default:
+  image: ai.b-bug.org:5000/k230_sdk:latest
+  tags:
+    - k230_sdk
+  # interruptible: true
+
+stages:
+  - build_setup
+  - build_src
+  - load_test
+
+.show_vars: &show_vars
+  - echo "${JOB_TYPE}"
+  - echo "${DST_BASE}"
+  - echo "${SUB_BASE}"
+  - echo "${sdk_url}"
+  - echo "${sdk_path}"
+  - echo "${image_url}"
+  - echo "${image_path}"
+  - echo "${BUILD}"
+
+.get_job_type: &get_job_type
+  - echo "----------get dst dir with job type----------"
+  - |
+      echo "check job from MR or tag or schedule or web"
+      if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
+        echo "current job is MR"
+        JOB_TYPE="merge_request"
+        DST_BASE="/data1/k230/gitlab-ci/images/${CI_PROJECT_NAME}"
+      elif [[ $CI_PIPELINE_SOURCE == "schedule" ]]; then
+        echo "current job is daily build schedule job"
+        JOB_TYPE="daily_build"
+        DST_BASE="/data1/k230/dev-release"
+      elif [[ $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ ^v[0-9]+\.[0-9]+.*$ ]]; then
+        echo "current job is pre release job"
+        JOB_TYPE="pre_release"
+        DST_BASE="/data1/k230/pre-release"
+      elif [[ $CI_PIPELINE_SOURCE == "web" ]]; then
+        echo "current job is manual test job"
+        JOB_TYPE="manual_test"
+        DST_BASE="/data1/k230/gitlab-ci/images/${CI_PROJECT_NAME}"
+      elif [[ $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ ^v[0-9]+\.[0-9]+.*$ ]]; then
+        echo "current job is release job"
+        JOB_TYPE="release"
+        DST_BASE="/data1/k230/release"
+      else
+        echo "current job is not define, EXIT with ERROR"
+        exit 1
+      fi
+  - echo ${JOB_TYPE}
+  - echo ${DST_BASE}
+  - echo "----------get dst dir job done----------"
+
+.generate_version: &generate_version
+  - echo "----------generate version----------"
+  - echo "generate version with tag or commit id"
+  - >
+    if [[ $CI_COMMIT_TAG =~ ^v[0-9]+\.[0-9]+.*$ ]];
+    then
+      echo "tag exist, version should be tag";
+      new_ver=$CI_COMMIT_TAG;
+      echo "tag is ${new_ver}";
+    else
+      echo "tag is null, version should be commit id";
+      commitid="unkonwn";
+      latest_tag="unkonwn";
+      git rev-parse --short HEAD  &&  commitid=$(git rev-parse --short HEAD);
+      git describe --tags `git rev-list --tags --max-count=1` && latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`);
+      cur_date=$(date "+%Y%m%d-%H%M%S") || exit 1;
+      new_ver="${latest_tag}-${cur_date}-$(whoami)-$(hostname)-${commitid}" || exit 1;
+      echo "ver is ${new_ver}";
+    fi
+  - echo ${new_ver} > version || exit 1
+  - cat version || exit 1
+
+.latest_version: &latest_version
+  - echo "check latest commit id for daily build"
+  - >
+    if [[ "${JOB_TYPE}" == "daily_build" ]]; then
+      echo "current job is daily_build, check commit id"
+      cur_commitid=$(git rev-parse --short HEAD)
+      echo "get finished latest build commit id"
+      latest_file=$(ls "${DST_BASE}/canmv/latest/")
+      finished_commitid=$(echo $latest_file | sed "s/.*-gitlab-runner-\(.*\)\.tar\.gz/\1/g")
+      echo "current  commit_id $cur_commitid"
+      echo "finished commit_id $finished_commitid"
+      if [[ "$cur_commitid" == "$finished_commitid" ]]; then
+        echo "WARNNING current commit id is equal to finished commit id";
+        echo "There is no any code changes,  SKIP and EXIT";
+        echo "BUILD=False" > build.env;
+        exit 0;
+      else
+        echo "current commit id is NOT equal to finished commit id, will continue to run build job";
+      fi
+    else
+        echo "current job is NOT daily build, will continue to run build job";
+    fi
+
+.build_job: &build_job
+  - pwd
+  - echo "----------update folder owner----------"
+  - ls -alht micropython
+  - ls -alht k230_sdk
+  - cur_user=$(id -u)
+  - cur_group=$(id -g)
+  - sudo chown -R ${cur_user}:${cur_group} ./micropython
+  - sudo chown -R ${cur_user}:${cur_group} ./k230_sdk
+  - ls -alht micropython
+  - ls -alht k230_sdk
+  - echo "----------skip toolchain download in local docker----------"
+  - mkdir toolchain && touch toolchain/.toolchain_ready
+  - time make prepare_sourcecode || exit 1
+  - time make CONF=${CONF} || exit 1
+  - echo "----------show sdk image build output----------"
+  - pwd
+  - du -h -d 2 output/${CONF}/ || exit 1
+  - ls -alht output/${CONF}/images || exit 1
+  - echo "----------remove duplicate img----------"
+  - rm -rf output/${CONF}/images/sysimage-sdcard.img
+  #- rm -rf output/${CONF}/images/sysimage-spinand32m.img
+  #- rm -rf output/${CONF}/images/sysimage-spinor32m.img
+  - echo "----------remove big-core/little-core ----------"
+  - cd output/${CONF}/images/ && pwd
+  #- tar -zcf big-core.tgz ./big-core/
+  #- tar -zcf little-core.tgz ./little-core/
+  - rm -rf ./big-core/
+  - rm -rf ./little-core/
+  - cd ../../../ && pwd
+  - echo "----------build sdk image done----------"
+
+.check_build_result: &check_build_result
+  - date
+  - >
+    if [[ "${BUILD}" == "False" ]];
+    then
+      echo "WARNNING: current commit id is equal to finished commit id";
+      echo "There is no any code changes,  SKIP test job and quit"
+      exit 0;
+    else
+      echo "----------start to run test job----------";
+    fi
+
+.common:
+  build_image:
+    - cd $CI_PROJECT_DIR
+    - echo "----------build image----------"
+    - *build_job
+    - echo "----------set test-image flag----------"
+    - echo "BUILD=True" > build.env
+    - echo "save default config name for next job"
+    - echo "conf=${CONF}" >> build.env
+    - cat $CI_PROJECT_DIR/build.env || exit 1
+  save_image:
+    - pwd
+    - echo "----------save image----------"
+    - echo ${DST_BASE}
+    - echo ${SUB_BASE}
+    - echo "set DST_DIR with different type based on docs/images/src"
+    - DST_DIR="${DST_BASE}/canmv"
+    - echo ${DST_DIR}
+    - echo "---create repo dir---"
+    - sudo mkdir -p ${DST_DIR}
+    - echo "----------Save build to external path----------"
+    - SUB_DIR="${SUB_BASE}/${CONF}";
+    - echo "---create current image version dir---"
+    - sudo mkdir -p ${DST_DIR}/${SUB_DIR}/ || exit 1
+    - echo "---save sdk build output---"
+    - sudo cp -rf --sparse=always ${SRC_DIR}/ ${DST_DIR}/${SUB_DIR}/
+    - echo "${DST_DIR}/${SUB_DIR}/"
+    - ls "${DST_DIR}/${SUB_DIR}/"
+    - echo "add latest link for current build"
+    - test -h ${DST_DIR}/latest && sudo rm ${DST_DIR}/latest
+    - sudo ln -s ${DST_DIR}/${SUB_BASE} ${DST_DIR}/latest || exit 1
+    - echo "----------save image done----------"
+    - image_path="${DST_DIR}/${SUB_BASE}/"
+    - echo "image_path=${image_path}" >> $CI_PROJECT_DIR/build.env
+    - image_url=$(echo ${image_path} | sed 's/\/data1/https:\/\/ai\.b-bug\.org/g')
+    - echo "image_url=${image_url}" >> $CI_PROJECT_DIR/build.env
+    - cat $CI_PROJECT_DIR/build.env || exit 1
+    - echo "----------image output----------"
+    - echo "${image_path}"
+    - echo "${image_url}"
+  save_tftp:
+    - pwd
+    - echo "----------save image to tftp----------"
+    - >
+      if [[ "${CONF}" == "${DEFAULT_CONF}" ]];
+      then
+        echo "start to save test image for default config: ${CONF} ------"
+        echo ${TFTP_BASE}
+        echo "set DST_DIR with different type based on docs/images/src"
+        DST_DIR="${TFTP_BASE}/${HW_TYPE}/${HW_MODEL}_${HW_VER}"
+        echo ${DST_DIR}
+        echo "---create tftp dir---"
+        sudo mkdir -p ${DST_DIR} || exit 1
+        echo "generate sub dir for MR/Pre-releae/relese job"
+        echo "check job from MR or tag or schedule or web"
+        if [[ ${CI_MERGE_REQUEST_IID} ]]; then
+            echo "current job is MR, skip and use CI_MERGE_REQUEST_IID"
+        elif [[ ${CI_COMMIT_TAG} ]]; then
+            echo "current job is release job, use CI_COMMIT_TAG"
+            CI_MERGE_REQUEST_IID=${CI_COMMIT_TAG}
+        elif [[ $CI_PIPELINE_SOURCE == "schedule" ]]; then
+            echo "current job is daily build schedule job, use CI_PIPELINE_SOURCE"
+            CI_MERGE_REQUEST_IID=$CI_PIPELINE_SOURCE
+        else
+            echo "current job is not match, use CI_PIPELINE_SOURCE"
+            CI_MERGE_REQUEST_IID=$CI_PIPELINE_SOURCE
+          fi
+        echo "current MR ID ${CI_MERGE_REQUEST_IID}"
+        SUB_DIR="${CI_MERGE_REQUEST_IID}_${CI_PIPELINE_ID}";
+        sudo mkdir -p ${DST_DIR}/${SUB_DIR}/ || exit 1
+        src_file="${SRC_DIR}/sysimage-sdcard.img.gz"
+        ls "${src_file}" || exit 1
+        sysimage_md5=$(md5sum ${src_file} | awk '{print $1}')
+        echo "sysimage md5 is ${sysimage_md5}"
+        sudo cp -rf --sparse=always ${src_file} ${DST_DIR}/${SUB_DIR}/
+        echo "${DST_DIR}/${SUB_DIR}/"
+        ls -alht "${DST_DIR}/${SUB_DIR}/" || exit 1
+        echo "release job works in release_sdk sub dir, use full path"
+        echo "sysimage_path=${DST_DIR}/${SUB_DIR}/sysimage-sdcard.img.gz" >> $CI_PROJECT_DIR/build.env
+        echo "sysimage_md5=${sysimage_md5}" >> $CI_PROJECT_DIR/build.env
+        ls
+        cat $CI_PROJECT_DIR/build.env
+      else
+        echo "SKIP save test image for current config: ${CONF}------"
+      fi
+    - echo "----------save image to tftp done----------"
+
+.test:
+  test_setup:
+    - echo "----------get available test devices----------"
+    - test -d bin || mkdir ./bin
+    - test -f ./bin/ailab && rm -rf ./bin/ailab
+    - wget -qc https://ai.b-bug.org/k510/downloads/github/ailab -O ./bin/ailab
+    - chmod +x ./bin/ailab
+    - available=$(./bin/ailab show --dest available --hw_type ${HW_TYPE} --hw_model ${HW_MODEL} --hw_ver ${HW_VER} --format args)
+    - echo ${available}
+    - >
+       if [[ $available =~ "k230" ]]; then
+          echo "Get Available DUT pass"
+        else
+          echo "ERROR: No Available DUT, Please rerun to check it again"
+          exit 1
+        fi
+    - echo "----------get available test devices done----------"
+    - echo "----------reserve test device----------"
+    - |
+        echo "check job from MR or tag or schedule or web"
+        if [[ ${CI_MERGE_REQUEST_IID} ]]; then
+            echo "current job is MR, skip and use CI_MERGE_REQUEST_IID"
+        elif [[ ${CI_COMMIT_TAG} ]]; then
+            echo "current job is release job, use CI_COMMIT_TAG"
+            CI_MERGE_REQUEST_IID=${CI_COMMIT_TAG}
+        elif [[ $CI_PIPELINE_SOURCE == "schedule" ]]; then
+            echo "current job is daily build schedule job, use CI_PIPELINE_SOURCE"
+            CI_MERGE_REQUEST_IID=$CI_PIPELINE_SOURCE
+        else
+            echo "current job is not match, use CI_PIPELINE_SOURCE"
+            CI_MERGE_REQUEST_IID=$CI_PIPELINE_SOURCE
+          fi
+    - echo "MR ID ${CI_MERGE_REQUEST_IID}"
+    - echo "Pipeline ID ${CI_PIPELINE_ID}"
+    - reserved=$(./bin/ailab add ${available} --time 15m --site gitlab-runner --source ${CI_MERGE_REQUEST_IID} --job ${CI_PIPELINE_ID} --format args)
+    - echo ${reserved}
+    - >
+          if [[ ${reserved} =~ "gitlab-runner" ]]; then
+            echo "Reserve DUT pass"
+          else
+            echo "ERROR: Reserve DUT failed"
+            exit 1
+          fi
+    - power=$(./bin/ailab power --type=on ${available})
+    - echo $power
+    - >
+          if [[ $power =~ "True" ]]; then
+            echo "Power on DUT pass"
+          else
+            echo "ERROR: Power on DUT failed"
+            exit 1
+          fi
+    - echo "----------save reserved/available for after_script----------"
+    - echo "${available}" > available
+    - echo "${reserved}" > reserved
+    - echo "----------reserve test device done----------"
+  test_teardown:
+    - echo "----------release test device----------"
+    - echo "get variables from previous steps"
+    - reserved=$(cat reserved)
+    - available=$(cat available)
+    - echo "Release DUT start"
+    - test -d bin || mkdir ./bin
+    - test -f ./bin/ailab && rm -rf ./bin/ailab
+    - wget -qc https://ai.b-bug.org/k510/downloads/github/ailab -O ./bin/ailab
+    - chmod +x ./bin/ailab
+    - result=$(./bin/ailab update --dest=reserved ${reserved})
+    - echo $result
+    - >
+          if [[ $result =~ "True" ]]; then
+            echo "Release DUT pass"
+          else
+            echo "ERROR: Release DUT failed"
+            exit 1
+          fi
+    - power=$(./bin/ailab power --type=off ${available})
+    - echo $power
+    - >
+          if [[ $power =~ "True" ]]; then
+            echo "Power off DUT pass"
+          else
+            echo "ERROR: Power off DUT failed"
+            exit 1
+          fi
+    - echo "----------release test device done----------"
+  load_image:
+    - echo "----------load image to test device----------"
+    - echo "sysimage-sdcard.img.gz md5 ${sysimage_md5}"
+    - test -d bin || mkdir ./bin
+    - test -f ./bin/aiload && rm -rf ./bin/aiload
+    - wget -qc https://ai.b-bug.org/k510/downloads/github/k230load -O ./bin/aiload
+    - chmod +x ./bin/aiload
+    - echo "MR ID ${CI_MERGE_REQUEST_IID}"
+    - echo "Pipeline ID ${CI_PIPELINE_ID}"
+    - |
+        echo "---start to load image in for loop"
+        stime=$(date +'%Y-%m-%d %H:%M:%S')
+        echo "---load image start time: $stime"
+        power_off="./bin/ailab power --type=off ${available}"
+        power_on="./bin/ailab power --type=on ${available}"
+        load_cmd="./bin/aiload --pr_id ${CI_MERGE_REQUEST_IID} --job_id ${CI_PIPELINE_ID} --md5_sysimage ${sysimage_md5} ${available}"
+        for i in {1..4}; do
+          starttime=$(date +'%Y-%m-%d %H:%M:%S')
+          echo "---loop $i start time: $starttime"
+          echo "---start to load image in loop $i---"
+          if $load_cmd
+          then
+            echo "---loop $i load image pass---"
+            break
+          else
+            echo "ERROR:loop $i load image failed, ignore Error and try again..."
+            echo "---start to rerun in next loop..."
+            $power_off
+            sleep 2
+            $power_on
+            sleep 2
+          fi
+          endtime=$(date +'%Y-%m-%d %H:%M:%S')
+          start_seconds=$(date -d "$starttime" +%s)
+          end_seconds=$(date -d "$endtime" +%s)
+          echo "---loop $i end time: $endtime"
+          echo "---loop $i total cost time：$((end_seconds - start_seconds)) s"
+        done
+        if [ $i -eq 4 ]
+        then
+          echo "ERROR: Max retries reached with load image"
+          exit 1
+        fi
+        etime=$(date +'%Y-%m-%d %H:%M:%S')
+        s_seconds=$(date -d "$stime" +%s)
+        e_seconds=$(date -d "$etime" +%s)
+        echo "---load image end time: $etime"
+        echo "---load image total cost time：$((e_seconds - s_seconds)) s"
+        echo "---finished load image in loop $i"
+    - echo "---load image pass"
+    - echo "----------load image to test device done----------"
+  smoke_test:
+    - echo "----------Run Smoke Test start----------"
+    - test -d bin || mkdir ./bin
+    - test -f ./bin/airobot && rm -rf ./bin/airobot
+    - wget -qc https://ai.b-bug.org/k510/downloads/github/airobot -O ./bin/airobot
+    - chmod +x ./bin/airobot
+    - test -f ./k230.robot && rm -rf ./k230.robot
+    - wget -qc https://ai.b-bug.org/k510/downloads/github/k230.robot -O ./k230.robot
+    - ./bin/ailab convert --dest=script --format yaml --file_name=k230.yml ${available}
+    - test -f k230.yml || exit 1
+    - echo ""----------Run smoke test start"----------"
+    - |
+        echo "---start to run smoke test in for loop"
+        stime=$(date +'%Y-%m-%d %H:%M:%S')
+        echo "---run smoke test start time: $stime"
+        test_cmd="./bin/airobot -m gitlab -V k230.yml -i smoke k230.robot"
+        for i in {1..2}; do
+          starttime=$(date +'%Y-%m-%d %H:%M:%S')
+          echo "---loop $i start time: $starttime"
+          echo "---start to run smoke test in loop $i---"
+          if $test_cmd
+          then
+            echo "---loop $i run smoke test pass---"
+            break
+          else
+            echo "ERROR:loop $i run smoke test failed, ignore Error and try again..."
+            echo "---start to rerun in next loop..."
+            sleep 3
+          fi
+          endtime=$(date +'%Y-%m-%d %H:%M:%S')
+          start_seconds=$(date -d "$starttime" +%s)
+          end_seconds=$(date -d "$endtime" +%s)
+          echo "---loop $i end time: $endtime"
+          echo "---loop $i total cost time：$((end_seconds - start_seconds)) s"
+        done
+        if [ $i -eq 2 ]
+        then
+          echo "ERROR: Max retries reached with run smoke test"
+          exit 1
+        fi
+        etime=$(date +'%Y-%m-%d %H:%M:%S')
+        s_seconds=$(date -d "$stime" +%s)
+        e_seconds=$(date -d "$etime" +%s)
+        echo "---run smoke test end time: $etime"
+        echo "---run smoke test total cost time：$((e_seconds - s_seconds)) s"
+        echo "---finished run smoke test in loop $i"
+    - echo "---add smoke test script"
+    - git clone ${TEST_SCRIPTS_REPO} k230_testscripts || exit 1
+    - cd k230_testscripts || exit 1
+    - git fetch origin gitlab || exit 1
+    - git checkout gitlab || exit 1
+    - cd ../ || exit 1
+    - wget -qc https://ai.b-bug.org/k510/downloads/github/k230_smoke_test.sh -O ./k230_smoke_test.sh
+    - chmod +x ./k230_smoke_test.sh
+    - |
+        echo "---start to run k230 smoke test in for loop"
+        stime=$(date +'%Y-%m-%d %H:%M:%S')
+        echo "---run k230 smoke test start time: $stime"
+        test_cmd="./k230_smoke_test.sh"
+        for i in {1..2}; do
+          starttime=$(date +'%Y-%m-%d %H:%M:%S')
+          echo "---loop $i start time: $starttime"
+          echo "---start to run k230 smoke test in loop $i---"
+          if $test_cmd
+          then
+            echo "---loop $i run k230 smoke test pass---"
+            break
+          else
+            echo "ERROR:loop $i run k230 smoke test failed, ignore Error and try again..."
+            echo "---start to rerun in next loop..."
+            sleep 3
+          fi
+          endtime=$(date +'%Y-%m-%d %H:%M:%S')
+          start_seconds=$(date -d "$starttime" +%s)
+          end_seconds=$(date -d "$endtime" +%s)
+          echo "---loop $i end time: $endtime"
+          echo "---loop $i total cost time：$((end_seconds - start_seconds)) s"
+        done
+        if [ $i -eq 2 ]
+        then
+          echo "ERROR: Max retries reached with run k230 smoke test"
+          exit 1
+        fi
+        etime=$(date +'%Y-%m-%d %H:%M:%S')
+        s_seconds=$(date -d "$stime" +%s)
+        e_seconds=$(date -d "$etime" +%s)
+        echo "---run k230 smoke test end time: $etime"
+        echo "---run k230 smoke test total cost time：$((e_seconds - s_seconds)) s"
+        echo "---finished run k230 smoke test in loop $i"
+    - echo "----------Run Smoke Test pass----------"
+
+before_script:
+  - echo '----------Build ENV Prepare----------'
+  - echo 'Add SSH KEY for Multiple repo clone in Makefile'
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  - eval $(ssh-agent -s)
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - echo "$SSH_PRIVATE_KEY" | ssh-add - > ~/.ssh/id_ed25519 || exit 1
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n    StrictHostKeyChecking no\n" > ~/.ssh/config'
+  - echo $SHELL
+  - echo "config ssh timeout"
+  - echo "    ServerAliveInterval 30" >> ~/.ssh/config
+  - echo "    ServerAliveCountMax 60" >> ~/.ssh/config
+  - echo "    TCPKeepAlive yes" >> ~/.ssh/config
+  - cat ~/.ssh/config
+  - whoami
+  - uptime
+  - pwd
+  - ls -alht
+  - ls -alht micropython
+  - uname -a
+  - cat /etc/issue
+  - echo $CI_PROJECT_DIR
+  - echo $CI_PROJECT_NAME
+  - echo $CI_PIPELINE_SOURCE
+  - echo $CI_COMMIT_TAG
+  - echo '----------Set git config----------'
+  - echo "${GITLAB_USER_EMAIL}"
+  - echo "${GITLAB_USER_NAME}"
+  - git config --global user.email "${GITLAB_USER_EMAIL}"
+  - git config --global user.name "${GITLAB_USER_NAME}"
+  - git config --global --add safe.directory $CI_PROJECT_DIR
+  - echo '----------fetch all tags----------'
+  - git fetch --tags
+
+# build setup for all jobs
+build_setup:
+  stage: build_setup
+  rules:
+    # MR job
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # release job
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+    # pre-release job
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+    # manual job
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG !~ /^v\d+\.\d+.*$/
+    # daily build
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  timeout: 5m
+  script:
+    - echo "build env setup"
+    - *get_job_type
+    - *latest_version
+    - *generate_version
+    - echo "JOB_TYPE=${JOB_TYPE}" >> build.env
+    - echo "DST_BASE=${DST_BASE}" >> build.env
+    - echo "SUB_BASE=${new_ver}" >> build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+
+# first build with src for MR
+build_image:
+  stage: build_src
+  rules:
+    # MR job
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # release job
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+    # pre-release job
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+    # manual job
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG !~ /^v\d+\.\d+.*$/
+    # daily build
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  timeout: 30m
+  parallel:
+    matrix:
+      - CONF: [k230_evb_defconfig]
+  variables:
+    SRC_DIR: ./output/${CONF}/images
+  script:
+    - *show_vars
+    - *check_build_result
+    - !reference [.common, build_image]
+    - !reference [.common, save_tftp]
+    - !reference [.common, save_image]
+    - cat $CI_PROJECT_DIR/build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+
+# # test setup for all jobs
+# load_image_smoke_test:
+#   stage: load_test
+#   rules:
+#     # MR job
+#     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+#     # release job
+#     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+#     # pre-release job
+#     - if: $CI_PIPELINE_SOURCE == "web"
+#     # daily build
+#     - if: $CI_PIPELINE_SOURCE == "schedule"
+#   timeout: 30m
+#   script:
+#     - *show_vars
+#     - *check_build_result
+#     - !reference [.test, test_setup]
+#     - !reference [.test, load_image]
+#     - !reference [.test, smoke_test]
+#   after_script:
+#     - !reference [.test, test_teardown]
