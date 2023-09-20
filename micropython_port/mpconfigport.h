@@ -40,7 +40,7 @@
 #define MICROPY_PY_SYS_PLATFORM  "rt-smart"
 
 #ifndef MICROPY_PY_SYS_PATH_DEFAULT
-#define MICROPY_PY_SYS_PATH_DEFAULT ".frozen:/sdcard/app"
+#define MICROPY_PY_SYS_PATH_DEFAULT ".frozen:/sdcard/app:/sdcard"
 #endif
 
 #define MP_STATE_PORT MP_STATE_VM
@@ -252,10 +252,10 @@ static inline unsigned long mp_random_seed_init(void) {
 #define MICROPY_PY_CRYPTOLIB           (1)
 #endif
 
-
-
 // Enable the "websocket" module.
 #define MICROPY_PY_WEBSOCKET           (0)
 
 // Enable the "machine" module, mostly for machine.mem*.
 #define MICROPY_PY_MACHINE             (1)
+
+#define MICROPY_PY_UCTYPES_STRING_AT_MAX_SIZE (1024 * 1024)
