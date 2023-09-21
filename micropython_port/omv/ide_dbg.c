@@ -26,6 +26,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <sha256.h>
+#include "py/runtime.h"
 
 #define CONFIG_CANMV_IDE_SUPPORT 1
 
@@ -242,13 +243,9 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         #else
                         // raise IDE interrupt
                         if (ide_script_running) {
+                            // FIXME
                             mp_obj_exception_clear_traceback(mp_const_ide_interrupt);
-                            MP_STATE_THREAD(mp_pending_exception) = mp_const_ide_interrupt; //MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception));
-                            #if MICROPY_ENABLE_SCHEDULER
-                            if (MP_STATE_VM(sched_state) == MP_SCHED_IDLE) {
-                                MP_STATE_VM(sched_state) = MP_SCHED_PENDING;
-                            }
-                            #endif
+                            mp_sched_exception(mp_const_ide_interrupt);
                         }
                         ide_script_running = 0;
                         #endif
