@@ -35,6 +35,8 @@
 
 #if CONFIG_CANMV_IDE_SUPPORT
 
+#define TEST_PIC 0
+
 int usb_cdc_fd;
 
 void mp_hal_stdout_tx_strn(const char *str, size_t len);
@@ -47,7 +49,9 @@ static struct ide_dbg_svfil_t ide_dbg_sv_file;
 static mp_obj_exception_t ide_exception; //IDE interrupt
 static mp_obj_str_t ide_exception_str;
 static mp_obj_tuple_t* ide_exception_str_tuple = NULL;
+#if !TEST_PIC
 static mp_obj_t mp_const_ide_interrupt = (mp_obj_t)(&ide_exception);
+#endif
 static sem_t stdin_sem;
 static char stdin_ring_buffer[256];
 static unsigned stdin_write_ptr = 0;
@@ -144,8 +148,6 @@ static void interrupt_repl(void) {
 }
 
 static volatile bool enable_pic = true;
-
-#define TEST_PIC 0
 
 static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* data, size_t length) {
     #if TEST_PIC
@@ -451,7 +453,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     case USBDBG_FB_ENABLE: {
                         // FIXME: stream parse
                         if (i + 1 < length) {
-                            enable_pic = data[i++];
+                            enable_pic = data[i+1];
                         }
                         pr("cmd: USBDBG_FB_ENABLE, enable(%u)", enable_pic);
                         break;
@@ -502,44 +504,58 @@ static void* ide_dbg_task(void* args) {
             } else {
                 interrupt_repl();
             }
-        } else if (size <= 3) {
-            fprintf(stderr, "[usb] read %lu bytes ", size);
-            print_raw(usb_cdc_read_buf, size);
-            if ((size == 1) && (usb_cdc_read_buf[0] == CHAR_CTRL_C) && repl_script_running) {
-                // terminate script running, FIXME: multithread raise
-                #if MICROPY_KBD_EXCEPTION
-                mp_obj_exception_clear_traceback(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
-                MP_STATE_THREAD(mp_pending_exception) = &MP_STATE_VM(mp_kbd_exception);
-                #if MICROPY_ENABLE_SCHEDULER
-                if (MP_STATE_VM(sched_state) == MP_SCHED_IDLE) {
-                    MP_STATE_VM(sched_state) = MP_SCHED_PENDING;
-                }
-                #endif
-                //nlr_raise(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
-                #endif
-            } else {
-                if (stdin_write_ptr + size <= sizeof(stdin_ring_buffer)) {
-                    memcpy(stdin_ring_buffer + stdin_write_ptr, usb_cdc_read_buf, size);
-                    stdin_write_ptr += size;
-                } else {
-                    // rotate
-                    memcpy(stdin_ring_buffer + stdin_write_ptr, usb_cdc_read_buf, sizeof(stdin_ring_buffer) - stdin_write_ptr);
-                    memcpy(stdin_ring_buffer, usb_cdc_read_buf + (sizeof(stdin_ring_buffer) - stdin_write_ptr),
-                        stdin_write_ptr + size - sizeof(stdin_ring_buffer));
-                    stdin_write_ptr = stdin_write_ptr + size - sizeof(stdin_ring_buffer);
-                }
-                while (size--)
-                    sem_post(&stdin_sem);
-            }
-        } else if (size > 0) {
-            // FIXME: handshake
-            if (!ide_dbg_attach()) {
-                interrupt_repl();
-            }
-            ide_attached = true;
+        } else if (size < 0) {
+            // TODO: error
+        } else if (ide_dbg_attach()) {
             ide_dbg_update(&state, usb_cdc_read_buf, size);
-            if (usb_cdc_read_buf[0] == 0x30) {
-                
+        } else {
+            // FIXME: IDE connect
+            // FIXME: IDE special token
+            const char* IDE_TOKEN = "\x30\x8D\x04\x00\x00\x00";
+            if (size == 6 && (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN, size) == 0)) {
+                // switch to ide mode
+                if (!ide_dbg_attach()) {
+                    interrupt_repl();
+                }
+                ide_attached = true;
+            } else {
+                // FIXME: mock machine.UART, restore this when UART library finish
+                const char* MOCK_FOR_IDE[] = {
+                    "from machine import UART\r",
+                    "repl = UART.repl_uart()\r",
+                    "repl.init(1500000, 8, None, 1, read_buf_len=2048, ide=True)\r"
+                };
+                if ((size >= 23) && (
+                    (strncmp((const char*)usb_cdc_read_buf, MOCK_FOR_IDE[0], 23) == 0) ||
+                    (strncmp((const char*)usb_cdc_read_buf, MOCK_FOR_IDE[1], 23) == 0) ||
+                    (strncmp((const char*)usb_cdc_read_buf, MOCK_FOR_IDE[2], 23) == 0)
+                    )) {
+                    // ignore
+                    continue;
+                }
+                // normal REPL
+                fprintf(stderr, "[usb] read %lu bytes ", size);
+                print_raw(usb_cdc_read_buf, size);
+                if ((size == 1) && (usb_cdc_read_buf[0] == CHAR_CTRL_C) && repl_script_running) {
+                    // terminate script running, FIXME: multithread raise
+                    #if MICROPY_KBD_EXCEPTION
+                    mp_sched_keyboard_interrupt();
+                    //nlr_raise(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
+                    #endif
+                } else {
+                    if (stdin_write_ptr + size <= sizeof(stdin_ring_buffer)) {
+                        memcpy(stdin_ring_buffer + stdin_write_ptr, usb_cdc_read_buf, size);
+                        stdin_write_ptr += size;
+                    } else {
+                        // rotate
+                        memcpy(stdin_ring_buffer + stdin_write_ptr, usb_cdc_read_buf, sizeof(stdin_ring_buffer) - stdin_write_ptr);
+                        memcpy(stdin_ring_buffer, usb_cdc_read_buf + (sizeof(stdin_ring_buffer) - stdin_write_ptr),
+                            stdin_write_ptr + size - sizeof(stdin_ring_buffer));
+                        stdin_write_ptr = stdin_write_ptr + size - sizeof(stdin_ring_buffer);
+                    }
+                    while (size--)
+                        sem_post(&stdin_sem);
+                }
             }
         }
     }
