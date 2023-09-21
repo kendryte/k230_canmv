@@ -134,6 +134,7 @@
 #define RT_USING_I2C0
 #define RT_USING_I2C1
 #define RT_USING_I2C3
+#define RT_USING_I2C4
 #define RT_USING_I2C_DUMP
 #define RT_USING_ADC
 #define RT_USING_OTP

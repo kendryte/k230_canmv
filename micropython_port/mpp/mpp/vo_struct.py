@@ -1,6 +1,19 @@
 import uctypes
 from mpp import vo_def
 
+K_VO_MAX_DEV_NUMS = const(1)
+K_VO_MAX_CHN_NUMS = const(7)
+
+K_VO_DISPLAY_DEV_ID = const(0)
+
+K_VO_DISPLAY_CHN_ID0 = const(0)
+K_VO_DISPLAY_CHN_ID1 = const(1)
+K_VO_DISPLAY_CHN_ID2 = const(2)
+K_VO_DISPLAY_CHN_ID3 = const(3)
+K_VO_DISPLAY_CHN_ID4 = const(4)
+K_VO_DISPLAY_CHN_ID5 = const(5)
+K_VO_DISPLAY_CHN_ID6 = const(6)
+
 K_VO_LAYER0 = const(0)
 K_VO_LAYER1 = const(1)
 K_VO_LAYER2 = const(2)
