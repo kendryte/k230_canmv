@@ -64,7 +64,6 @@ k_video_frame_info_desc = {
 }
 
 def k_video_frame_info_parse(s, kwargs):
-    v_frame = kwargs.get("supplement", {})
-    k_video_supplement_parse(s, v_frame)
+    v_frame = kwargs.get("v_frame", {})
     s.pool_id = kwargs.get("pool_id", 0)
     s.mod_id = kwargs.get("mod_id", 0)
