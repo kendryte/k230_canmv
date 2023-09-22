@@ -85,9 +85,13 @@ stages:
     if [[ "${JOB_TYPE}" == "daily_build" ]]; then
       echo "current job is daily_build, check commit id"
       cur_commitid=$(git rev-parse --short HEAD)
-      echo "get finished latest build commit id"
-      latest_file=$(ls "${DST_BASE}/canmv/latest/")
-      finished_commitid=$(echo $latest_file | sed "s/.*-gitlab-runner-\(.*\)\.tar\.gz/\1/g")
+      echo "get latest commit id"
+      if [ -d "${DST_BASE}/canmv/latest/"]; then
+        latest_file=$(ls "${DST_BASE}/canmv/latest/")
+        finished_commitid=$(echo $latest_file | sed "s/.*-gitlab-runner-\(.*\)\.tar\.gz/\1/g")
+      else
+        finished_commitid=""
+      fi
       echo "current  commit_id $cur_commitid"
       echo "finished commit_id $finished_commitid"
       if [[ "$cur_commitid" == "$finished_commitid" ]]; then
@@ -276,13 +280,13 @@ stages:
             echo "ERROR: Reserve DUT failed"
             exit 1
           fi
-    - power=$(./bin/ailab power --type=on ${available})
+    - power=$(./bin/ailab power --type=cycle ${available})
     - echo $power
     - >
           if [[ $power =~ "True" ]]; then
-            echo "Power on DUT pass"
+            echo "Reset DUT pass"
           else
-            echo "ERROR: Power on DUT failed"
+            echo "ERROR: Reset DUT failed"
             exit 1
           fi
     - echo "----------save reserved/available for after_script----------"
@@ -308,13 +312,13 @@ stages:
             echo "ERROR: Release DUT failed"
             exit 1
           fi
-    - power=$(./bin/ailab power --type=off ${available})
+    - power=$(./bin/ailab power --type=cycle ${available})
     - echo $power
     - >
           if [[ $power =~ "True" ]]; then
-            echo "Power off DUT pass"
+            echo "Reset DUT pass"
           else
-            echo "ERROR: Power off DUT failed"
+            echo "ERROR: Reset DUT failed"
             exit 1
           fi
     - echo "----------release test device done----------"
