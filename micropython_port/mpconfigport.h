@@ -258,4 +258,8 @@ static inline unsigned long mp_random_seed_init(void) {
 // Enable the "machine" module, mostly for machine.mem*.
 #define MICROPY_PY_MACHINE             (1)
 
+// uctypes
 #define MICROPY_PY_UCTYPES_STRING_AT_MAX_SIZE (1024 * 1024)
+
+// ulab
+#define ULAB_MAX_DIMS   (4)

@@ -16,6 +16,8 @@ include boards/mpconfigport.mk
 # This should be configured by the mpconfigvariant.mk
 PROG ?= micropython
 
+USER_C_MODULES = ulab
+
 # include py core make definitions
 include $(TOP)/py/py.mk
 include $(TOP)/extmod/extmod.mk

@@ -105,97 +105,97 @@ def k_vicap_mclk(**kwargs):
 def k_vicap_flash_ctrl(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_flash_ctrl_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_flash_ctrl_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_flash_ctrl_desc, layout)
     vicap_def.k_vicap_flash_ctrl_parse(s, kwargs)
     return s
 
 def k_vicap_vi_ipi_attr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_vi_ipi_attr_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_vi_ipi_attr_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_vi_ipi_attr_desc, layout)
     vicap_def.k_vicap_vi_ipi_attr_parse(s, kwargs)
     return s
 
 def k_vicap_window(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_window_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_window_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_window_desc, layout)
     vicap_def.k_vicap_window_parse(s, kwargs)
     return s
 
 def k_vicap_isp_pipe_ctrl(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_isp_pipe_ctrl_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_isp_pipe_ctrl_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_isp_pipe_ctrl_desc, layout)
     vicap_def.k_vicap_isp_pipe_ctrl_parse(s, kwargs)
     return s
 
 def k_vicap_sensor_info(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_sensor_info_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_sensor_info_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_sensor_info_desc, layout)
     vicap_def.k_vicap_sensor_info_parse(s, kwargs)
     return s
 
 def k_vicap_chn_attr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_chn_attr_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_chn_attr_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_chn_attr_desc, layout)
     vicap_def.k_vicap_chn_attr_parse(s, kwargs)
     return s
 
 def k_vicap_dev_attr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_dev_attr_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_dev_attr_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_dev_attr_desc, layout)
     vicap_def.k_vicap_dev_attr_parse(s, kwargs)
     return s
 
 def k_vicap_sensor_attr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_sensor_attr_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_sensor_attr_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_sensor_attr_desc, layout)
     vicap_def.k_vicap_sensor_attr_parse(s, kwargs)
     return s
 
 def k_vicap_timerstamp(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_timerstamp_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_timerstamp_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_timerstamp_desc, layout)
     vicap_def.k_vicap_timerstamp_parse(s, kwargs)
     return s
 
 def k_vicap_drop_frame(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_drop_frame_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_drop_frame_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_drop_frame_desc, layout)
     vicap_def.k_vicap_drop_frame_parse(s, kwargs)
     return s
 
 def k_vicap_vb_info(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_vb_info_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_vb_info_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_vb_info_desc, layout)
     vicap_def.k_vicap_vb_info_parse(s, kwargs)
     return s
 
 def k_vicap_attr_info(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_attr_info_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_attr_info_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_attr_info_desc, layout)
     vicap_def.k_vicap_attr_info_parse(s, kwargs)
     return s
 
 def k_vicap_dev_set_info(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_dev_set_info_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_dev_set_info_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_dev_set_info_desc, layout)
     vicap_def.k_vicap_dev_set_info_parse(s, kwargs)
     return s
 
 def k_vicap_chn_set_info(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_chn_set_info_desc, layout))
-    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_chn_set_info_dek_vicap_mclk_desc, layout)
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_chn_set_info_desc, layout)
     vicap_def.k_vicap_chn_set_info_parse(s, kwargs)
     return s

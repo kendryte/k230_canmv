@@ -59,15 +59,15 @@ sync_submodule: .fast_dl
 .PHONY: prepare_sourcecode
 prepare_sourcecode: sync_submodule
 	@echo "prepare_sourcecode"
-	@make -C k230_sdk prepare_sourcecode
+	@make -C k230_sdk prepare_sourcecode CONF=$(CONF)
 
 .PHONY: .sync_overlay
 .sync_overlay: .autoconf
 	@make -f scripts/helper.mk sync_overlay
 
 .PHONY: k230_sdk_build
-k230_sdk_build:.sync_overlay
-	@make -f scripts/helper.mk $(K230_CANMV_BUILD_DIR)/.k230_sdk_all
+k230_sdk_build: .sync_overlay
+	@make -f scripts/helper.mk $(K230_CANMV_BUILD_DIR)/.k230_sdk_all CONF=$(CONF)
 
 .PHONY: micropython
 micropython: k230_sdk_build
@@ -87,6 +87,7 @@ micropython-clean:
 .PHONY: k230_sdk-clean
 k230_sdk-clean:
 	@make -C k230_sdk clean
+	@rm -f $(K230_CANMV_BUILD_DIR)/.k230_sdk_all
 
 .PHONY: clean
 clean: micropython-clean k230_sdk-clean
