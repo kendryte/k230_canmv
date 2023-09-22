@@ -93,4 +93,4 @@ micropython_port/.ready_sync_file: $(micropython_overlay_file)
 sync_overlay: k230_sdk_overlay/.ready_sync_dir k230_sdk_overlay/.ready_sync_file micropython_port/.ready_sync_dir micropython_port/.ready_sync_file
 
 $(K230_CANMV_BUILD_DIR)/.k230_sdk_all: k230_sdk_overlay/.ready_sync_dir k230_sdk_overlay/.ready_sync_file
-	@make -C k230_sdk all && touch $@
+	@make -C k230_sdk all CONF=$(CONF) && touch $@

@@ -91,7 +91,6 @@ download_toolchain:
 
 .PHONY: extract_toolchain
 extract_toolchain: download_toolchain
-	@echo "test1"
 	@set -e; \
 	if [ ! -f toolchain/.toolchain_ready ];then \
 	echo "extract toolchain"; \
