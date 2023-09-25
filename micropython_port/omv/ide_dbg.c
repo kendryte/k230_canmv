@@ -502,7 +502,18 @@ static void* ide_dbg_task(void* args) {
             if (first_rts) {
                 first_rts = false;
             } else {
-                interrupt_repl();
+                if (ide_dbg_attach()) {
+                    fprintf(stderr, "[usb] exit IDE mode\n");
+                    ide_attached = false;
+                    // exit script mode
+                    if (script_string) {
+                        free(script_string);
+                        script_string = NULL;
+                    }
+                    sem_post(&script_sem);
+                } else {
+                    interrupt_repl();
+                }
             }
         } else if (size < 0) {
             // TODO: error
@@ -510,17 +521,22 @@ static void* ide_dbg_task(void* args) {
             ide_dbg_update(&state, usb_cdc_read_buf, size);
         } else {
             // FIXME: IDE connect
-            const char* IDE_TOKEN = "\x30\x8D\x04\x00\x00\x00"; // CanMV IDE// FIXME: IDE special token
+            // FIXME: IDE special token
+            const char* IDE_TOKEN = "\x30\x8D\x04\x00\x00\x00"; // CanMV IDE
             const char* IDE_TOKEN2 = "\x30\x80\x0C\x00\x00\x00"; // OpenMV IDE
+            const char* IDE_TOKEN3 = "\x30\x87\x04\x00\x00\x00";
             if (size == 6 && (
                 (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN, size) == 0) ||
-                (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN2, size) == 0)
+                (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN2, size) == 0) ||
+                (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN3, size) == 0)
                 )) {
                 // switch to ide mode
+                fprintf(stderr, "[usb] switch to IDE mode\n");
                 if (!ide_dbg_attach()) {
                     interrupt_repl();
                 }
                 ide_attached = true;
+                ide_dbg_update(&state, usb_cdc_read_buf, size);
             } else {
                 // FIXME: mock machine.UART, restore this when UART library finish
                 const char* MOCK_FOR_IDE[] = {
