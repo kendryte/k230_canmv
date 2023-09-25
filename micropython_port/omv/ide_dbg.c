@@ -510,9 +510,12 @@ static void* ide_dbg_task(void* args) {
             ide_dbg_update(&state, usb_cdc_read_buf, size);
         } else {
             // FIXME: IDE connect
-            // FIXME: IDE special token
-            const char* IDE_TOKEN = "\x30\x8D\x04\x00\x00\x00";
-            if (size == 6 && (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN, size) == 0)) {
+            const char* IDE_TOKEN = "\x30\x8D\x04\x00\x00\x00"; // CanMV IDE// FIXME: IDE special token
+            const char* IDE_TOKEN2 = "\x30\x80\x0C\x00\x00\x00"; // OpenMV IDE
+            if (size == 6 && (
+                (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN, size) == 0) ||
+                (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN2, size) == 0)
+                )) {
                 // switch to ide mode
                 if (!ide_dbg_attach()) {
                     interrupt_repl();
