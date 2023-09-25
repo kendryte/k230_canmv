@@ -6,6 +6,7 @@ VICAP_MAX_FRAME_COUNT = const(10)
 VICAP_MCM_FRAME_COUNT = const(4)
 
 VICAP_ALIGN_1K = const(0x400)
+VICAP_ALIGN_4K = const(0x1000)
 
 VICAP_CSI0 = const(1)
 VICAP_CSI1 = const(2)

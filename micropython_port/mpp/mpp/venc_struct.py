@@ -2,6 +2,7 @@ import uctypes
 from mpp import venc_def
 
 VENC_MAX_CHN_NUMS = const(4)
+VENC_ALIGN_4K = const(0x1000)
 
 VENC_PROFILE_NONE = const(0)
 VENC_PROFILE_H264_BASELINE = const(1)

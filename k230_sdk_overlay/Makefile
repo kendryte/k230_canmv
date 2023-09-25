@@ -7,6 +7,7 @@ BUILD_TYPE ?= product
 NATIVE_BUILD ?= 1
 
 MPP_SRC_DIR="${K230_SDK_ROOT}/src/big/mpp"
+MIDDLEWARE_SRC_DIR="${K230_SDK_ROOT}/src/big/middleware"
 CDK_SRC_DIR="${K230_SDK_ROOT}/src/common/cdk"
 BUILDROOT_EXT_SRC_PATH="src/little/buildroot-ext"
 POST_COPY_ROOTFS_PATH=board/common/post_copy_rootfs
@@ -48,6 +49,7 @@ export PATH=$(TMP_PATH)
 export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH)
 export CDK_SRC_DIR=$(K230_SDK_ROOT)/$(CDK_SRC_PATH)
 export MPP_SRC_DIR=$(K230_SDK_ROOT)/$(MPP_SRC_PATH)
+export MIDDLEWARE_SRC_DIR=$(K230_SDK_ROOT)/src/big/middleware
 
 
 
@@ -72,9 +74,9 @@ endef
 
 .PHONY: all
 ifeq ($(CONFIG_SUPPORT_RTSMART)$(CONFIG_SUPPORT_LINUX),yy)
-all .DEFAULT: check_src prepare_memory linux mpp cdk-kernel cdk-kernel-install cdk-user cdk-user-install rt-smart-apps rt-smart-kernel big-core-opensbi little-core-opensbi buildroot uboot
+all .DEFAULT: check_src prepare_memory linux mpp middleware cdk-kernel cdk-kernel-install cdk-user cdk-user-install rt-smart-apps rt-smart-kernel big-core-opensbi little-core-opensbi buildroot uboot
 else  ifeq  ($(CONFIG_SUPPORT_RTSMART),y)
-all .DEFAULT: check_src prepare_memory  mpp  rt-smart-apps rt-smart-kernel big-core-opensbi   uboot
+all .DEFAULT: check_src prepare_memory  mpp middleware rt-smart-apps rt-smart-kernel big-core-opensbi   uboot
 else  ifeq  ($(CONFIG_SUPPORT_LINUX),y)
 all .DEFAULT: check_src prepare_memory linux   little-core-opensbi buildroot uboot
 endif 
@@ -289,6 +291,28 @@ cdk-user-clean:
 	@export PATH=$(RTT_EXEC_PATH):$(LINUX_EXEC_PATH):$(PATH);export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH);export LINUX_BUILD_DIR=$(LINUX_BUILD_DIR); \
 	cd $(CDK_SRC_PATH)/user/;make clean;cd -;
 
+
+.PHONY: middleware-mp4
+middleware-mp4: check_src
+	@export PATH=$(RTT_EXEC_PATH):$(PATH); \
+	export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH); \
+	cd $(MIDDLEWARE_SRC_DIR); \
+	make -C mp4_format || exit $?; \
+	cd -;
+
+.PHONY: middleware-mp4-clean
+middleware-mp4-clean:
+	@export PATH=$(RTT_EXEC_PATH):$(PATH); \
+	export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH); \
+	cd $(MIDDLEWARE_SRC_DIR); \
+	make clean -C mp4_format; \
+	cd -;
+
+.PHONY: middleware
+middleware: middleware-mp4
+
+.PHONY: middleware-clean
+middleware-clean: middleware-mp4-clean
 
 .PHONY: rt-smart-apps
 rt-smart-apps: defconfig prepare_memory  check_src
