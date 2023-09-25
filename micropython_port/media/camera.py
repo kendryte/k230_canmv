@@ -108,7 +108,7 @@ class camera:
         cls.cam_dev[dev_num].dev_attr.buffer_num = num
         cls.cam_dev[dev_num].dev_attr.buffer_size = \
             VICAP_ALIGN_UP((cls.cam_dev[dev_num].dev_attr.acq_win.width * \
-              cls.cam_dev[dev_num].dev_attr.acq_win.height * 2), VICAP_ALIGN_1K)
+              cls.cam_dev[dev_num].dev_attr.acq_win.height * 2), VICAP_ALIGN_4K)
 
         # config vb for offline mode
         if cls.cam_dev[dev_num].dev_attr.mode == VICAP_WORK_OFFLINE_MODE:
@@ -188,14 +188,14 @@ class camera:
             in_height = cls.cam_dev[dev_num].dev_attr.acq_win.height
 
             if pix_format == PIXEL_FORMAT_YUV_SEMIPLANAR_420:
-                buf_size = VICAP_ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_1K)
+                buf_size = VICAP_ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_4K)
             elif pix_format in [PIXEL_FORMAT_RGB_888, PIXEL_FORMAT_BGR_888_PLANAR]:
-                buf_size = VICAP_ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_1K)
+                buf_size = VICAP_ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_4K)
             elif pix_format in [PIXEL_FORMAT_RGB_BAYER_10BPP, PIXEL_FORMAT_RGB_BAYER_12BPP, \
                                 PIXEL_FORMAT_RGB_BAYER_14BPP, PIXEL_FORMAT_RGB_BAYER_16BPP]:
                 cls.cam_dev[dev_num].chn_attr[chn_num].out_win.width = in_width
                 cls.cam_dev[dev_num].chn_attr[chn_num].out_win.height = in_height
-                buf_size = VICAP_ALIGN_UP((in_width * in_height * 2), VICAP_ALIGN_1K)
+                buf_size = VICAP_ALIGN_UP((in_width * in_height * 2), VICAP_ALIGN_4K)
             else:
                 print(f"set_outsize({dev_num},{chn_num}),unspported format!")
                 return -1
@@ -242,14 +242,14 @@ class camera:
             in_height = cls.cam_dev[dev_num].dev_attr.acq_win.height
 
             if pix_format == PIXEL_FORMAT_YUV_SEMIPLANAR_420:
-                buf_size = VICAP_ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_1K)
+                buf_size = VICAP_ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_4K)
             elif pix_format in [PIXEL_FORMAT_RGB_888, PIXEL_FORMAT_BGR_888_PLANAR]:
-                buf_size = VICAP_ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_1K)
+                buf_size = VICAP_ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_4K)
             elif pix_format in [PIXEL_FORMAT_RGB_BAYER_10BPP, PIXEL_FORMAT_RGB_BAYER_12BPP, \
                                 PIXEL_FORMAT_RGB_BAYER_14BPP, PIXEL_FORMAT_RGB_BAYER_16BPP]:
                 cls.cam_dev[dev_num].chn_attr[chn_num].out_win.width = in_width
                 cls.cam_dev[dev_num].chn_attr[chn_num].out_win.height = in_height
-                buf_size = VICAP_ALIGN_UP((in_width * in_height * 2), VICAP_ALIGN_1K)
+                buf_size = VICAP_ALIGN_UP((in_width * in_height * 2), VICAP_ALIGN_4K)
             else:
                 print(f"set_outfmt({dev_num},{chn_num}),unspported format!")
                 return -1
