@@ -24,9 +24,7 @@ VIDEO_DECODE_MOD_ID = K_ID_VDEC    # video decode device module
 
 
 # audio device id definition
-
-# audio channel id definition
-
+# TODO
 
 # camera device id definition
 CAM_DEV_ID_0 = VICAP_DEV_ID_0
@@ -34,17 +32,29 @@ CAM_DEV_ID_1 = VICAP_DEV_ID_1
 CAM_DEV_ID_2 = VICAP_DEV_ID_2
 CAM_DEV_ID_MAX = VICAP_DEV_ID_MAX
 
+# display device id definition
+DISPLAY_DEV_ID = K_VO_DISPLAY_DEV_ID
+
+# DMA device id definition
+# TODO
+
+# DPU device id definition
+# TODO
+
+# video encode device id definition
+# TODO
+
+# video decode device id definition
+# TODO
+
+# audio channel id definition
+# TODO
+
 # camera channel id definition
 CAM_CHN_ID_0 = VICAP_CHN_ID_0
 CAM_CHN_ID_1 = VICAP_CHN_ID_1
 CAM_CHN_ID_2 = VICAP_CHN_ID_2
 CAM_CHN_ID_MAX = VICAP_CHN_ID_MAX
-
-CAM_ALIGN_UP = VICAP_ALIGN_UP
-
-# display device id definition
-DISPLAY_DEV_ID = K_VO_DISPLAY_DEV_ID
-
 
 # display channel id definition
 DISPLAY_CHN_ID_0 = K_VO_DISPLAY_CHN_ID0
@@ -55,19 +65,28 @@ DISPLAY_CHN_ID_4 = K_VO_DISPLAY_CHN_ID4
 DISPLAY_CHN_ID_5 = K_VO_DISPLAY_CHN_ID5
 DISPLAY_CHN_ID_6 = K_VO_DISPLAY_CHN_ID6
 
+# DMA channel id definition
+# TODO
+
+# DPU channel id definition
+# TODO
+
+# video encode channel id definition
+# TODO
+
+# video decode channel id definition
+# TODO
+
 # vencoder
 VENC_CHN_ID_MAX = VENC_MAX_CHN_NUMS
 VENC_PACK_CNT_MAX = const(12)
-VENC_ALIGN_UP = VICAP_ALIGN_UP
 
 VENC_MOD_ID = K_ID_VENC
 VENC_DEV_ID = const(0)
 
 
-# video device id definition
-
-# video channel id definition
-
+# data align up
+ALIGN_UP = VICAP_ALIGN_UP
 
 
 class media_device:
@@ -84,7 +103,7 @@ class media:
 
     lock = _thread.allocate_lock()
 
-    # set media link
+    # create media link
     @classmethod
     def create_link(cls, souce, sink):
         src_mpp = k_mpp_chn()
@@ -106,7 +125,7 @@ class media:
         return 0
 
 
-    # set media unlink
+    # destroy media unlink
     @classmethod
     def destroy_link(cls, souce, sink):
         src_mpp = k_mpp_chn()
