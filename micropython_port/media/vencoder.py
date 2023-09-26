@@ -48,7 +48,7 @@ class Encoder:
             config.max_pool_cnt = 64
             config.comm_pool[0].blk_cnt = buf_num
             config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
-            config.comm_pool[0].blk_size = VENC_ALIGN_UP(width * height * 3 // 4, VENC_ALIGN_4K)
+            config.comm_pool[0].blk_size = ALIGN_UP(width * height * 3 // 4, VENC_ALIGN_4K)
             ret = media.buffer_config(config)
             if ret:
                 print("venc buffer config failed")
@@ -62,7 +62,7 @@ class Encoder:
 
         venc_chn_attr = k_venc_chn_attr()
         venc_chn_attr.venc_attr.type = chnAttr.payload_type
-        venc_chn_attr.venc_attr.stream_buf_size = VENC_ALIGN_UP(chnAttr.pic_width * chnAttr.pic_height * 3 // 4, VENC_ALIGN_4K)
+        venc_chn_attr.venc_attr.stream_buf_size = ALIGN_UP(chnAttr.pic_width * chnAttr.pic_height * 3 // 4, VENC_ALIGN_4K)
         venc_chn_attr.venc_attr.stream_buf_cnt = self.outbuf_num
         venc_chn_attr.venc_attr.pic_width = chnAttr.pic_width
         venc_chn_attr.venc_attr.pic_height = chnAttr.pic_height

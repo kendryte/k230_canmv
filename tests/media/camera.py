@@ -13,7 +13,7 @@ def canmv_camera_test():
     out_width = 1080
     out_height = 720
 
-    out_width = CAM_ALIGN_UP(out_width, 16)
+    out_width = ALIGN_UP(out_width, 16)
 
     # init(HX8377_V2_MIPI_4LAN_1080X1920_30FPS)
 
@@ -84,7 +84,7 @@ def canmv_camera_test():
                 elif fmt == PIXEL_FORMAT_RGB_888:
                     suffix = "rgb888"
                     img_size = frame_info.v_frame.width * frame_info.v_frame.height * 3
-                elif fmt == PIXEL_FORMAT_RGB_888:
+                elif fmt == PIXEL_FORMAT_BGR_888_PLANAR:
                     suffix = "rgb888p"
                     img_size = frame_info.v_frame.width * frame_info.v_frame.height * 3
                 elif fmt == PIXEL_FORMAT_RGB_BAYER_10BPP:
