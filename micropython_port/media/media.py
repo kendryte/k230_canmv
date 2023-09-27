@@ -42,7 +42,7 @@ DISPLAY_DEV_ID = K_VO_DISPLAY_DEV_ID
 # TODO
 
 # video encode device id definition
-# TODO
+VENC_DEV_ID = const(0)
 
 # video decode device id definition
 # TODO
@@ -72,17 +72,15 @@ DISPLAY_CHN_ID_6 = K_VO_DISPLAY_CHN_ID6
 # TODO
 
 # video encode channel id definition
-# TODO
-
-# video decode channel id definition
-# TODO
-
-# vencoder
+VENC_CHN_ID_0 = const(0)
+VENC_CHN_ID_1 = const(1)
+VENC_CHN_ID_2 = const(2)
+VENC_CHN_ID_3 = const(3)
 VENC_CHN_ID_MAX = VENC_MAX_CHN_NUMS
 VENC_PACK_CNT_MAX = const(12)
 
-VENC_MOD_ID = K_ID_VENC
-VENC_DEV_ID = const(0)
+# video decode channel id definition
+# TODO
 
 
 # data align up
