@@ -1,24 +1,24 @@
 import uctypes
 
-def _k_ptr_base(type, *args):
+def _k_ptr_base(type, value=0):
     desc = {"value": type}
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), desc, layout)
-    s.value = 0 if len(args) == 0 else int(args[0])
+    s.value = value
     return s
 
-def k_u64_ptr(*args):
-    return _k_ptr_base(uctypes.UINT64, args)
+def k_u64_ptr(value=0):
+    return _k_ptr_base(uctypes.UINT64, value)
 
-def k_u32_ptr(*args):
-    return _k_ptr_base(uctypes.UINT32, args)
+def k_u32_ptr(value=0):
+    return _k_ptr_base(uctypes.UINT32, value)
 
-def k_u8_ptr(*args):
-    return _k_ptr_base(uctypes.UINT8, args)
+def k_u8_ptr(value=0):
+    return _k_ptr_base(uctypes.UINT8, value)
 
-def k_bool_ptr(*args):
-    return _k_ptr_base(uctypes.UINT32, args)
+def k_bool_ptr(value=0):
+    return _k_ptr_base(uctypes.UINT32, value)
 
 def struct_ptr(s):
     return uctypes.addressof(s)
