@@ -221,9 +221,6 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     case USBDBG_SCRIPT_EXEC: {
                         // TODO
                         pr("cmd: USBDBG_SCRIPT_EXEC size %u", state->data_length);
-                        #if TEST_PIC
-                        ide_script_running = 1;
-                        #else
                         // recv script string
                         if (script_string != NULL) {
                             free(script_string);
@@ -233,6 +230,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         script_string[state->data_length] = '\0';
                         // into script mode, interrupt REPL, send CTRL-D
                         ide_script_running = 1;
+                        #if !TEST_PIC
                         sem_post(&script_sem);
                         #endif
                         break;
@@ -394,8 +392,8 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         #endif
                         #if TEST_PIC
                         uint32_t resp[3] = {
-                            640, // width
-                            680, // height
+                            1920, // width
+                            1080, // height
                             index_jpeg[pic_idx + 1] - index_jpeg[pic_idx], // size
                         };
                         if (!ide_script_running) {
