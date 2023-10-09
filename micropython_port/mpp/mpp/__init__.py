@@ -9,3 +9,4 @@ from mpp.vdec import *
 from mpp.vo import *
 from mpp.connector import *
 from mpp.vicap import *
+from mpp.mp4_format import *

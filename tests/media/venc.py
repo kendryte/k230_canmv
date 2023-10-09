@@ -7,10 +7,9 @@ import time
 def canmv_venc_test():
     width = 1280
     height = 720
-    vi_chn = 0
-    venc_chn = 0
+    venc_chn = VENC_CHN_ID_0
 
-    width = CAM_ALIGN_UP(width, 16)
+    width = ALIGN_UP(width, 16)
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
 
     # set vicap chn0
@@ -39,7 +38,7 @@ def canmv_venc_test():
 
     # Bind with camera
     media_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
-    media_sink = media_device(VENC_MOD_ID, VENC_DEV_ID, venc_chn)
+    media_sink = media_device(VIDEO_ENCODE_MOD_ID, VENC_DEV_ID, venc_chn)
     ret = media.create_link(media_source, media_sink)
     if ret:
         print("cam_venc_test, create link with camera failed.")
@@ -88,7 +87,7 @@ def canmv_venc_test():
             frame_count += 1
             if frame_count >= 100:
                 break
-        
+
     camera.stop_stream(CAM_DEV_ID_0)
 
     ret = media.destroy_link(media_source, media_sink)

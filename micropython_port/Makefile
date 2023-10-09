@@ -39,6 +39,7 @@ INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/comm
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/ioctl
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/api
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/middleware/mp4_format/include
 
 # compiler settings
 CWARN = -Wall -Werror
@@ -71,7 +72,10 @@ MPP_LIBS = $(addprefix -l, $(subst lib, ,$(basename $(notdir $(foreach dir, $(MP
 
 LDFLAGS_MPP = -L$(MPP_LIB_PATH) -Wl,--start-group $(MPP_LIBS) -Wl,--end-group
 
-LDFLAGS += $(LDFLAGS_MPP)
+MP4_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/middleware/mp4_format/lib
+LDFLAGS_MP4 += -L$(MP4_LIB_PATH) -lmp4
+
+LDFLAGS += $(LDFLAGS_MPP) $(LDFLAGS_MP4)
 
 ifeq ($(MICROPY_PY_TERMIOS),1)
 CFLAGS += -DMICROPY_PY_TERMIOS=1

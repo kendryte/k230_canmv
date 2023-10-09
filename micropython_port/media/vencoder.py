@@ -18,6 +18,7 @@ class StreamData:
         self.data = [0 for i in range(0, VENC_PACK_CNT_MAX)]
         self.data_size = [0 for i in range(0, VENC_PACK_CNT_MAX)]
         self.stream_type = [0 for i in range(0, VENC_PACK_CNT_MAX)]
+        self.pts = [0 for i in range(0, VENC_PACK_CNT_MAX)]
         self.pack_cnt = 0
 
 class Encoder:
@@ -124,6 +125,7 @@ class Encoder:
             streamData.data[pack_idx] = vir_data
             streamData.data_size[pack_idx] = self.output._pack[pack_idx].len
             streamData.stream_type[pack_idx] = self.output._pack[pack_idx].type
+            streamData.pts[pack_idx] = self.output._pack[pack_idx].pts
 
         return 0
 
