@@ -1,5 +1,5 @@
 variables:
-    DEFAULT_CONF: k230_evb_defconfig
+    DEFAULT_CONF: k230_canmv_defconfig
     HW_TYPE: k230
     HW_MODEL: canmv
     HW_VER: v0.1
@@ -543,7 +543,7 @@ build_image:
   timeout: 30m
   parallel:
     matrix:
-      - CONF: [k230_evb_defconfig]
+      - CONF: [k230_canmv_defconfig]
   variables:
     SRC_DIR: ./output/${CONF}/images
   script:
