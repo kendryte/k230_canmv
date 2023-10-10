@@ -139,6 +139,9 @@
 #define RT_USING_ADC
 #define RT_USING_OTP
 #define RT_USING_TS
+#define RT_USING_HWHASH
+#define RT_USING_AES
+#define RT_USING_SM4
 #define RT_USING_SDIO
 #define RT_USING_SDIO1
 #define RT_USING_HARDLOCK
