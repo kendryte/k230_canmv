@@ -99,6 +99,9 @@ MPP_SRC_C = $(wildcard mpp/*.c)
 KPU_SRC_C = $(wildcard kpu/*.c)
 OMV_SRC_C = $(wildcard omv/*.c)
 
+OMV_SRC_C += $(wildcard omv/*/*.c)
+INC += -Iomv/alloc -Iomv/boards/canmv -Iomv/common -Iomv/imlib -Iomv/modules
+
 SRC_C += \
 	${MACHINE_SRC_C} \
 	${MAIX_SRC_C} \

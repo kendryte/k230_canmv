@@ -633,6 +633,42 @@ ndarray_obj_t *ndarray_new_ndarray(uint8_t ndim, size_t *shape, int32_t *strides
     // we could, perhaps, leave this step out, and initialise the array only, when needed
     ndarray->array = array;
     ndarray->origin = array;
+    ndarray->phy_addr = 0;
+    return ndarray;
+}
+
+ndarray_obj_t *ndarray_new_ndarray_from_data(uint8_t ndim, size_t *shape, int32_t *strides, uint8_t dtype, uint64_t phy_addr, void *virt_addr) {
+    // Creates the base ndarray with shape, and initialises the values to straight 0s
+    ndarray_obj_t *ndarray = m_new_obj(ndarray_obj_t);
+    ndarray->base.type = &ulab_ndarray_type;
+    ndarray->dtype = dtype == NDARRAY_BOOL ? NDARRAY_UINT8 : dtype;
+    ndarray->boolean = dtype == NDARRAY_BOOL ? NDARRAY_BOOLEAN : NDARRAY_NUMERIC;
+    ndarray->ndim = ndim;
+    ndarray->len = ndim == 0 ? 0 : 1;
+    ndarray->itemsize = ulab_binary_get_size(dtype);
+    int32_t *_strides;
+    if(strides == NULL) {
+        _strides = strides_from_shape(shape, ndarray->dtype);
+    } else {
+        _strides = strides;
+    }
+    for(uint8_t i=ULAB_MAX_DIMS; i > ULAB_MAX_DIMS-ndim; i--) {
+        ndarray->shape[i-1] = shape[i-1];
+        ndarray->strides[i-1] = _strides[i-1];
+        ndarray->len = multiply_size(ndarray->len, shape[i-1]);
+    }
+
+    if (SIZE_MAX / ndarray->itemsize <= ndarray->len) {
+      mp_raise_ValueError(translate("ndarray length overflows"));
+    }
+
+    // if the length is 0, still allocate a single item, so that contractions can be handled
+    uint8_t *array = virt_addr;
+    // this should set all elements to 0, irrespective of the of the dtype (all bits are zero)
+    // we could, perhaps, leave this step out, and initialise the array only, when needed
+    ndarray->array = array;
+    ndarray->origin = array;
+    ndarray->phy_addr = phy_addr;
     return ndarray;
 }
 
