@@ -7,14 +7,10 @@ import image
 
 
 def canmv_camera_test():
-    CAM_OUTPUT_BUF_NUM = 6
-    CAM_INPUT_BUF_NUM = 4
+    # CAM_OUTPUT_BUF_NUM = 6
+    # CAM_INPUT_BUF_NUM = 4
 
     print("canmv_camera_test")
-    out_width = 1080
-    out_height = 720
-
-    out_width = ALIGN_UP(out_width, 16)
 
     # init(HX8377_V2_MIPI_4LAN_1080X1920_30FPS)
 
@@ -22,15 +18,28 @@ def canmv_camera_test():
 
     # camera.set_inbufs(CAM_DEV_ID_0, CAM_INPUT_BUF_NUM)
 
-    # set chn0
-    camera.set_outbufs(CAM_DEV_ID_0, CAM_CHN_ID_0, CAM_OUTPUT_BUF_NUM)
+    out_width = 1080
+    out_height = 720
+    out_width = ALIGN_UP(out_width, 16)
+
+    # set chn0 output yuv420sp
+    # camera.set_outbufs(CAM_DEV_ID_0, CAM_CHN_ID_0, CAM_OUTPUT_BUF_NUM)
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, out_width, out_height)
     camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
 
-    # set chn1
-    camera.set_outbufs(CAM_DEV_ID_0, CAM_CHN_ID_1, CAM_OUTPUT_BUF_NUM)
+    out_width = 640
+    out_height = 480
+    out_width = ALIGN_UP(out_width, 16)
+
+    # set chn1 output rgb888
+    # camera.set_outbufs(CAM_DEV_ID_0, CAM_CHN_ID_1, CAM_OUTPUT_BUF_NUM)
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, out_width, out_height)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_RGB_888)
+
+    # set chn2 output rgb88planar
+    # camera.set_outbufs(CAM_DEV_ID_0, CAM_CHN_ID_2, CAM_OUTPUT_BUF_NUM)
+    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_2, out_width, out_height)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_2, PIXEL_FORMAT_BGR_888_PLANAR)
 
     # meida_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
     # meida_sink = media_device(DISPLAY_MOD_ID, DISPLAY_DEV_ID, DISPLAY_CHN_ID_1)
@@ -52,10 +61,8 @@ def canmv_camera_test():
     camera.start_stream(CAM_DEV_ID_0)
 
     capture_count = 0
-    count = 0
-    while count < 5:
+    while capture_count < 5:
         time.sleep(1)
-        count += 1
         for dev_num in range(CAM_DEV_ID_MAX):
             if not camera.cam_dev[dev_num].dev_attr.dev_enable:
                 continue

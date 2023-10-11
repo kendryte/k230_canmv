@@ -50,6 +50,10 @@ CAM_SENSOR_TYPE_MAX = SENSOR_TYPE_MAX
 # the default sensor type
 CAM_DEFAULT_SENSOR = CAM_OV5647_1920X1080_30FPS_10BIT_USEMCLK_LINEAR
 
+#
+CAM_DEFAULT_OUTPUT_BUF_NUM = 6
+CAM_DEFAULT_INPUT_BUF_NUM = 4
+
 
 # NOTE:This is a private class for internal use only!!!
 #      Don't edit it arbitrarily!!!
@@ -59,6 +63,13 @@ class __camera_device:
         self.dev_attr = k_vicap_dev_attr()
         self.chn_attr = [k_vicap_chn_attr() for i in range(0, VICAP_CHN_ID_MAX)]
         self.buf_init = [False for i in range(0, VICAP_CHN_ID_MAX)]
+        # set the default value
+        self.dev_attr.buffer_num = CAM_DEFAULT_INPUT_BUF_NUM
+        self.dev_attr.mode = VICAP_WORK_ONLINE_MODE
+        self.dev_attr.input_type = VICAP_INPUT_TYPE_SENSOR
+
+        for i in range(0, VICAP_CHN_ID_MAX):
+            self.chn_attr[i].buffer_num = CAM_DEFAULT_OUTPUT_BUF_NUM
 
 
 class camera:
@@ -379,7 +390,6 @@ class camera:
             return -1;
 
         print("capture_image exit")
-
         return img
 
 
@@ -405,6 +415,5 @@ class camera:
             print(f"release_image, dev({dev_num}}) chn({chn_num}) release frame failed")
 
         print("release_image exit")
-
         return 0
 
