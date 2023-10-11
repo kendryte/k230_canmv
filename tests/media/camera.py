@@ -3,6 +3,7 @@ from media.camera import *
 from media.media import *
 from time import *
 import time
+import image
 
 
 def canmv_camera_test():
@@ -65,67 +66,35 @@ def canmv_camera_test():
 
                 print(f"canmv_camera_test, dev({dev_num}) chn({chn_num}) capture frame.")
 
-                # TODO:
-                # img = camera.capture_image(dev_num, chn_num)
+                img = camera.capture_image(dev_num, chn_num)
+                if img == -1:
+                    print("camera.capture_image failed")
+                    continue
 
-                frame_info = k_video_frame_info()
-                ret = kd_mpi_vicap_dump_frame(dev_num, chn_num, 0, frame_info, 1000)
-                if ret:
-                    print(f"capture_image, dev({dev_num}) chn({chn_num}) request frame failed.")
-                    return ret
-
-                fmt = frame_info.v_frame.pixel_format
-                if fmt == PIXEL_FORMAT_YUV_SEMIPLANAR_420:
+                if img.format() == image.YUV420:
                     suffix = "yuv420sp"
-                    img_size = frame_info.v_frame.width * frame_info.v_frame.height * 3 // 2
-                elif fmt == PIXEL_FORMAT_YUV_SEMIPLANAR_422:
-                    suffix = "yuv422"
-                    img_size = frame_info.v_frame.width * frame_info.v_frame.height * 3 // 2
-                elif fmt == PIXEL_FORMAT_RGB_888:
+                elif img.format() == image.RGB888:
                     suffix = "rgb888"
-                    img_size = frame_info.v_frame.width * frame_info.v_frame.height * 3
-                elif fmt == PIXEL_FORMAT_BGR_888_PLANAR:
+                elif img.format() == image.RGBP888:
                     suffix = "rgb888p"
-                    img_size = frame_info.v_frame.width * frame_info.v_frame.height * 3
-                elif fmt == PIXEL_FORMAT_RGB_BAYER_10BPP:
-                    suffix = "raw10"
-                    img_size = frame_info.v_frame.width * frame_info.v_frame.height * 2
-                elif fmt == PIXEL_FORMAT_RGB_BAYER_12BPP:
-                    suffix = "raw12"
-                    img_size = frame_info.v_frame.width * frame_info.v_frame.height * 2
-                elif fmt == PIXEL_FORMAT_RGB_BAYER_14BPP:
-                    suffix = "raw14"
-                    img_size = frame_info.v_frame.width * frame_info.v_frame.height * 2
-                elif fmt == PIXEL_FORMAT_RGB_BAYER_16BPP:
-                    suffix = "raw16"
-                    img_size = frame_info.v_frame.width * frame_info.v_frame.height * 2
                 else:
                     suffix = "unkown"
-                    img_size = frame_info.v_frame.width * frame_info.v_frame.height
-                    print("capture_image, unkonwn format")
 
-                img_addr = kd_mpi_sys_mmap(frame_info.v_frame.phys_addr[0], img_size)
-                if img_addr:
-                    filename = f"dev_{dev_num:02d}_chn_{chn_num:02d}_{frame_info.v_frame.width}x{frame_info.v_frame.height}_{capture_count:04d}.{suffix}"
-                    print("save capture image to file:", filename)
+                filename = f"/sdcard/dev_{dev_num:02d}_chn_{chn_num:02d}_{img.width()}x{img.height()}_{capture_count:04d}.{suffix}"
+                print("save capture image to file:", filename)
 
-                    with open(filename, "wb") as f:
-                        if f:
-                            img_data = uctypes.bytearray_at(img_addr, img_size)
-                            f.write(img_data)
-                        else:
-                            print(f"capture_image, open dump file failed({filename})")
+                with open(filename, "wb") as f:
+                    if f:
+                        img_data = uctypes.bytearray_at(img.virtaddr(), img.size())
+                        f.write(img_data)
+                    else:
+                        print(f"capture_image, open dump file failed({filename})")
 
-                    kd_mpi_sys_munmap(img_addr, img_size)
-                else:
-                    print("capture_image, map failed")
+                time.sleep(1)
 
-                ret = kd_mpi_vicap_dump_release(dev_num, chn_num, frame_info)
-                if ret:
-                    print(f"capture_image, dev({dev_num}}) chn({chn_num}) release frame failed")
+                camera.release_image(dev_num, chn_num, img)
 
                 capture_count += 1
-
 
     camera.stop_stream(CAM_DEV_ID_0)
 
@@ -147,3 +116,4 @@ def canmv_camera_test():
 
 
 canmv_camera_test()
+
