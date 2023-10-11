@@ -2,6 +2,7 @@ from mpp.vicap import *
 from mpp import *
 from time import *
 from media.media import *
+import image
 
 CAM_CHN0_OUT_WIDTH_MAX = 3072
 CAM_CHN0_OUT_HEIGHT_MAX = 2160
@@ -190,7 +191,7 @@ class camera:
             if pix_format == PIXEL_FORMAT_YUV_SEMIPLANAR_420:
                 buf_size = ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_4K)
             elif pix_format in [PIXEL_FORMAT_RGB_888, PIXEL_FORMAT_BGR_888_PLANAR]:
-                buf_size = ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_4K)
+                buf_size = ALIGN_UP((out_width * out_height * 3), VICAP_ALIGN_4K)
             elif pix_format in [PIXEL_FORMAT_RGB_BAYER_10BPP, PIXEL_FORMAT_RGB_BAYER_12BPP, \
                                 PIXEL_FORMAT_RGB_BAYER_14BPP, PIXEL_FORMAT_RGB_BAYER_16BPP]:
                 cls.cam_dev[dev_num].chn_attr[chn_num].out_win.width = in_width
@@ -244,7 +245,7 @@ class camera:
             if pix_format == PIXEL_FORMAT_YUV_SEMIPLANAR_420:
                 buf_size = ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_4K)
             elif pix_format in [PIXEL_FORMAT_RGB_888, PIXEL_FORMAT_BGR_888_PLANAR]:
-                buf_size = ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_4K)
+                buf_size = ALIGN_UP((out_width * out_height * 3), VICAP_ALIGN_4K)
             elif pix_format in [PIXEL_FORMAT_RGB_BAYER_10BPP, PIXEL_FORMAT_RGB_BAYER_12BPP, \
                                 PIXEL_FORMAT_RGB_BAYER_14BPP, PIXEL_FORMAT_RGB_BAYER_16BPP]:
                 cls.cam_dev[dev_num].chn_attr[chn_num].out_win.width = in_width
@@ -340,26 +341,70 @@ class camera:
     def capture_image(cls, dev_num, chn_num):
         print("capture_image enter")
 
-        # Create image object
-        img = None
         frame_info = k_video_frame_info()
 
         if (dev_num > CAM_DEV_ID_MAX - 1) or (chn_num > CAM_CHN_ID_MAX - 1):
-            printf(f"capture_image, invalid param, dev_num({dev_num}, chn_num({chn_num}))");
+            printf(f"capture_image, invalid param, dev_num({dev_num}, chn_num({chn_num}))")
             return -1;
 
         ret = kd_mpi_vicap_dump_frame(dev_num, chn_num, VICAP_DUMP_YUV, frame_info, 1000)
         if ret:
             print(f"capture_image, dev({dev_num}) chn({chn_num}) request frame failed.")
-            return ret
+            return -1
 
-        # TODO:wrap frame info with iamge
+        phys_addr = frame_info.v_frame.phys_addr[0]
+        img_width = frame_info.v_frame.width
+        img_height = frame_info.v_frame.height
+        fmt = frame_info.v_frame.pixel_format
 
-        ret = kd_mpi_vicap_dump_release(dev_num, chn_num, frame_info)
-        if ret:
-            print(f"capture_image, dev({dev_num}}) chn({chn_num}) release frame failed")
+        if fmt == PIXEL_FORMAT_YUV_SEMIPLANAR_420:
+            img_size = img_width * img_height * 3 // 2
+            img_fmt = image.YUV420
+        elif fmt == PIXEL_FORMAT_RGB_888:
+            img_size = img_width * img_height * 3
+            img_fmt = image.RGB888
+        elif fmt == PIXEL_FORMAT_BGR_888_PLANAR:
+            img_size = img_width * img_height * 3
+            img_fmt = image.RGBP888
+        else:
+            print("capture_image: unsupported format.")
+            return -1;
+
+        virt_addr = kd_mpi_sys_mmap(phys_addr, img_size)
+        if virt_addr:
+            # Create image object
+            img = image.Image(img_width, img_height, img_fmt, alloc=image.ALLOC_VB, phyaddr=phys_addr, virtaddr=virt_addr)
+        else:
+            print("capture_image, mmap failed")
+            return -1;
 
         print("capture_image exit")
 
         return img
+
+
+    # release_image
+    @classmethod
+    def release_image(cls, dev_num, chn_num, img):
+        print("release_image enter")
+
+        frame_info = k_video_frame_info()
+
+        phy_addr = img.phyaddr()
+        virt_addr = img.virtaddr()
+        img_size = img.size()
+
+        ret = kd_mpi_sys_munmap(virt_addr, img_size)
+        if ret:
+            print(f"release_image, dev({dev_num}}) chn({chn_num}) munmap failed")
+
+        frame_info.v_frame.phys_addr[0] = phy_addr;
+
+        ret = kd_mpi_vicap_dump_release(dev_num, chn_num, frame_info)
+        if ret:
+            print(f"release_image, dev({dev_num}}) chn({chn_num}) release frame failed")
+
+        print("release_image exit")
+
+        return 0
 
