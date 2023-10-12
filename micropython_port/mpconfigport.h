@@ -184,7 +184,7 @@ static inline unsigned long mp_random_seed_init(void) {
 
 // Enable floating point by default.
 #ifndef MICROPY_FLOAT_IMPL
-#define MICROPY_FLOAT_IMPL             (MICROPY_FLOAT_IMPL_DOUBLE)
+#define MICROPY_FLOAT_IMPL             (MICROPY_FLOAT_IMPL_FLOAT)
 #endif
 
 // Enable arbitrary precision long-int by default.

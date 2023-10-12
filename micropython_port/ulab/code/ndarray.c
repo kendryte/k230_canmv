@@ -634,10 +634,11 @@ ndarray_obj_t *ndarray_new_ndarray(uint8_t ndim, size_t *shape, int32_t *strides
     ndarray->array = array;
     ndarray->origin = array;
     ndarray->phy_addr = 0;
+    ndarray->ref_obj = 0;
     return ndarray;
 }
 
-ndarray_obj_t *ndarray_new_ndarray_from_data(uint8_t ndim, size_t *shape, int32_t *strides, uint8_t dtype, uint64_t phy_addr, void *virt_addr) {
+ndarray_obj_t *ndarray_new_ndarray_by_ref(uint8_t ndim, size_t *shape, int32_t *strides, uint8_t dtype, uint64_t phy_addr, void *virt_addr, mp_obj_t ref_obj) {
     // Creates the base ndarray with shape, and initialises the values to straight 0s
     ndarray_obj_t *ndarray = m_new_obj(ndarray_obj_t);
     ndarray->base.type = &ulab_ndarray_type;
@@ -669,6 +670,7 @@ ndarray_obj_t *ndarray_new_ndarray_from_data(uint8_t ndim, size_t *shape, int32_
     ndarray->array = array;
     ndarray->origin = array;
     ndarray->phy_addr = phy_addr;
+    ndarray->ref_obj = ref_obj;
     return ndarray;
 }
 

@@ -1,3 +1,4 @@
+include("$(MPY_DIR)/extmod/asyncio")
 require("base64")
 require("binascii")
 require("gzip")

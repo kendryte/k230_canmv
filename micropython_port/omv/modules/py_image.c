@@ -686,6 +686,7 @@ static mp_obj_t py_image_del(mp_obj_t img_obj) {
     if (alloc_type == ALLOC_MMZ) {
         kd_mpi_sys_mmz_free(image->phy_addr, image->data);
     } else if (alloc_type == ALLOC_VB) {
+    } else if (alloc_type == ALLOC_REF) {
     } else if (alloc_type == ALLOC_HEAP) {
         free(image->data);
     } else if (alloc_type == ALLOC_MPGC) {
@@ -705,19 +706,24 @@ static mp_obj_t py_image_virtaddr(mp_obj_t img_obj) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(py_image_virtaddr_obj, py_image_virtaddr);
 
+static mp_obj_t py_image_poolid(mp_obj_t img_obj) {
+    return mp_obj_new_int(((image_t *) py_image_cobj(img_obj))->pool_id);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(py_image_poolid_obj, py_image_poolid);
+
 static mp_obj_t py_image_copy_to(mp_obj_t img_obj, mp_obj_t dst_img_obj) {
     image_t *image = py_image_cobj(img_obj);
     image_t *dst_image = py_image_cobj(dst_img_obj);
 
-    if (image->w != dst_image->w || image->h != dst_image->h || image->pixfmt != dst_image->pixfmt)
+    if (image_size(image) != image_size(dst_image))
         mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("image size or format mismatch"));
-    
+
     memcpy(dst_image->data, image->data, image_size(image));
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(py_image_copy_to_obj, py_image_copy_to);
 
-static mp_obj_t py_image_to_ulab(mp_obj_t img_obj) {
+static mp_obj_t py_image_to_ndarray_ref(mp_obj_t img_obj) {
     image_t *image = py_image_cobj(img_obj);
     uint8_t ndim, dtype;
     size_t shape[4];
@@ -733,9 +739,9 @@ static mp_obj_t py_image_to_ulab(mp_obj_t img_obj) {
         mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("image format not support"));
     }
 
-    return MP_OBJ_FROM_PTR(ndarray_new_ndarray_from_data(ndim, shape, NULL, dtype, image->phy_addr, image->data));
+    return MP_OBJ_FROM_PTR(ndarray_new_ndarray_by_ref(ndim, shape, NULL, dtype, image->phy_addr, image->data, img_obj));
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(py_image_to_ulab_obj, py_image_to_ulab);
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(py_image_to_ndarray_ref_obj, py_image_to_ndarray_ref);
 
 static mp_obj_t py_image_width(mp_obj_t img_obj) {
     return mp_obj_new_int(((image_t *) py_image_cobj(img_obj))->w);
@@ -6344,9 +6350,10 @@ static const mp_rom_map_elem_t locals_dict_table[] = {
     /* Basic Methods */
     {MP_ROM_QSTR(MP_QSTR___del__),             MP_ROM_PTR(&py_image_del_obj)},
     {MP_ROM_QSTR(MP_QSTR_copy_to),             MP_ROM_PTR(&py_image_copy_to_obj)},
-    {MP_ROM_QSTR(MP_QSTR_to_ulab),             MP_ROM_PTR(&py_image_to_ulab_obj)},
+    {MP_ROM_QSTR(MP_QSTR_to_ndarray_ref),      MP_ROM_PTR(&py_image_to_ndarray_ref_obj)},
     {MP_ROM_QSTR(MP_QSTR_phyaddr),             MP_ROM_PTR(&py_image_phyaddr_obj)},
     {MP_ROM_QSTR(MP_QSTR_virtaddr),            MP_ROM_PTR(&py_image_virtaddr_obj)},
+    {MP_ROM_QSTR(MP_QSTR_poolid),              MP_ROM_PTR(&py_image_poolid_obj)},
     {MP_ROM_QSTR(MP_QSTR_width),               MP_ROM_PTR(&py_image_width_obj)},
     {MP_ROM_QSTR(MP_QSTR_height),              MP_ROM_PTR(&py_image_height_obj)},
     {MP_ROM_QSTR(MP_QSTR_format),              MP_ROM_PTR(&py_image_format_obj)},
@@ -6930,8 +6937,10 @@ mp_obj_t py_image_load_image(size_t n_args, const mp_obj_t *args, mp_map_t *kw_a
 
     mp_obj_t alloc_type_obj = py_helper_keyword_object(n_args, args, 0xff, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_alloc), NULL);
     mp_obj_t cache_obj = py_helper_keyword_object(n_args, args, 0xff, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_cache), NULL);
+    mp_obj_t data_obj = py_helper_keyword_object(n_args, args, 0xff, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_data), NULL);
     uint8_t alloc_type = ALLOC_MMZ;
     bool cache = true;
+    mp_buffer_info_t bufinfo;
 
     if (alloc_type_obj) {
         alloc_type = mp_obj_get_int(alloc_type_obj);
@@ -6961,6 +6970,12 @@ mp_obj_t py_image_load_image(size_t n_args, const mp_obj_t *args, mp_map_t *kw_a
 
         size_t size = image_size(&image);
 
+        if (data_obj) {
+            mp_get_buffer_raise(data_obj, &bufinfo, MP_BUFFER_READ);
+            if (size > bufinfo.len)
+                mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("Not enough data"));
+        }
+
         if (alloc_type == ALLOC_MMZ) {
             int ret = 0;
             if (cache)
@@ -6972,19 +6987,30 @@ mp_obj_t py_image_load_image(size_t n_args, const mp_obj_t *args, mp_map_t *kw_a
         } else if (alloc_type == ALLOC_VB) {
             mp_map_elem_t *kw_arg_phyaddr = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_phyaddr), MP_MAP_LOOKUP);
             mp_map_elem_t *kw_arg_virtaddr = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_virtaddr), MP_MAP_LOOKUP);
+            mp_map_elem_t *kw_arg_poolid = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_poolid), MP_MAP_LOOKUP);
             if (!(kw_arg_phyaddr && kw_arg_virtaddr && mp_obj_is_int(kw_arg_phyaddr->value) && mp_obj_is_int(kw_arg_virtaddr->value)))
                 mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("please set phyaddr and virtaddr"));
             image.phy_addr = mp_obj_get_int(kw_arg_phyaddr->value);
             image.data = mp_obj_get_int(kw_arg_virtaddr->value);
+            if (kw_arg_poolid)
+                image.pool_id = mp_obj_get_int(kw_arg_poolid->value);
+        } else if (alloc_type == ALLOC_REF) {
+            if (!data_obj)
+                mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("please set reference object"));
+            image.ref_obj = data_obj;
+            image.data = bufinfo.buf;
         } else if (alloc_type == ALLOC_HEAP) {
-            image.phy_addr = 0;
             image.data = malloc(size);
             if (image.data == NULL)
                 mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("image malloc failed"));
         } else if (alloc_type == ALLOC_MPGC) {
-            image.phy_addr = 0;
             image.data = xalloc(size);
+        } else {
+            mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("image alloc type invalid"));
         }
+
+        if (data_obj && alloc_type != ALLOC_REF)
+            memcpy(image.data, bufinfo.buf, size);
     } else {
         #if defined(IMLIB_ENABLE_IMAGE_FILE_IO)
         fb_alloc_mark();
@@ -7296,6 +7322,7 @@ static const mp_rom_map_elem_t globals_dict_table[] = {
     {MP_ROM_QSTR(MP_QSTR_ALLOC_HEAP),          MP_ROM_INT(ALLOC_HEAP)},
     {MP_ROM_QSTR(MP_QSTR_ALLOC_MMZ),           MP_ROM_INT(ALLOC_MMZ)},
     {MP_ROM_QSTR(MP_QSTR_ALLOC_VB),            MP_ROM_INT(ALLOC_VB)},
+    {MP_ROM_QSTR(MP_QSTR_ALLOC_REF),           MP_ROM_INT(ALLOC_REF)},
     {MP_ROM_QSTR(MP_QSTR_EXTRACT_RGB_CHANNEL_FIRST), MP_ROM_INT(IMAGE_HINT_EXTRACT_RGB_CHANNEL_FIRST)},
     {MP_ROM_QSTR(MP_QSTR_APPLY_COLOR_PALETTE_FIRST), MP_ROM_INT(IMAGE_HINT_APPLY_COLOR_PALETTE_FIRST)},
     #ifdef IMLIB_FIND_TEMPLATE
