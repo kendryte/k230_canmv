@@ -86,12 +86,24 @@ VENC_PACK_CNT_MAX = const(12)
 # data align up
 ALIGN_UP = VICAP_ALIGN_UP
 
+VB_INVALID_POOLID = 0xFFFFFFFF
+VB_INVALID_HANDLE = 0xFFFFFFFF
+
 
 class media_device:
     def __init__(self, mod_id, dev_id, chn_id):
         self.mod_id = mod_id
         self.dev_id = dev_id
         self.chn_id = chn_id
+
+
+class media_buffer:
+    def __init__(self, handle, pool_id, phys_addr, virt_addr, size):
+        self.handle = handle
+        self.pool_id = pool_id
+        self.phys_addr = phys_addr
+        self.virt_addr = virt_addr
+        self.size = size
 
 
 class media:
@@ -144,6 +156,7 @@ class media:
 
         return 0
 
+
     @classmethod
     def buffer_config(cls, config):
         cls.lock.acquire()
@@ -193,6 +206,7 @@ class media:
 
         return 0
 
+
     @classmethod
     def buffer_deinit(cls):
         cls.buf_config.max_pool_cnt = 0
@@ -205,4 +219,51 @@ class media:
             return ret
 
         return 0
+
+
+    @classmethod
+    def request_buffer(cls, size):
+
+        buf_handle = kd_mpi_vb_get_block(VB_INVALID_POOLID, size, '')
+        if buf_handle == VB_INVALID_HANDLE:
+            print(f"request_buffer, get buf block failed, size {size}")
+            return -1
+
+        pool_id = kd_mpi_vb_handle_to_pool_id(buf_handle)
+        if pool_id == VB_INVALID_POOLID:
+            kd_mpi_vb_release_block(buf_handle)
+            print("request_buffer, get buf pool id error")
+            return -1
+
+        phys_addr = kd_mpi_vb_handle_to_phyaddr(buf_handle)
+        if phys_addr == 0:
+            kd_mpi_vb_release_block(buf_handle)
+            print("request_buffer, get buf phys addr failed")
+            return -1
+
+        virt_addr = kd_mpi_sys_mmap(phys_addr, size)
+        if virt_addr == 0:
+            kd_mpi_vb_release_block(buf_handle)
+            print("request_buffer, map buf virt addr failed")
+            return -1
+
+        buffer = media_buffer(buf_handle, pool_id, phys_addr, virt_addr, size)
+
+        return buffer
+
+
+    @classmethod
+    def release_buffer(cls, buffer):
+        ret  = 0
+        ret = kd_mpi_vb_release_block(buffer.handle)
+        if ret:
+            print("release_buffer, release buf block failed")
+            ret = -1
+
+        ret = kd_mpi_sys_munmap(buffer.virt_addr, buffer.size)
+        if ret:
+            print("release_buffer, munmap failed")
+            ret = -1
+
+        return ret
 

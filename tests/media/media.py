@@ -89,6 +89,22 @@ def media_buf_test():
     if ret:
         print("media_buf_test, buffer_init failed")
 
+
+    print("media_buf_test request_buffer")
+    buffer = media.request_buffer(4*1024*1024)
+    if buffer == -1:
+        print("media_buf_test, request_buffer failed")
+    else:
+        print(f"buffer handle({buffer.handle})")
+        print(f"buffer pool_id({buffer.pool_id})")
+        print(f"buffer phys_addr({buffer.phys_addr})")
+        print(f"buffer virt_addr({buffer.virt_addr})")
+        print(f"buffer size({buffer.size})")
+        ret = media.release_buffer(buffer)
+        if ret:
+            print("media_buf_test, release_buffer failed")
+
+    print("media_buf_test buffer_deinit")
     ret = media.buffer_deinit()
     if ret:
         print("media_buf_test, buffer_deinit failed")
