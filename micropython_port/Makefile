@@ -39,6 +39,7 @@ INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/comm
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/ioctl
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/api
+INC += -I$(K230_CANMV_ROOT)/micropython_port/ulab
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/components/drivers
@@ -48,7 +49,12 @@ INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/middleware/mp4_format/include
 CWARN = -Wall -Werror
 CWARN += -Wno-int-conversion
 CFLAGS += -fopenmp -march=rv64imafdcv -mabi=lp64d -mcmodel=medany
-CFLAGS += $(INC) $(CWARN) -std=gnu99 $(COPT) $(CFLAGS_EXTRA)
+CFLAGS += $(INC) -std=gnu99 $(COPT) $(CFLAGS_EXTRA)
+
+NNCASEINC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/nncase/riscv64
+NNCASEINC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/nncase/riscv64/nncase/include
+CXXFLAGS += -fopenmp -march=rv64imafdcv -mabi=lp64d -mcmodel=medany
+CXXFLAGS += $(INC) $(NNCASEINC) -std=c++20
 
 # Debugging/Optimization
 ifdef DEBUG
@@ -78,6 +84,8 @@ MPP_LIBS += -lrtthread
 
 LDFLAGS_MPP = -L$(MPP_LIB_PATH) -L$(LIBPATH) -Wl,--start-group $(MPP_LIBS) -Wl,--end-group
 
+LDFLAGS += $(LDFLAGS_MPP)
+LDFLAGS += -L${K230_CANMV_ROOT}/k230_sdk/src/big/nncase/riscv64/nncase/lib -lNncase.Runtime.Native -lnncase.rt_modules.k230 -lfunctional_k230 -lstdc++
 MP4_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/middleware/mp4_format/lib
 LDFLAGS_MP4 += -L$(MP4_LIB_PATH) -lmp4
 
@@ -122,7 +130,8 @@ SHARED_SRC_C += $(addprefix shared/,\
 	runtime/pyexec.c \
 	)
 
-SRC_CXX += \
+KPU_SRC_CXX = $(wildcard kpu/*.cpp)
+SRC_CXX += ${KPU_SRC_CXX}
 
 OBJ = $(PY_O)
 OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
@@ -135,6 +144,6 @@ SRC_QSTR += $(SRC_C) $(SRC_CXX) $(SHARED_SRC_C)
 # SRC_QSTR
 SRC_QSTR_AUTO_DEPS +=
 
-CXXFLAGS += $(filter-out -Wmissing-prototypes -Wold-style-definition -std=gnu99,$(CFLAGS) $(CXXFLAGS_MOD))
-
+CXXFLAGS += $(filter-out -Wmissing-prototypes -Wold-style-definition -std=gnu99, $(CXXFLAGS_MOD))
+CFLAGS += $(CWARN)
 include $(TOP)/py/mkrules.mk
