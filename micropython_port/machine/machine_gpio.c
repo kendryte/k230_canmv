@@ -48,17 +48,19 @@
 #define	GPIO_WRITE_LOW           _IOW('G', 4, int)
 #define	GPIO_WRITE_HIGH          _IOW('G', 5, int)
 
-#define	GPIO_PE_RISING           _IOW('G', 7, int)
-#define	GPIO_PE_FALLING          _IOW('G', 8, int)
-#define	GPIO_PE_BOTH             _IOW('G', 9, int)
-#define	GPIO_PE_HIGH             _IOW('G', 10, int)
-#define	GPIO_PE_LOW              _IOW('G', 11, int)
-
 #define GPIO_READ_VALUE       	_IOW('G', 12, int)
 
 enum {
     GPIO_DM_PULL_NONE = -1,
 };
+
+typedef enum _gpio_drive_mode
+{
+    GPIO_OUTPUT,
+    GPIO_INPUT,
+    GPIO_INPUT_PULL_UP,
+    GPIO_INPUT_PULL_DOWN,
+} gpio_drive_mode_t;
 
 typedef struct kd_pin_mode
 {
@@ -80,14 +82,15 @@ STATIC void mp_machine_gpio_print(const mp_print_t *print, mp_obj_t self_in, mp_
 }
 
 
-STATIC mp_obj_t mp_machine_pwm_gpio_value_get(machine_gpio_obj_t *self)
+
+STATIC mp_obj_t mp_machine_gpio_value_get(machine_gpio_obj_t *self)
 {
     if(ioctl(self->fd,GPIO_DM_INPUT,&(self->gpio)))
         mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("Set %d pin Input error"),self->gpio.pin);
 
     if(ioctl(self->fd,GPIO_READ_VALUE,&(self->gpio)))
         mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("Read %d pin value error"),self->gpio.pin);
-     return mp_obj_new_int(self->gpio.mode);
+    return mp_obj_new_int(self->gpio.mode);
 }
 
 STATIC void mp_machine_gpio_value_set(machine_gpio_obj_t *self,mp_int_t value)
@@ -124,31 +127,29 @@ STATIC mp_obj_t machine_gpio_obj_init_helper(machine_gpio_obj_t *self, size_t n_
     // configure mode
     mp_int_t pin_io_mode = args[ARG_mode].u_int;
     mp_int_t pin_to_pull = args[ARG_pull].u_int;
-    // printf("pin_io_mode : %ld\n",pin_io_mode);
-    // printf("pin_to_pull : %ld\n",pin_to_pull);
     self->gpio.mode = pin_io_mode;
     if (self->gpio.pin < MAX_GPIO_NUM) {
-        if(pin_io_mode == 0 && args[ARG_pull].u_int != -1){
+        if(pin_io_mode == GPIO_DM_OUTPUT && args[ARG_pull].u_int != -1){
             mp_raise_ValueError("When this pin is in output mode, it is not allowed to pull up and down.");
         }else{
-            if(pin_io_mode == 0)
+            if(pin_io_mode == GPIO_OUTPUT)
             {
                 if (args[ARG_value].u_int != -1) {
                     mp_machine_gpio_value_set(self, args[ARG_value].u_int);
                 }
             }
             else{
-                if(pin_to_pull == 0)
+                if(pin_to_pull == GPIO_INPUT)
                 {
                     if(ioctl(self->fd,GPIO_DM_INPUT,&(self->gpio)))
                         mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("Set %d pin mode error"),self->gpio.pin);
                 }                    
-                if(pin_to_pull == 2)
+                if(pin_to_pull == GPIO_INPUT_PULL_UP)
                 {
                     if(ioctl(self->fd,GPIO_DM_INPUT_PULL_UP,&(self->gpio)))
                         mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("GPIO_DM_INPUT_PULL_UP error"));
                 }
-                else if(pin_to_pull == 3)
+                else if(pin_to_pull == GPIO_INPUT_PULL_DOWN)
                 {
                     if(ioctl(self->fd,GPIO_DM_INPUT_PULL_DOWN,&(self->gpio)))
                         mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("GPIO_DM_INPUT_PULL_DOWN error"));
@@ -194,7 +195,7 @@ STATIC  mp_obj_t machine_gpio_value(size_t n_args, const mp_obj_t *args)
     machine_gpio_obj_t *self = MP_OBJ_TO_PTR(args[0]);
     if (n_args == 1) {
         // Get value.
-        return mp_machine_pwm_gpio_value_get(self);
+        return mp_machine_gpio_value_get(self);
     } else {
         // Set value.
         mp_int_t value = mp_obj_get_int(args[1]);
@@ -207,7 +208,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_gpio_value_obj, 1,2,machine_g
 STATIC mp_obj_t machine_gpio_mode(mp_obj_t self_o, mp_obj_t mode) 
 {
     machine_gpio_obj_t *self = MP_OBJ_TO_PTR(self_o);
-    if(mp_obj_is_int(mode) == 0)
+    if(mp_obj_is_int(mode) == GPIO_OUTPUT)
     {
         if(ioctl(self->fd,GPIO_DM_OUTPUT,&(self->gpio)))
             mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("Set %d pin mode error"),self->gpio.pin);        
@@ -225,12 +226,16 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(machine_gpio_mode_obj, machine_gpio_mode);
 STATIC const mp_rom_map_elem_t machine_gpio_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_mode), MP_ROM_PTR(&machine_gpio_mode_obj) },
     { MP_ROM_QSTR(MP_QSTR_value), MP_ROM_PTR(&machine_gpio_value_obj) },
+    { MP_ROM_QSTR(MP_QSTR_IN), MP_ROM_INT(GPIO_INPUT) },
+    { MP_ROM_QSTR(MP_QSTR_OUT), MP_ROM_INT(GPIO_OUTPUT) },
+    { MP_ROM_QSTR(MP_QSTR_PULL_UP), MP_ROM_INT(GPIO_INPUT_PULL_UP) },
+    { MP_ROM_QSTR(MP_QSTR_PULL_DOWN), MP_ROM_INT(GPIO_INPUT_PULL_DOWN) },
 };
 STATIC MP_DEFINE_CONST_DICT(machine_gpio_locals_dict, machine_gpio_locals_dict_table);
 
 MP_DEFINE_CONST_OBJ_TYPE(
     machine_gpio_type,
-    MP_QSTR_WDT,
+    MP_QSTR_GPIO,
     MP_TYPE_FLAG_NONE,
     make_new, mp_machine_gpio_make_new,
     print, mp_machine_gpio_print,

@@ -33,6 +33,9 @@
 #include "machine_pwm.h"
 #include "machine_wdt.h"
 #include "machine_gpio.h"
+#include "machine_timer.h"
+#include "machine_adc.h"
+
 
 #if MICROPY_PY_MACHINE
 
@@ -53,6 +56,8 @@ STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_PWM), MP_ROM_PTR(&machine_pwm_type) },
     { MP_ROM_QSTR(MP_QSTR_WDT), MP_ROM_PTR(&machine_wdt_type) },
     { MP_ROM_QSTR(MP_QSTR_GPIO), MP_ROM_PTR(&machine_gpio_type) },
+    { MP_ROM_QSTR(MP_QSTR_Timer), MP_ROM_PTR(&machine_timer_type) },
+    { MP_ROM_QSTR(MP_QSTR_ADC), MP_ROM_PTR(&machine_adc_type) },
 };
 
 STATIC MP_DEFINE_CONST_DICT(machine_module_globals, machine_module_globals_table);
