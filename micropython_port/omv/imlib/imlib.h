@@ -28,6 +28,7 @@
 #include "fmath.h"
 #include "collections.h"
 #include "ff_wrapper.h"
+#include "py/obj.h"
 
 #ifndef M_PI
 #define M_PI                     3.14159265f
@@ -475,6 +476,8 @@ typedef enum {
 #define IMLIB_PIXFORMAT_IS_VALID(x) \
     ((x == PIXFORMAT_BINARY)        \
      || (x == PIXFORMAT_GRAYSCALE)  \
+     || (x == PIXFORMAT_RGB565)     \
+     || (x == PIXFORMAT_ARGB8)      \
      || (x == PIXFORMAT_ARGB8888)   \
      || (x == PIXFORMAT_ABGR8888)   \
      || (x == PIXFORMAT_RGBA8888)   \
@@ -543,6 +546,7 @@ enum {
     ALLOC_HEAP,
     ALLOC_MMZ,
     ALLOC_VB,
+    ALLOC_REF,
     ALLOC_MAX,
 };
 
@@ -550,13 +554,15 @@ typedef struct image {
     int32_t w;
     int32_t h;
     PIXFORMAT_STRUCT;
-    uint64_t phy_addr;
     union {
         uint8_t *pixels;
         uint8_t *data;
     };
+    uint64_t phy_addr;
+    mp_obj_t ref_obj;
     uint8_t alloc_type;
     uint8_t cache;
+    uint32_t pool_id;
 } image_t;
 
 void image_init(image_t *ptr, int w, int h, pixformat_t pixfmt, uint32_t size, void *pixels);
