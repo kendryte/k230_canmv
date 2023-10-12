@@ -39,6 +39,9 @@ INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/comm
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/ioctl
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/api
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/include
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/components/drivers
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/middleware/mp4_format/include
 
 # compiler settings
@@ -70,7 +73,10 @@ LDFLAGS += $(LDFLAGS_MOD) $(LDFLAGS_ARCH) -lm -lpthread $(LDFLAGS_EXTRA)
 MPP_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/lib
 MPP_LIBS = $(addprefix -l, $(subst lib, ,$(basename $(notdir $(foreach dir, $(MPP_LIB_PATH), $(wildcard $(dir)/*))))))
 
-LDFLAGS_MPP = -L$(MPP_LIB_PATH) -Wl,--start-group $(MPP_LIBS) -Wl,--end-group
+LIBPATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/lib/risc-v/rv64
+MPP_LIBS += -lrtthread
+
+LDFLAGS_MPP = -L$(MPP_LIB_PATH) -L$(LIBPATH) -Wl,--start-group $(MPP_LIBS) -Wl,--end-group
 
 MP4_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/middleware/mp4_format/lib
 LDFLAGS_MP4 += -L$(MP4_LIB_PATH) -lmp4
@@ -81,9 +87,9 @@ ifeq ($(MICROPY_PY_TERMIOS),1)
 CFLAGS += -DMICROPY_PY_TERMIOS=1
 endif
 ifeq ($(MICROPY_PY_SOCKET),1)
-CFLAGS += -DMICROPY_PY_SOCKET=1
+CFLAGS += -DMICROPY_PY_SOCKET=1 
 endif
-
+CFLAGS += -DHAVE_CCONFIG_H 
 # source files
 SRC_C += \
 	core/main.c \

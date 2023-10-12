@@ -23,11 +23,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MACHINE_WDT_H_
-#define _MACHINE_WDT_H_
+#ifndef _MACHINE_ADC_H_
+#define _MACHINE_ADC_H_
 
 #include "py/obj.h"
 
-extern const mp_obj_type_t machine_wdt_type;
+extern const mp_obj_type_t machine_adc_type;
 
 #endif
