@@ -250,6 +250,7 @@ static const mp_rom_map_elem_t ulab_numpy_globals_table[] = {
     #endif
     #if ULAB_NUMPY_HAS_LOAD
         { MP_ROM_QSTR(MP_QSTR_load), MP_ROM_PTR(&io_load_obj) },
+        { MP_ROM_QSTR(MP_QSTR_fromfile), MP_ROM_PTR(&io_fromfile_obj) },
     #endif
     #if ULAB_NUMPY_HAS_LOADTXT
         { MP_ROM_QSTR(MP_QSTR_loadtxt), MP_ROM_PTR(&io_loadtxt_obj) },
