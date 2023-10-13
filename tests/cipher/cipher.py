@@ -254,14 +254,14 @@ print(val0 == val)
 
 print('********************** Test-4: keybits=128, ivlen=16, ptlen=32 ******************')
 print('SM4-OFB Encrypt......')
-crypto = ucryptolib.sm4(sm4[3].key, 4, sm4[3].iv)
+crypto = ucryptolib.sm4(sm4[3].key, 5, sm4[3].iv)
 inbuf = sm4[3].pt
 outbuf = bytearray(32)
 val = crypto.encrypt(inbuf, outbuf)
 val0 = sm4[3].ct
 print(val0 == val)
 print('SM4-OFB Decrypt......')
-crypto = ucryptolib.sm4(sm4[3].key, 4, sm4[3].iv)
+crypto = ucryptolib.sm4(sm4[3].key, 5, sm4[3].iv)
 inbuf = sm4[3].ct
 outbuf = bytearray(32)
 val = crypto.decrypt(inbuf, outbuf)
@@ -270,14 +270,14 @@ print(val0 == val)
 
 print('********************** Test-5: keybits=128, ivlen=16, ptlen=64 ******************')
 print('SM4-CTR Encrypt......')
-crypto = ucryptolib.sm4(sm4[4].key, 5, sm4[4].iv)
+crypto = ucryptolib.sm4(sm4[4].key, 6, sm4[4].iv)
 inbuf = sm4[4].pt
 outbuf = bytearray(64)
 val = crypto.encrypt(inbuf, outbuf)
 val0 = sm4[4].ct
 print(val0 == val)
 print('SM4-CTR Decrypt......')
-crypto = ucryptolib.sm4(sm4[4].key, 5, sm4[4].iv)
+crypto = ucryptolib.sm4(sm4[4].key, 6, sm4[4].iv)
 inbuf = sm4[4].ct
 outbuf = bytearray(64)
 val = crypto.decrypt(inbuf, outbuf)

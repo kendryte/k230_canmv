@@ -250,6 +250,8 @@ static inline unsigned long mp_random_seed_init(void) {
 #define MICROPY_PY_HASHLIB_MD5         (1)
 #define MICROPY_PY_HASHLIB_SHA1        (1)
 #define MICROPY_PY_CRYPTOLIB           (1)
+#define MICROPY_PY_CRYPTOLIB_CONSTS    (1)
+#define MICROPY_PY_CRYPTOLIB_CTR       (1)
 #endif
 
 // Enable the "websocket" module.
