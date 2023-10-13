@@ -1,6 +1,7 @@
 from mpp.connector import *
 from mpp.vo import *
 from mpp import *
+import image
 
 # define display type
 HX8377_1080X1920_30FPS = HX8377_V2_MIPI_4LAN_1080X1920_30FPS
@@ -41,7 +42,7 @@ class display:
         cls.plane_array = [0] * 7
 
     @classmethod
-    def set_osd_plane(cls, x, y , width, height, pixelformat, chn):
+    def set_osd_plane(cls, x, y, width, height, pixelformat, chn):
         offset = k_vo_point()
         offset.x = x
         offset.y = y
@@ -63,8 +64,8 @@ class display:
             print('set osd pixelformat failed')
         struct_copy(offset, osd_attr.display_rect)
         struct_copy(img_size, osd_attr.img_size)
-        kd_mpi_vo_set_video_osd_attr(chn, osd_attr)
-        kd_mpi_vo_osd_enable(chn)
+        kd_mpi_vo_set_video_osd_attr(chn - 3, osd_attr)
+        kd_mpi_vo_osd_enable(chn - 3)
         cls.plane_array[chn] = 1
 
     @classmethod
@@ -92,7 +93,7 @@ class display:
         if (DISPLAY_CHN_VIDEO1 <= chn <= DISPLAY_CHN_VIDEO2):
             cls.set_video_plane(x, y, width, height, pixelformat, mirror, chn)
         elif (DISPLAY_CHN_OSD0 <= chn <= DISPLAY_CHN_OSD3):
-            cls.set_osd_plane(x, y, width, height, pixelformat, chn - 3)
+            cls.set_osd_plane(x, y, width, height, pixelformat, chn)
         else:
             print('set_plane failed')
 
@@ -107,8 +108,36 @@ class display:
         cls.plane_array[chn] = 0
 
     @classmethod
+    def show_image(cls, img, x, y, chn):
+        width = img.width()
+        height = img.height()
+        phys_addr = img.phyaddr()
+        pool_id = img.poolid()
+        if img.format() == image.ARGB8888:
+            pixelformat = DISPLAY_OUT_ARGB8888
+        elif img.format() == image.RGB888:
+            pixelformat = DISPLAY_OUT_RGB888
+        elif img.format() == image.RGB565:
+            pixelformat = DISPLAY_OUT_RGB565
+        elif img.format() == image.YUV420:
+            pixelformat = PIXEL_FORMAT_YUV_SEMIPLANAR_420
+        cls.set_plane(x, y, width, height, pixelformat, DISPLAY_MIRROR_NONE, chn)
+
+        frame_info = k_video_frame_info()
+        frame_info.mod_id = K_ID_VO;
+        frame_info.pool_id = pool_id;
+        frame_info.v_frame.width = width
+        frame_info.v_frame.height = height
+        frame_info.v_frame.pixel_format = pixelformat
+        frame_info.v_frame.stride[0] = width
+        frame_info.v_frame.phys_addr[0] = phys_addr;
+        if pixelformat == PIXEL_FORMAT_YUV_SEMIPLANAR_420:
+            frame_info.v_frame.phys_addr[1] = phys_addr + (width * height)
+        kd_mpi_vo_chn_insert_frame(chn, frame_info)
+
+    @classmethod
     def deinit(cls):
-        for i in range(0, 6):
+        for i in range(0, 7):
             if cls.plane_array[i] == 1:
                 cls.disable_plane(i)
                 print(i)
