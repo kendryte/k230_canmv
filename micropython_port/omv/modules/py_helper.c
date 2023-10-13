@@ -278,46 +278,28 @@ int py_helper_keyword_color(image_t *img, uint n_args, const mp_obj_t *args, uin
         if (mp_obj_is_integer(kw_arg->value)) {
             default_val = mp_obj_get_int(kw_arg->value);
         } else {
+            size_t len;
             mp_obj_t *arg_color;
-            mp_obj_get_array_fixed_n(kw_arg->value, 3, &arg_color);
-            default_val = COLOR_R8_G8_B8_TO_RGB565(IM_MAX(IM_MIN(mp_obj_get_int(arg_color[0]), COLOR_R8_MAX), COLOR_R8_MIN),
-                                                   IM_MAX(IM_MIN(mp_obj_get_int(arg_color[1]), COLOR_G8_MAX), COLOR_G8_MIN),
-                                                   IM_MAX(IM_MIN(mp_obj_get_int(arg_color[2]), COLOR_B8_MAX), COLOR_B8_MIN));
-            switch (img->pixfmt) {
-                case PIXFORMAT_BINARY: {
-                    default_val = COLOR_RGB565_TO_BINARY(default_val);
-                    break;
-                }
-                case PIXFORMAT_GRAYSCALE: {
-                    default_val = COLOR_RGB565_TO_GRAYSCALE(default_val);
-                    break;
-                }
-                default: {
-                    break;
-                }
+            mp_obj_get_array(kw_arg->value, &len, &arg_color);
+            if (len != 3 && len != 4)
+                mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("color=([A,]R,G,B)"));
+            for (int i = 0; i < len; i++) {
+                default_val <<= 8;
+                default_val |= (uint8_t)mp_obj_get_int(arg_color[i]);
             }
         }
     } else if (n_args > arg_index) {
         if (mp_obj_is_integer(args[arg_index])) {
             default_val = mp_obj_get_int(args[arg_index]);
         } else {
+            size_t len;
             mp_obj_t *arg_color;
-            mp_obj_get_array_fixed_n(args[arg_index], 3, &arg_color);
-            default_val = COLOR_R8_G8_B8_TO_RGB565(IM_MAX(IM_MIN(mp_obj_get_int(arg_color[0]), COLOR_R8_MAX), COLOR_R8_MIN),
-                                                   IM_MAX(IM_MIN(mp_obj_get_int(arg_color[1]), COLOR_G8_MAX), COLOR_G8_MIN),
-                                                   IM_MAX(IM_MIN(mp_obj_get_int(arg_color[2]), COLOR_B8_MAX), COLOR_B8_MIN));
-            switch (img->pixfmt) {
-                case PIXFORMAT_BINARY: {
-                    default_val = COLOR_RGB565_TO_BINARY(default_val);
-                    break;
-                }
-                case PIXFORMAT_GRAYSCALE: {
-                    default_val = COLOR_RGB565_TO_GRAYSCALE(default_val);
-                    break;
-                }
-                default: {
-                    break;
-                }
+            mp_obj_get_array(args[arg_index], &len, &arg_color);
+            if (len != 3 && len != 4)
+                mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("color=([A,]R,G,B)"));
+            for (int i = 0; i < len; i++) {
+                default_val <<= 8;
+                default_val |= (uint8_t)mp_obj_get_int(arg_color[i]);
             }
         }
     }
