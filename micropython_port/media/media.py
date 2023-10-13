@@ -215,7 +215,7 @@ class media:
 
         ret = kd_mpi_vb_exit()
         if ret:
-            print(f"buffer_deinit, vb init failed({ret})")
+            print(f"buffer_deinit, vb deinit failed({ret})")
             return ret
 
         return 0
