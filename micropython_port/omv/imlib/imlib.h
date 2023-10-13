@@ -686,6 +686,46 @@ bool image_get_mask_pixel(image_t *ptr, int x, int y);
         ((uint8_t *) _image->data)[(_image->w * _y) + _x] = _v; \
     })
 
+#define IMAGE_GET_RGB888_PIXEL(image, x, y)                \
+    ({                                                     \
+        __typeof__ (image) _image = (image);               \
+        __typeof__ (x) _x = (x);                           \
+        __typeof__ (y) _y = (y);                           \
+        uint32_t offset = ((_image->w * _y) + _x) * 3;     \
+        (((uint8_t *) _image->data)[offset] << 16) |       \
+        (((uint8_t *) _image->data)[offset + 1] << 8) |    \
+        (((uint8_t *) _image->data)[offset + 2] << 0)      \
+    })
+
+#define IMAGE_PUT_RGB888_PIXEL(image, x, y, v)                  \
+    ({                                                          \
+        __typeof__ (image) _image = (image);                    \
+        __typeof__ (x) _x = (x);                                \
+        __typeof__ (y) _y = (y);                                \
+        __typeof__ (v) _v = (v);                                \
+        uint32_t offset = ((_image->w * _y) + _x) * 3;          \
+        ((uint8_t *) _image->data)[offset] = _v >> 16;          \
+        ((uint8_t *) _image->data)[offset + 1] = _v >> 8;       \
+        ((uint8_t *) _image->data)[offset + 2] = _v;            \
+    })
+
+#define IMAGE_GET_ARGB8888_PIXEL(image, x, y)              \
+    ({                                                     \
+        __typeof__ (image) _image = (image);               \
+        __typeof__ (x) _x = (x);                           \
+        __typeof__ (y) _y = (y);                           \
+        ((uint32_t *) _image->data)[(_image->w * _y) + _x];\
+    })
+
+#define IMAGE_PUT_ARGB8888_PIXEL(image, x, y, v)                \
+    ({                                                          \
+        __typeof__ (image) _image = (image);                    \
+        __typeof__ (x) _x = (x);                                \
+        __typeof__ (y) _y = (y);                                \
+        __typeof__ (v) _v = (v);                                \
+        ((uint32_t *) _image->data)[(_image->w * _y) + _x] = _v;\
+    })
+
 // Fast Stuff //
 
 #define IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(image, y)                                          \

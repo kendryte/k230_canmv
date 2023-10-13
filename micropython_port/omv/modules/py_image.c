@@ -723,7 +723,7 @@ static mp_obj_t py_image_copy_to(mp_obj_t img_obj, mp_obj_t dst_img_obj) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(py_image_copy_to_obj, py_image_copy_to);
 
-static mp_obj_t py_image_to_ndarray_ref(mp_obj_t img_obj) {
+static mp_obj_t py_image_to_numpy_ref(mp_obj_t img_obj) {
     image_t *image = py_image_cobj(img_obj);
     uint8_t ndim, dtype;
     size_t shape[4];
@@ -741,7 +741,7 @@ static mp_obj_t py_image_to_ndarray_ref(mp_obj_t img_obj) {
 
     return MP_OBJ_FROM_PTR(ndarray_new_ndarray_by_ref(ndim, shape, NULL, dtype, image->phy_addr, image->data, img_obj));
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(py_image_to_ndarray_ref_obj, py_image_to_ndarray_ref);
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(py_image_to_numpy_ref_obj, py_image_to_numpy_ref);
 
 static mp_obj_t py_image_width(mp_obj_t img_obj) {
     return mp_obj_new_int(((image_t *) py_image_cobj(img_obj))->w);
@@ -1450,11 +1450,11 @@ STATIC mp_obj_t py_image_draw_ellipse(size_t n_args, const mp_obj_t *args, mp_ma
     int arg_r = mp_obj_get_int(arg_vec[4]);
 
     int arg_c =
-        py_helper_keyword_color(arg_img, n_args, args, offset + 1, kw_args, -1); // White.
+        py_helper_keyword_color(arg_img, n_args, args, offset + 0, kw_args, -1); // White.
     int arg_thickness =
-        py_helper_keyword_int(n_args, args, offset + 2, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_thickness), 1);
+        py_helper_keyword_int(n_args, args, offset + 1, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_thickness), 1);
     bool arg_fill =
-        py_helper_keyword_int(n_args, args, offset + 3, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_fill), false);
+        py_helper_keyword_int(n_args, args, offset + 2, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_fill), false);
 
     imlib_draw_ellipse(arg_img, arg_cx, arg_cy, arg_rx, arg_ry, arg_r, arg_c, arg_thickness, arg_fill);
     return args[0];
@@ -6350,7 +6350,7 @@ static const mp_rom_map_elem_t locals_dict_table[] = {
     /* Basic Methods */
     {MP_ROM_QSTR(MP_QSTR___del__),             MP_ROM_PTR(&py_image_del_obj)},
     {MP_ROM_QSTR(MP_QSTR_copy_to),             MP_ROM_PTR(&py_image_copy_to_obj)},
-    {MP_ROM_QSTR(MP_QSTR_to_ndarray_ref),      MP_ROM_PTR(&py_image_to_ndarray_ref_obj)},
+    {MP_ROM_QSTR(MP_QSTR_to_numpy_ref),        MP_ROM_PTR(&py_image_to_numpy_ref_obj)},
     {MP_ROM_QSTR(MP_QSTR_phyaddr),             MP_ROM_PTR(&py_image_phyaddr_obj)},
     {MP_ROM_QSTR(MP_QSTR_virtaddr),            MP_ROM_PTR(&py_image_virtaddr_obj)},
     {MP_ROM_QSTR(MP_QSTR_poolid),              MP_ROM_PTR(&py_image_poolid_obj)},
