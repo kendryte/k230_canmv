@@ -18,11 +18,13 @@ fast_dl:
 	@set -e; \
 	if [ ! -f k230_sdk_overlay/.ready_dl_src ]; then \
 		echo "download k230_sdk"; \
+		if [ $(NATIVE_BUILD) -ne 1 ]; then \
+		wget -c --show-progress $(k230_sdk_download_url) -O - | tar -xz ; fi; \
 		touch k230_sdk_overlay/.ready_dl_src; \
 	fi; \
 	if [ ! -f micropython_port/.ready_dl_src ]; then \
 		echo "download micropython"; \
-		wget -c $(micropython_download_url) -O - | tar -xz ; \
+		wget -c --show-progress $(micropython_download_url) -O - | tar -xz ; \
 		touch micropython_port/.ready_dl_src; \
 	fi;
 

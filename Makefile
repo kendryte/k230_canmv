@@ -1,17 +1,47 @@
 FAST_DL ?= 1
-NATIVE_BUILD ?= 1
-ifeq ("$(origin CONF)", "command line")
-$(shell echo CONF=$(CONF) > .conf)
-endif
--include .conf
-ifeq ("$(origin CONF)", "undefined")
-CONF = k230_evb_defconfig
-$(shell echo CONF=$(CONF) > .conf)
-else ifeq ($(shell if [ -f configs/$(CONF) ]; then echo 1; else echo 0; fi;), 0)
-$(error "Please specify a valid CONF")
-endif
-SAVECONF ?= $(CONF)
+$(shell touch .conf)
+include .conf
 
+ifeq ("$(origin CONF)", "command line")
+  update_conf = 1
+else ifeq ("$(origin CONF)", "undefined")
+  CONF = k230_canmv_defconfig
+  update_conf = 1
+else
+  update_conf = 0
+endif
+ifeq ($(shell if [ -f configs/$(CONF) ]; then echo 1; else echo 0; fi;), 0)
+  $(error "Please specify a valid CONF")
+endif
+ifeq ($(update_conf),1)
+  $(shell sed -i "/^CONF=/d" .conf)
+  $(shell echo "CONF=$(CONF)" >> .conf)
+endif
+
+ifeq ("$(origin NATIVE_BUILD)", "command line")
+  update_conf = 1
+else ifeq ("$(origin NATIVE_BUILD)", "undefined")
+  update_conf = 1
+  ifeq ($(shell curl --output /dev/null --silent --head --fail https://ai.b-bug.org/k230/ && echo $$?),0)
+    NATIVE_BUILD = 1
+  else
+    NATIVE_BUILD = 0
+  endif
+else
+  update_conf = 0
+endif
+ifeq ($(update_conf),1)
+  $(shell sed -i "/^NATIVE_BUILD=/d" .conf)
+  $(shell echo "NATIVE_BUILD=$(NATIVE_BUILD)" >> .conf)
+  $(shell git update-index --assume-unchanged .gitmodules)
+  ifeq ($(NATIVE_BUILD),1)
+    $(shell git submodule set-url k230_sdk git@g.a-bug.org:maix_sw/k230_sdk_release.git >> /dev/null)
+  else
+    $(shell git submodule set-url k230_sdk https://github.com/kendryte/k230_sdk.git >> /dev/null)
+  endif
+endif
+
+SAVECONF ?= $(CONF)
 export K230_CANMV_ROOT := $(shell pwd)
 export K230_CANMV_BUILD_DIR := $(K230_CANMV_ROOT)/output/$(CONF)
 $(shell mkdir -p $(K230_CANMV_BUILD_DIR))
