@@ -5,7 +5,7 @@ import time
 # init kpu and load kmodel
 kpu = nn.kpu()
 ai2d = nn.ai2d()
-kpu.load_kmodel("/sdcard/app/tests/nncase_runtime/face_detection/face_detection_320.kmodel")
+kpu.load_kmodel("/sdcard/app/tests/nncase_runtime/face_detection/face_detection.kmodel")
 
 # init kpu input
 data = np.zeros((1,3,320,320),dtype=np.uint8)
