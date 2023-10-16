@@ -33,10 +33,11 @@ endif
 ifeq ($(update_conf),1)
   $(shell sed -i "/^NATIVE_BUILD=/d" .conf)
   $(shell echo "NATIVE_BUILD=$(NATIVE_BUILD)" >> .conf)
-  $(shell git update-index --assume-unchanged .gitmodules)
   ifeq ($(NATIVE_BUILD),1)
+    $(shell git update-index --assume-unchanged .gitmodules)
     $(shell git submodule set-url k230_sdk git@g.a-bug.org:maix_sw/k230_sdk_release.git >> /dev/null)
   else
+    $(shell git update-index --no-assume-unchanged .gitmodules)
     $(shell git submodule set-url k230_sdk https://github.com/kendryte/k230_sdk.git >> /dev/null)
   endif
 endif
