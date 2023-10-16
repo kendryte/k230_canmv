@@ -130,6 +130,7 @@ Kpu *Kpu_create()
 }
 
 void Kpu_destroy(Kpu* p) {
+    delete p->interp;
     delete p;
 }
 
@@ -152,24 +153,14 @@ bool Kpu_load_kmodel_buffer(Kpu* p, char* buffer, size_t size)
 
 void Kpu_set_input_tensor(Kpu* p, size_t index, runtime_tensor *tensor)
 {
-    // std::cout << "C++: in set input tensor"<< std::endl;
-    runtime_tensor *copy = new runtime_tensor();
-    copy->r_tensor = new nncase::runtime::runtime_tensor();
-    // std::cout << "C++: start to copy"<< std::endl;
-    *(copy->r_tensor) = *(tensor->r_tensor); 
-    // auto a = new nncase::runtime::runtime_tensor(tensor->r_tensor->impl());
-    // std::cout<<"C++: set input tensor\n"<<std::endl;
-    p->interp->input_tensor(index, *copy->r_tensor).expect("kpu set input tensor failed.");
+    p->interp->input_tensor(index, *tensor->r_tensor).expect("kpu set input tensor failed.");
 }
 
 runtime_tensor* Kpu_get_input_tensor(Kpu* p, size_t index)
 {
     runtime_tensor *tensor = new runtime_tensor();
     auto data = p->interp->input_tensor(index).expect("kpu get input tensor failed.");
-    // std::cout << "start copy" << std::endl;
     tensor->r_tensor = new nncase::runtime::runtime_tensor(data.impl());
-    // std::cout<<"end copy, set to result tensor"<<std::endl;
-    // std::cout<<"Done "<<std::endl;
     return tensor;
 }
 
@@ -180,16 +171,9 @@ void Kpu_set_output_tensor(Kpu* p, size_t index, runtime_tensor *tensor)
 
 runtime_tensor* Kpu_get_output_tensor(Kpu* p, size_t index)
 {
-    // runtime_tensor *tensor = new runtime_tensor();
-    // nncase::runtime::runtime_tensor out = p->interp->output_tensor(index).expect("kpu get output tensor failed.");
-    // *tensor->r_tensor = std::move(out);
-    // return tensor;
     runtime_tensor *tensor = new runtime_tensor();
     auto data = p->interp->output_tensor(index).expect("kpu get input tensor failed.");
-    // std::cout << "C++: start copy" << std::endl;
     tensor->r_tensor = new nncase::runtime::runtime_tensor(data.impl());
-    // std::cout<<"C++: end copy, set to result tensor"<<std::endl;
-    // std::cout<<"C++: Done "<<std::endl;
     return tensor;
 }
 
@@ -227,39 +211,26 @@ runtime_tensor* from_numpy(int dtype, finite_data shape, void* data, uint64_t ph
     for (int i = 0; i < shape.data_size; i++)
     {
         shape_data[i] = (int)shape.data[i];
-        // std::cout << shape_data[i] << std::endl;
     }
-    
-    // std::cout<<"from_numpy"<<std::endl;
-    // auto alldata = std::accumulate(shape_data.begin(), shape_data.end(), 1, std::multiplies<int32_t>());
-    // for (int i = 0; i < alldata; i++)
-    // {
-    //     if(i % 4 == 0)
-    //         std::cout<<std::endl;
-    //     std::cout<<(int)*((uint8_t*)data+i)<<" ";
-    // }
 
     size_t data_bytes = std::accumulate(shape_data.begin(), shape_data.end(), 1, std::multiplies<int32_t>()) * typecode_bytes((nncase::typecode_t)dtype);
     nncase::dims_t shape_(shape_data.begin(), shape_data.end());
+    
     bool copy_flag = false;
     if (phy_addr == 0)
         copy_flag = true;
         
-    // std::cout<<"phy_addr: "<<phy_addr<<std::endl;
     auto local_data = nncase::runtime::host_runtime_tensor::create(
                           (nncase::typecode_t)dtype, shape_, {(gsl::byte *)data, data_bytes},
                           copy_flag, nncase::runtime::host_runtime_tensor::pool_shared, phy_addr)
                           .expect("cannot create input tensor");
     nncase::runtime::host_runtime_tensor::sync(local_data, nncase::runtime::sync_op_t::sync_write_back, true).expect("sync write_back failed");
     tensor->r_tensor = new nncase::runtime::runtime_tensor(local_data.impl());
-    // std::cout << " from numpy ok "<< std::endl;
     return tensor;
 }
 
 void to_numpy(runtime_tensor * tensor, rt_to_ndarray_info *info)
 {
-    // std::cout << "start to numpy" << std::endl;
-    // rt_to_ndarray_info info;
     info->dtype_ = get_dtype_for_mp(tensor->r_tensor->datatype());
     auto shape = tensor->r_tensor->shape();
     info->ndim_ = shape.size();
@@ -267,24 +238,12 @@ void to_numpy(runtime_tensor * tensor, rt_to_ndarray_info *info)
     
     for(int i = 0; i < info->ndim_; i++)
     {
-        // std::cout <<i<<": "<< shape[i] <<", "<< tensor->r_tensor->strides()[i] << std::endl;
         info->shape_[i] = shape[i];
         info->strides_[i] = tensor->r_tensor->strides()[i];
     }
-    // std::cout << "before get data" << std::endl;
+
     info->data_ =std::move((void *)nncase::runtime::host_runtime_tensor::map(*tensor->r_tensor, nncase::runtime::map_access_t::map_read).unwrap().buffer().data());
-    
-    // std::cout<<"to_numpy"<<std::endl;
-    // auto alldata = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int32_t>());
-    // for (int i = 0; i < alldata; i++)
-    // {
-    //     if(i % 4 == 0)
-    //         std::cout<<std::endl;
-    //     std::cout<<(int)*((uint8_t*)info->data_+i)<<" ";
-        
-    // }
-    // std::cout << "end get data" << std::endl;
-    // return info;
+
 }
 
 
@@ -330,27 +289,8 @@ void ai2d_destroy(ai2d *p)
     delete p;
 }
 
-template<class T>
-void print_vector(std::vector<T> data, std::string name)
-{
-    std::cout << name << std::flush;
-    for (auto i : data)
-        std::cout << i << "," << std::flush;
-    std::cout << std::endl;
-}
-void print_vector(nncase::dims_t data, std::string name)
-{
-    std::cout << name << std::flush;
-    for (auto i : data)
-        std::cout << i << "," << std::flush;
-    std::cout << std::endl;
-}
-
 m_builder* ai2d_build(ai2d *p, finite_data input_shape, finite_data output_shape)
 {
-    // std::cout << "C++: in ai2d build" << std::endl;
-    // nncase::dims_t in_shape = nncase::dims_t((size_t *)input_shape.data, (size_t *)input_shape.data + input_shape.data_size);
-    // nncase::dims_t out_shape = nncase::dims_t((size_t *)output_shape.data, (size_t *)output_shape.data + output_shape.data_size);
     std::vector<size_t> in_shape_(input_shape.data_size,0);
     std::vector<size_t> out_shape_(output_shape.data_size,0);
 
@@ -363,90 +303,28 @@ m_builder* ai2d_build(ai2d *p, finite_data input_shape, finite_data output_shape
         out_shape_[i] = (size_t)output_shape.data[i];
     }
 
-    // std::cout << "in_shape :";
-    // for (auto i : in_shape_)
-    // {
-    //     std::cout << i << ",";
-    // }
-    // std::cout << std::endl<<"out_shape :";
-    // for (auto i : out_shape_)
-    // {
-    //     std::cout << i << ",";
-    // }
-    // std::cout << std::endl;
-
     nncase::dims_t in_shape(in_shape_.begin(), in_shape_.end());
     nncase::dims_t out_shape(out_shape_.begin(), out_shape_.end());
 
     if(in_shape_[3]<=32 && p->ai2d_pad_param.paddings[3].before>0)
-        throw std::runtime_error("ai2d pad: input width is <=32, the left pad should not be set. You can set the right pad first, then set the left pad.");
-    // std::cout << "C++: start new builder" << std::endl;
+        throw std::runtime_error("[ERROR] ai2d pad: input width is <=32, the left pad should not be set. You can set the right pad first, then set the left pad.");
     m_builder *mbuilder = new m_builder;
-    // std::cout << "C++: end new builder" << std::endl;
     mbuilder->builder = new nncase::F::k230::ai2d_builder(in_shape,
-                                                     out_shape,
-                                                     p->ai2d_datatype,
-                                                     p->ai2d_crop_param,
-                                                     p->ai2d_shift_param,
-                                                     p->ai2d_pad_param,
-                                                     p->ai2d_resize_param,
-                                                     p->ai2d_affine_param);
-    // std::cout << "crop :" << p->ai2d_crop_param.crop_flag << std::endl;
-    // std::cout << "shift :" << p->ai2d_shift_param.shift_flag << std::endl;
-    // std::cout << "pad :" << p->ai2d_pad_param.pad_flag << std::endl;
-    // std::cout << "resize :" << p->ai2d_resize_param.resize_flag << std::endl;
-    // std::cout << "affine :" << p->ai2d_affine_param.affine_flag << std::endl;
-    
-    // std::cout << "C++: before build schedule" << std::endl;
-    // builder_.dump_asm_ = false;
-    // builder_.build_schedule();
-    // std::cout << "C++: finish new builder" << std::endl;
-    // mbuilder->builder = builder;
-    // std::cout << "C++: start build schedule" << std::endl;
+                                                          out_shape,
+                                                          p->ai2d_datatype,
+                                                          p->ai2d_crop_param,
+                                                          p->ai2d_shift_param,
+                                                          p->ai2d_pad_param,
+                                                          p->ai2d_resize_param,
+                                                          p->ai2d_affine_param);
+
     mbuilder->builder->build_schedule().expect("ai2d build schedule failed.");
-    // std::cout << "C++: end build schedule" << std::endl;
     return mbuilder;
 }
 
 void ai2d_run(m_builder* p, runtime_tensor *in_tensor, runtime_tensor *out_tensor)
 {
-    // std::cout<<"C++: before run" << std::endl;
-
-    auto s1 = in_tensor->r_tensor->shape();
-    auto st1 = in_tensor->r_tensor->strides();
-    // for(auto &i: s1)
-    // {
-    //     std::cout<<i<<" ";
-    // }
-    // std::cout << std::endl;
-    
-    // for (auto &i : st1)
-    // {
-    //     std::cout<<i<<" ";
-    // }
-    
-    runtime_tensor *copy = new runtime_tensor();
-    copy->r_tensor = new nncase::runtime::runtime_tensor();
-    *(copy->r_tensor) = *(in_tensor->r_tensor); 
-    
-    runtime_tensor *copy2 = new runtime_tensor();
-    copy2->r_tensor = new nncase::runtime::runtime_tensor();
-    *(copy2->r_tensor) = *(out_tensor->r_tensor); 
-    
-    // auto s = copy->r_tensor->shape();
-    // auto st = copy->r_tensor->strides();
-    // for(auto &i: s)
-    // {
-    //     std::cout<<i<<" ";
-    // }
-    // std::cout << std::endl;
-    
-    // for (auto &i : st)
-    // {
-    //     std::cout<<i<<" ";
-    // }
-    p->builder->invoke(*copy->r_tensor, *copy2->r_tensor).expect("ai2d run failed.");
-    // std::cout<<"C++: after run" << std::endl;
+    p->builder->invoke(*in_tensor->r_tensor, *out_tensor->r_tensor).expect("ai2d run failed.");
 }
 
 
@@ -478,23 +356,13 @@ void ai2d_set_pad_param(ai2d *p, ai2d_pad_param pad_params)
 {
     p->ai2d_pad_param.pad_flag = pad_params.flag;
     std::vector<int32_t> paddings_index( pad_params.paddings.data,  pad_params.paddings.data + pad_params.paddings.data_size);
-    // std::cout<<"paddings_index: "<<std::endl;
-    // for(auto i :paddings_index)
-    // {
-    //     std::cout<<i<<", "<<std::endl;
-    // }
+
     p->ai2d_pad_param.paddings = {{paddings_index[0], paddings_index[1]},
                                    {paddings_index[2], paddings_index[3]},
                                    {paddings_index[4], paddings_index[5]},
                                    {paddings_index[6], paddings_index[7]}};
     p->ai2d_pad_param.pad_mode = (enum nncase::runtime::k230::ai2d_pad_mode)pad_params.pad_mode;
-    p->ai2d_pad_param.pad_val = std::vector<int32_t>(pad_params.pad_value.data, pad_params.pad_value.data + pad_params.pad_value.data_size);;
-    // std::cout << "pad_val: " << std::endl;
-    // for (auto i : p->ai2d_pad_param.pad_val)
-    // {
-    //         std::cout << i << ", " << std::endl;
-    // }
-    
+    p->ai2d_pad_param.pad_val = std::vector<int32_t>(pad_params.pad_value.data, pad_params.pad_value.data + pad_params.pad_value.data_size);
 }
 
 void ai2d_set_resize_param(ai2d *p, ai2d_resize_param resize_params)
@@ -513,4 +381,16 @@ void ai2d_set_affine_param(ai2d *p, ai2d_affine_param affine_params)
     p->ai2d_affine_param.bound_val = affine_params.bound_val;
     p->ai2d_affine_param.bound_smooth = affine_params.bound_smooth;
     p->ai2d_affine_param.M = std::vector<float>(affine_params.M.data, affine_params.M.data+affine_params.M.data_size);
+}
+
+void runtime_tensor_release(runtime_tensor *tensor)
+{
+    delete tensor->r_tensor;
+    tensor->r_tensor = nullptr;
+}
+
+void ai2d_release(m_builder *p)
+{
+    delete p->builder;
+    p->builder = nullptr;
 }

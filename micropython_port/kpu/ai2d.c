@@ -36,12 +36,10 @@ void _kd_mpi_struct_test_f(mp_obj_t obj, float *result, size_t *data_size) {
     float *data = (float *)s.data;
     for (int i = 0; i < s.size; i++)
     {
-        // printf("%f, ", data[i]);
         result[i] = data[i];
     }
     *data_size = s.size;
 }
-// STATIC MP_DEFINE_CONST_FUN_OBJ_1(kd_mpi_struct_test_f_obj, _kd_mpi_struct_test_f);
 
 void _kd_mpi_struct_test_I(mp_obj_t obj, float *result, size_t *data_size) {
     my_struct s;
@@ -50,7 +48,6 @@ void _kd_mpi_struct_test_I(mp_obj_t obj, float *result, size_t *data_size) {
     uint32_t *data = (uint32_t *)s.data;
     for (int i = 0; i < s.size; i++)
     {
-        // printf("%u, ", data[i]);
         result[i] = (float)data[i];
     }
     *data_size = s.size;
@@ -159,7 +156,7 @@ STATIC mp_obj_t mp_ai2d_build(mp_obj_t self_in, mp_obj_t in_shape, mp_obj_t out_
     finite_data output_shape;
     _kd_mpi_struct_test_I(out_shape, output_shape.data, &output_shape.data_size);
     // printf("\nstart build ai2d\n");
-    builder_obj_t* ai2d_builder_ = m_new_obj(builder_obj_t);
+    builder_obj_t* ai2d_builder_ = m_new_obj_with_finaliser(builder_obj_t);
     // printf("\n create empty ai2d_builder\n");
     ai2d_builder_->builder = ai2d_build(self->ai2d_, input_shape, output_shape);
     // printf("\n end build ai2d\n");
@@ -252,9 +249,8 @@ MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_ai2d_set_affine_param_obj, 7, 7, mp_ai2d_
 STATIC const mp_rom_map_elem_t ai2d_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_ai2d) },
     { MP_ROM_QSTR(MP_QSTR___init__), MP_ROM_PTR(&mp_ai2d_create_obj) },
-    { MP_ROM_QSTR(MP_QSTR___delete__), MP_ROM_PTR(&mp_ai2d_destroy_obj) },
+    { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&mp_ai2d_destroy_obj) },
     { MP_ROM_QSTR(MP_QSTR_build), MP_ROM_PTR(&mp_ai2d_build_obj) },
-    // { MP_ROM_QSTR(MP_QSTR_run), MP_ROM_PTR(&mp_ai2d_run_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_dtype), MP_ROM_PTR(&mp_ai2d_set_dtype_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_crop_param), MP_ROM_PTR(&mp_ai2d_set_crop_param_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_shift_param), MP_ROM_PTR(&mp_ai2d_set_shift_param_obj) },
@@ -293,9 +289,17 @@ STATIC mp_obj_t mp_ai2d_run(mp_obj_t self_in, mp_obj_t inputs, mp_obj_t outputs)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(mp_ai2d_run_obj, mp_ai2d_run);
 
+static mp_obj_t mp_ai2d_release(mp_obj_t ai2d_builder_obj) {
+    builder_obj_t *self = MP_OBJ_TO_PTR(ai2d_builder_obj);
+    ai2d_release(self->builder);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_ai2d_release_obj, mp_ai2d_release);
+
 
 STATIC const mp_rom_map_elem_t mp_ai2d_builder_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_ai2d_builder) },
+    { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&mp_ai2d_release_obj) },
     { MP_ROM_QSTR(MP_QSTR_run), MP_ROM_PTR(&mp_ai2d_run_obj) },
 };
 

@@ -51,6 +51,8 @@ extern "C" {
     
     ///
     int mp_dtype_to_nncase(char data_type);
+    void runtime_tensor_release(runtime_tensor *tensor);
+    void ai2d_release(m_builder *p);
     // tensor_desc get_tensor_desc_info(tensor_desc *data);
     // size_t get_tensor_desc_start(tensor_desc_ *data);
     // size_t get_tensor_desc_size(tensor_desc_ *data);
