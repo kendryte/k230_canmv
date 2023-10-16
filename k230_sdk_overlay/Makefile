@@ -4,7 +4,6 @@ NC=\e[0m
 SHELL=/bin/bash
 
 BUILD_TYPE ?= product
-NATIVE_BUILD ?= 1
 
 MPP_SRC_DIR="${K230_SDK_ROOT}/src/big/mpp"
 MIDDLEWARE_SRC_DIR="${K230_SDK_ROOT}/src/big/middleware"
@@ -21,16 +20,14 @@ ifeq ($(STATUS),0)
 DOWNLOAD_URL=https://ai.b-bug.org/k230
 endif
 
-ifeq ($(NATIVE_BUILD),1)
 RTT_TOOLCHAIN_URL = $(DOWNLOAD_URL)/toolchain/riscv64-unknown-linux-musl-rv64imafdcv-lp64d-20230420.tar.bz2
 LINUX_TOOLCHAIN_URL = $(DOWNLOAD_URL)/toolchain/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.0.tar.bz2
-endif
 
 export K230_SDK_ROOT := $(shell pwd)
 ifeq ("$(origin CONF)", "command line")
 $(shell echo CONF=$(CONF)>.last_conf;cp configs/$(CONF) .config)
 else
-$(shell [ -f .last_conf ] || ( echo CONF=k230_evb_defconfig>.last_conf; cp configs/$(CONF) .config ) )
+$(shell [ -f .last_conf ] || ( echo CONF=k230_evb_defconfig>.last_conf; cp configs/k230_evb_defconfig .config ) )
 endif
 
 
@@ -60,7 +57,7 @@ KCONFIG_CFG = Kconfig
 
 define CLEAN
 	set -e; \
-	echo "clean test"
+	echo "clean ok"
 
 endef
 
@@ -81,14 +78,13 @@ else  ifeq  ($(CONFIG_SUPPORT_LINUX),y)
 all .DEFAULT: check_src prepare_memory linux   little-core-opensbi buildroot uboot
 endif 
 
-ifeq ($(NATIVE_BUILD),1)
 .PHONY: download_toolchain
 download_toolchain:
 	@set -e; \
 	if [ ! -f toolchain/.toolchain_ready ];then \
 	echo "download toolchain"; \
-	wget -qc -P $(K230_SDK_ROOT)/toolchain $(RTT_TOOLCHAIN_URL); \
-	wget -qc -P $(K230_SDK_ROOT)/toolchain $(LINUX_TOOLCHAIN_URL); \
+	wget -q --show-progress -P $(K230_SDK_ROOT)/toolchain $(RTT_TOOLCHAIN_URL); \
+	wget -q --show-progress -P $(K230_SDK_ROOT)/toolchain $(LINUX_TOOLCHAIN_URL); \
 	fi;
 
 .PHONY: extract_toolchain
@@ -105,7 +101,6 @@ prepare_toolchain: extract_toolchain
 	touch toolchain/.toolchain_ready; \
 	fi;
 	@echo "toolchain is ready"
-endif
 
 .PHONY: prepare_sourcecode check_toolchain
 prepare_sourcecode:prepare_toolchain
@@ -114,30 +109,30 @@ prepare_sourcecode:prepare_toolchain
 #ai
 	@echo "download nncase sdk"
 	@rm -rf src/big/utils/; rm -rf src/big/ai;
-	@wget -qc $(DOWNLOAD_URL)/downloads/kmodel/kmodel_v2.3.0.tgz -O - | tar -xzC src/big/
-	@wget -qc $(DOWNLOAD_URL)/downloads/nncase/nncase_k230_v2.3.0.tgz -O - | tar -xzC src/big/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/kmodel/kmodel_v2.3.0.tgz -O - | tar -xzC src/big/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/nncase/nncase_k230_v2.3.0.tgz -O - | tar -xzC src/big/
 
 #big utils
 	@echo "download big utils"
-	@wget -qc $(DOWNLOAD_URL)/downloads/big/utils/utils.tar.gz -O - | tar -xzC src/big/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/big/utils/utils.tar.gz -O - | tar -xzC src/big/
 	@cd src/big/utils/lib/;ln -s opencv_thead opencv;cd -
 
 #wifi firmware
 	@echo "download little firmware"
 	@mkdir -p  ./src/little/utils/firmware/ || exit 1
-	@wget -qc $(DOWNLOAD_URL)/downloads/firmware/iot_wifi/AiW4211L_demo_allinone.bin -O ./src/little/utils/firmware/AiW4211L_demo_allinone.bin || exit 1
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/firmware/iot_wifi/AiW4211L_demo_allinone.bin -O ./src/little/utils/firmware/AiW4211L_demo_allinone.bin || exit 1
 
 #tuning-server
 	@echo "download tuninig-server"
 	@mkdir -p ${BUILDROOT_EXT_SRC_PATH}/package/tuning-server
-	@wget -qc $(DOWNLOAD_URL)/downloads/tunning_server/tuning-server-package_v0.1.1.tar.bz2 -O ${BUILDROOT_EXT_SRC_PATH}/package/tuning-server/tuning-server-package_v0.1.1.tar.bz2
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/tunning_server/tuning-server-package_v0.1.1.tar.bz2 -O ${BUILDROOT_EXT_SRC_PATH}/package/tuning-server/tuning-server-package_v0.1.1.tar.bz2
 	@tar -jxf ${BUILDROOT_EXT_SRC_PATH}/package/tuning-server/tuning-server-package_v0.1.1.tar.bz2 -C ${POST_COPY_ROOTFS_PATH}/
 	@mkdir -p tools/tuning-tool-client/
-	@wget -qc $(DOWNLOAD_URL)/downloads/tunning_tools/tunning_client/Kendyte_ISP_Tool_TuningClient_RC22.5_Pre_596062-20221116.7z -P tools/tuning-tool-client/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/tunning_tools/tunning_client/Kendyte_ISP_Tool_TuningClient_RC22.5_Pre_596062-20221116.7z -P tools/tuning-tool-client/
 
 #buildroot
 	@echo "download buildroot dl"
-	@wget -qc $(DOWNLOAD_URL)/downloads/dl/dl.tar.gz -O - | tar -xzC src/little/buildroot-ext/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/dl/dl.tar.gz -O - | tar -xzC src/little/buildroot-ext/
 
 	@touch src/.src_fetched
 check_toolchain:
@@ -239,14 +234,16 @@ poc:check_src
 
 	@export PATH=$(RTT_EXEC_PATH):$(PATH); \
 	export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH); \
-	cd $(K230_SDK_ROOT)/src/reference/business_poc/peephole/big; \
+	cd $(K230_SDK_ROOT)/src/reference/business_poc/doorlock_ov9286/big; \
 	mkdir -p build; cd build; cmake ../; \
 	make && make install; rm ./* -rf; \
 	cd -;
 	
+.PHONY: peephole	
+peephole:check_src
 	@export PATH=$(RTT_EXEC_PATH):$(PATH); \
 	export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH); \
-	cd $(K230_SDK_ROOT)/src/reference/business_poc/doorlock_ov9286/big; \
+	cd $(K230_SDK_ROOT)/src/reference/business_poc/peephole/big; \
 	mkdir -p build; cd build; cmake ../; \
 	make && make install; rm ./* -rf; \
 	cd -;
@@ -329,7 +326,8 @@ rt-smart-apps: defconfig prepare_memory  check_src
 
 .PHONY: rt-smart-apps-clean
 rt-smart-apps-clean: defconfig
-	@cd $(RT-SMART_SRC_PATH)/userapps;scons -c;cd -
+	@cd $(RT-SMART_SRC_PATH)/userapps;scons -c; rm -rf root/bin; rm -f .config; cd -;\
+	rm -f $(RT-SMART_SRC_PATH)/kernel/bsp/maix3/applications/romfs.c
 
 
 .PHONY: rt-smart-kernel
@@ -349,14 +347,6 @@ rt-smart-kernel: defconfig  prepare_memory  check_src
 rt-smart-kernel-clean: defconfig prepare_memory
 	@export RTT_CC=$(RTT_CC);export RTT_CC_PREFIX=$(RTT_CC_PREFIX);export RTT_EXEC_PATH=$(RTT_EXEC_PATH); \
 	cd $(RT-SMART_SRC_PATH)/kernel/bsp/maix3;scons -c;cd -
-
-#.PHONY: linux
-#linux: defconfig
-#	cd $(LINUX_SRC_PATH); \
-#	make ARCH=riscv $(LINUX_KERNEL_DEFCONFIG) O=$(LINUX_BUILD_DIR) CROSS_COMPILE=$(LINUX_EXEC_PATH)/$(LINUX_CC_PREFIX) ARCH=riscv; \
-#	make -j16 O=$(LINUX_BUILD_DIR) CROSS_COMPILE=$(LINUX_EXEC_PATH)/$(LINUX_CC_PREFIX) ARCH=riscv; \
-#	make O=$(LINUX_BUILD_DIR) modules_install INSTALL_MOD_PATH=$(LINUX_BUILD_DIR)/rootfs/ CROSS_COMPILE=$(LINUX_EXEC_PATH)/$(LINUX_CC_PREFIX) ARCH=riscv; \
-#	cd -
 
 .PHONY: linux-config
 linux-config:
@@ -388,19 +378,6 @@ linux: check_src  defconfig prepare_memory linux-config linux-build
 
 .PHONY: linux-rebuild
 linux-rebuild: linux-build
-
-
-#.PHONY: linux-config
-#linux-config: defconfig
-#	@export PATH=$(CONFIG_TOOLCHAIN_PATH_LINUX):$(PATH);export CROSS_COMPILE=$(LINUX_CC_PREFIX);export ARCH=riscv; \
-#	echo $(PATH); echo $(CONFIG_TOOLCHAIN_PATH_LINUX); \
-#	cd $(LINUX_SRC_PATH);make ARCH=riscv k230_kernel_little_defconfig O=$(LINUX_BUILD_DIR);cd -
-
-#PHONY: linux-build
-#linux-build: linux-config
-#	@export PATH=$(LINUX_EXEC_PATH):$(PATH);export CROSS_COMPILE=$(LINUX_CC_PREFIX);export ARCH=riscv; \
-#	cd $(LINUX_BUILD_DIR);make;make modules_install INSTALL_MOD_PATH=$(LINUX_BUILD_DIR)/rootfs/;cd -
-#	cd $(LINUX_SRC_PATH);make O=$(LINUX_BUILD_DIR);make O=$(LINUX_BUILD_DIR) modules_install INSTALL_MOD_PATH=$(LINUX_BUILD_DIR)/rootfs/;cd -
 
 .PHONY: linux-clean
 linux-clean: defconfig
@@ -437,7 +414,8 @@ rtt_update_romfs:
 	
 .PHONY: big-core-opensbi-clean
 big-core-opensbi-clean:
-	rm -rf $(BIG_OPENSBI_BUILD_DIR)
+	rm -rf $(BIG_OPENSBI_BUILD_DIR); \
+	rm -rf $(OPENSBI_SRC_PATH)/rtthread.bin
 
 .PHONY:rt-smart
 rt-smart: mpp rt-smart-apps big-core-opensbi
@@ -493,14 +471,6 @@ buildroot-clean: defconfig
 	make CONF=$(BUILDROOT_DEFCONFIG) BRW_BUILD_DIR=$(BUILDROOT_BUILD_DIR) BR2_TOOLCHAIN_EXTERNAL_PATH=$(LINUX_EXEC_PATH)/../ BR2_TOOLCHAIN_EXTERNAL_CUSTOM_PREFIX=$(LINUX_CC_PREFIX) clean; \
 	cd -
 
-
-#.PHONY: uboot
-#uboot: defconfig
-#	@export PATH=$(LINUX_EXEC_PATH):$(PATH);export CROSS_COMPILE=$(LINUX_CC_PREFIX);export ARCH=riscv; \
-#	cd $(UBOOT_SRC_PATH); \
-#	make $(UBOOT_DEFCONFIG) O=$(UBOOT_BUILD_DIR);make -C $(UBOOT_BUILD_DIR); \
-#	cd -
-
 .PHONY: uboot
 uboot: defconfig prepare_memory check_src
 	@export PATH=$(LINUX_EXEC_PATH):$(PATH);export CROSS_COMPILE=$(LINUX_CC_PREFIX);export ARCH=riscv; \
@@ -545,6 +515,8 @@ build-image: defconfig  prepare_memory  check_src
 clean: uboot-clean little-core-opensbi-clean linux-clean rt-smart-clean
 	@rm -rf defconfig
 	@rm -rf prepare_memory
+	@rm -rf $(BUILD_DIR)
+	@$(call CLEAN)
 
 
 

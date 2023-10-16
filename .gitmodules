@@ -3,4 +3,4 @@
 	url = https://github.com/micropython/micropython.git
 [submodule "k230_sdk"]
 	path = k230_sdk
-	url = git@g.a-bug.org:maix_sw/k230_sdk_daily.git
+	url = https://github.com/kendryte/k230_sdk.git

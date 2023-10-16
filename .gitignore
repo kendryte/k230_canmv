@@ -8,12 +8,9 @@
 
 # Build directories
 output/
+.read*
+.conf
 
 # Python cache files
 __pycache__
-
 .vscode/
-
-.read*
-.k230_sdk_all
-.conf
