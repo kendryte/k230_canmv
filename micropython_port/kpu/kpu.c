@@ -116,7 +116,6 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(kpu_destroy_obj, mp_kpu_destroy);
 STATIC mp_obj_t mp_kpu_load_kmodel(mp_obj_t self_in, mp_obj_t filename_in) {
 
     if (!mp_obj_is_str(filename_in)) {
-        // mp_raise_TypeError("Filename must be a string");
         mp_buffer_info_t bufferinfo;
         mp_get_buffer_raise(filename_in, &bufferinfo, MP_BUFFER_READ);
         kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
@@ -150,9 +149,7 @@ STATIC mp_obj_t mp_kpu_set_input_tensor(mp_obj_t self_in, mp_obj_t index_in, mp_
 {
     kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
     size_t index = mp_obj_get_int(index_in);
-    // printf("C: set_input_tensor\n");
     mp_runtime_tensor_obj_t *tensor = MP_OBJ_TO_PTR(tensor_in);
-    // printf("C: in set_input_tensor\n");
     Kpu_set_input_tensor(self->interp, index, tensor->r_tensor);
     return mp_const_none;
 }
@@ -162,10 +159,8 @@ STATIC mp_obj_t mp_kpu_get_input_tensor(mp_obj_t self_in, mp_obj_t index_in)
 {
     kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
     size_t index = mp_obj_get_int(index_in);
-    mp_runtime_tensor_obj_t *tensor = m_new(mp_runtime_tensor_obj_t, 1);
-    // printf("C: start to get data\n");
+    mp_runtime_tensor_obj_t *tensor = m_new_obj_with_finaliser(mp_runtime_tensor_obj_t);
     tensor->r_tensor = Kpu_get_input_tensor(self->interp, index);
-    // printf("C: get data\n");
     tensor->base.type = &rt_type;
     return MP_OBJ_TO_PTR(tensor);
 }
@@ -187,17 +182,13 @@ STATIC mp_obj_t mp_kpu_get_output_tensor(mp_obj_t self_in, mp_obj_t index_in)
 {
     kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
     size_t index = mp_obj_get_int(index_in);
-    mp_runtime_tensor_obj_t *tensor = m_new(mp_runtime_tensor_obj_t, 1);
-    // printf("C: start to get output tensor\n");
+    mp_runtime_tensor_obj_t *tensor = m_new_obj_with_finaliser(mp_runtime_tensor_obj_t);
     tensor->r_tensor = Kpu_get_output_tensor(self->interp, index);
-    // printf("C: end get output tensor\n");
     tensor->base.type = &rt_type;
     return MP_OBJ_TO_PTR(tensor);
-    // return mp_obj_cast_to_native_base(MP_OBJ_FROM_PTR(tensor), MP_OBJ_NEW_QSTR(MP_QSTR_runtime_tensor));
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(kpu_get_output_tensor_obj, mp_kpu_get_output_tensor);
 
-// TODO： 以下内容OK
 // get input size
 STATIC mp_obj_t mp_kpu_get_input_size(mp_obj_t self_in) 
 {
@@ -223,9 +214,7 @@ STATIC mp_obj_t mp_kpu_get_input_desc(mp_obj_t self_in, mp_obj_t index_in)
     size_t index = mp_obj_get_int(index_in);
     
     struct tensor_desc data = Kpu_get_input_desc(self->interp, index);
-    // int dt = get_tensor_desc_datatype(data);
-    // size_t start = get_tensor_desc_start(data);
-    // size_t size = get_tensor_desc_size(data);
+
     mp_obj_t dict = mp_obj_new_dict(3);
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_tensor_datatype), get_dtype_str(data.datatype));
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_tensor_start), mp_obj_new_int(data.start)); 
@@ -240,11 +229,7 @@ STATIC mp_obj_t mp_kpu_get_output_desc(mp_obj_t self_in, mp_obj_t index_in)
     kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
     size_t index = mp_obj_get_int(index_in);
     struct tensor_desc data = Kpu_get_output_desc(self->interp, index);
-    // struct tensor_desc _data = get_tensor_desc_info(data);
-    // = get_tensor_desc_datatype(data);
-    // int dt = get_tensor_desc_datatype(data);
-    // size_t start = get_tensor_desc_start(data);
-    // size_t size = get_tensor_desc_size(data);
+
     mp_obj_t dict = mp_obj_new_dict(3);
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_tensor_datatype), get_dtype_str(data.datatype));
     mp_obj_dict_store(dict, MP_OBJ_NEW_QSTR(MP_QSTR_tensor_start), mp_obj_new_int(data.start)); 
@@ -257,7 +242,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(kpu_get_output_desc_obj, mp_kpu_get_output_desc
 STATIC const mp_rom_map_elem_t kpu_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_kpu) },
     { MP_ROM_QSTR(MP_QSTR___init__), MP_ROM_PTR(&kpu_create_obj) },
-    { MP_ROM_QSTR(MP_QSTR_destroy), MP_ROM_PTR(&kpu_destroy_obj) },
+    { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&kpu_destroy_obj) },
     { MP_ROM_QSTR(MP_QSTR_load_kmodel), MP_ROM_PTR(&kpu_load_kmodel_obj) },
     { MP_ROM_QSTR(MP_QSTR_run), MP_ROM_PTR(&kpu_run_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_input_tensor), MP_ROM_PTR(&kpu_get_input_tensor_obj) },
@@ -271,7 +256,6 @@ STATIC const mp_rom_map_elem_t kpu_locals_dict_table[] = {
 };
 
 STATIC MP_DEFINE_CONST_DICT(kpu_locals_dict, kpu_locals_dict_table);
-// STATIC MP_DEFINE_CONST_DICT(nncase_runtime_module_globals, nncase_runtime_module_globals_table);
 const mp_obj_module_t mp_module_kpu = {
     .base = { &mp_type_module },
     .globals = (mp_obj_dict_t *)&kpu_locals_dict,
@@ -295,8 +279,6 @@ STATIC mp_obj_t mp_to_numpy(mp_obj_t self_in)
     mp_runtime_tensor_obj_t *self = MP_OBJ_TO_PTR(self_in);
     rt_to_ndarray_info info;
     to_numpy(self->r_tensor, &info);
-    // printf("dtype: %c\n", info.dtype_);
-    // printf("ndim_: %d\n", info.ndim_);
     size_t *mp_shape = m_new(size_t, ULAB_MAX_DIMS);
     int32_t *mp_stride = m_new(int32_t, ULAB_MAX_DIMS);
     size_t size_bytes = ulab_binary_get_size(info.dtype_);
@@ -304,16 +286,10 @@ STATIC mp_obj_t mp_to_numpy(mp_obj_t self_in)
     {
         mp_shape[ULAB_MAX_DIMS - 1-i] = (size_t)info.shape_[info.ndim_ - 1 - i];
         mp_stride[ULAB_MAX_DIMS - 1-i] = (int32_t)info.strides_[info.ndim_ - 1 - i]*size_bytes;
-        // printf("ndim_[%d]: %d, %d\n", i, (int)info.shape_[i], (int)info.strides_[i]);
     }
     ndarray_obj_t *result = ndarray_new_ndarray(info.ndim_, mp_shape, mp_stride, info.dtype_);
-    // for (int i = 0; i < result->len; i++)
-    // {
-    //     if(i%10 == 0)
-    //         printf("\n");
-    //     printf("%f, ", (float)*((float *)info.data_ + i));
-    // }
     memcpy((void *)result->origin, (void *)info.data_, result->len * result->itemsize);
+    
     free(info.data_);
     info.data_ = NULL;
     m_del(size_t, mp_shape, ULAB_MAX_DIMS);
@@ -322,9 +298,16 @@ STATIC mp_obj_t mp_to_numpy(mp_obj_t self_in)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_to_numpy_obj, mp_to_numpy);
 
+static mp_obj_t mp_runtime_tensor_release(mp_obj_t runtime_tensor_obj) {
+    mp_runtime_tensor_obj_t *self = MP_OBJ_TO_PTR(runtime_tensor_obj);
+    runtime_tensor_release(self->r_tensor);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_runtime_tensor_del_obj, mp_runtime_tensor_release);
 
 STATIC const mp_rom_map_elem_t mp_rt_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_runtime_tensor) },
+    { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&mp_runtime_tensor_del_obj) },
     { MP_ROM_QSTR(MP_QSTR_to_numpy), MP_ROM_PTR(&mp_to_numpy_obj) },
 };
 

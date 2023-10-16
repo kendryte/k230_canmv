@@ -44,32 +44,16 @@
 STATIC mp_obj_t mp_from_numpy(mp_obj_t ndarray)
 {
     ndarray_obj_t *self = MP_ROM_PTR(ndarray);
-    mp_runtime_tensor_obj_t *tensor = m_new_obj(mp_runtime_tensor_obj_t);
+    mp_runtime_tensor_obj_t *tensor = m_new_obj_with_finaliser(mp_runtime_tensor_obj_t);
     finite_data shape;
     shape.data_size = self->ndim;
-    printf("n\tc_d\tm_s\tm_t\t\n");
     int all_size = 1;
     for (int i = 0; i < self->ndim; i++)
     {
-        printf("%d\t%d\t%d\t%d\t", i, (int)shape.data[i], (int)self->shape[ULAB_MAX_DIMS - self->ndim + i], (int)self->strides[ULAB_MAX_DIMS - self->ndim + i]);
         shape.data[i] = (float)self->shape[ULAB_MAX_DIMS - self->ndim + i];
         all_size*=self->shape[ULAB_MAX_DIMS - self->ndim + i];
-        printf("[%d : %f, %d]\n", i, shape.data[i], (int)self->shape[ULAB_MAX_DIMS - self->ndim + i]);
     }
     
-    // if(self->dtype==NDARRAY_UINT8){
-    //     for (int i = 0; i < all_size; i++)
-    //     {
-    //         printf("%d: %d ", i, *((uint8_t *)self->array + i));
-    //     }
-    // }
-    // else if(self->dtype==NDARRAY_FLOAT){
-    //     for (int i = 0; i < all_size; i++)
-    //     {
-    //         printf("%d: %f ", i, *((float *)self->array + i));
-    //     }
-    // }
-
     int dtype = mp_dtype_to_nncase((char)self->dtype);
     tensor->r_tensor = from_numpy(dtype, shape, self->array, self->phy_addr);
     tensor->base.type = &rt_type;
@@ -82,13 +66,10 @@ STATIC const mp_rom_map_elem_t nncase_runtime_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_nncase_runtime) },
     { MP_ROM_QSTR(MP_QSTR_kpu), MP_ROM_PTR(&kpu_type) },
     { MP_ROM_QSTR(MP_QSTR_ai2d), MP_ROM_PTR(&ai2d_type) },
-    // { MP_ROM_QSTR(MP_QSTR_rt), MP_ROM_PTR(&rt_type) },
     { MP_ROM_QSTR(MP_QSTR_interp_method), MP_ROM_PTR(&interp_method_type) },
     { MP_ROM_QSTR(MP_QSTR_interp_mode), MP_ROM_PTR(&interp_mode_type) },
-    // { MP_ROM_QSTR(MP_QSTR_datatype), MP_ROM_PTR(&datatype_type) },
     { MP_ROM_QSTR(MP_QSTR_ai2d_format), MP_ROM_PTR(&ai2d_format_type) },
     { MP_ROM_QSTR(MP_QSTR_from_numpy), MP_ROM_PTR(&mp_from_numpy_obj) },
-    // { MP_ROM_QSTR(MP_QSTR_to_numpy), MP_ROM_PTR(&mp_to_numpy_obj) },
 };
 
 STATIC MP_DEFINE_CONST_DICT(nncase_runtime_module_globals, nncase_runtime_module_globals_table);
