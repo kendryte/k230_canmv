@@ -406,13 +406,13 @@ class camera:
 
         ret = kd_mpi_sys_munmap(virt_addr, img_size)
         if ret:
-            print(f"release_image, dev({dev_num}}) chn({chn_num}) munmap failed")
+            print(f"release_image, dev({dev_num}) chn({chn_num}) munmap failed")
 
         frame_info.v_frame.phys_addr[0] = phy_addr;
 
         ret = kd_mpi_vicap_dump_release(dev_num, chn_num, frame_info)
         if ret:
-            print(f"release_image, dev({dev_num}}) chn({chn_num}) release frame failed")
+            print(f"release_image, dev({dev_num}) chn({chn_num}) release frame failed")
 
         #print("release_image exit")
         return 0
