@@ -1,6 +1,12 @@
-# CANMV
+<img height=230 src="images/CanMV_logo_800x260.png">
 
-## 编译
+**CanMV, 让 AIOT 更简单～**
+
+CanMV 的目的是让 AIOT 编程更简单， 基于 [Micropython](http://www.micropython.org) 语法, 运行在[Canaan](https://www.canaan-creative.com/)强大的嵌入式AI SOC系列上。目前它在K230上运行。
+
+## 快速开始
+
+### 编译
 
 ```sh
 git clone k230_canmv
@@ -16,11 +22,11 @@ make
 
 编译完成后会在`output/k230_xx_defconfig/images`目录下生成`sysimage-sdcard.img`镜像
 
-## 烧录
+### 烧录
 
 linux下直接使用dd命令进行烧录，windows下使用烧录工具进行烧录
 
-## 获取更新
+### 获取更新
 
 ```sh
 git pull
@@ -29,3 +35,17 @@ make clean
 make prepare_sourcecode
 make
 ```
+
+详情流程建议参考[K230 CanMV 使用说明](https://github.com/kendryte/k230_canmv_docs/blob/main/zh/01_software/K230_CanMV%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E.md)
+
+## 贡献指南
+
+如果您对本项目感兴趣，想要反馈问题或提交代码，请参考[CONTRIBUTING](.github/CONTRIBUTING.md)
+
+## 联系我们
+
+北京嘉楠捷思信息技术有限公司
+
+网址:[www.canaan-creative.com](https://www.canaan-creative.com/)
+
+商务垂询:[salesAI@canaan-creative.com](salesAI@canaan-creative.com)
