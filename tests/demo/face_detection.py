@@ -262,8 +262,8 @@ def face_detect_test():
 
 
     buffer = media.request_buffer(4*DISPLAY_WIDTH*DISPLAY_HEIGHT)
-    osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_MPGC)
-    display_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, poolid=buffer.pool_id, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr)
+    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_MPGC)
+    osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, poolid=buffer.pool_id, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr)
 
     camera.start_stream(CAM_DEV_ID_0)
     time.sleep(5)
@@ -311,19 +311,19 @@ def face_detect_test():
             # postprocess
             dets = get_result(results)
             if dets:
-                osd_img.clear()
+                draw_img.clear()
                 for det in dets:
                     x1, y1, x2, y2 = map(lambda x: int(round(x, 0)), det[:4])
                     w = (x2 - x1) * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
                     h = (y2 - y1) * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
-                    osd_img.draw_rectangle(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH, y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH, w, h, color=(0,255,0,255))
-                osd_img.copy_to(display_img)
-                display.show_image(display_img, 0, 0, DISPLAY_CHN_OSD3)
+                    draw_img.draw_rectangle(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH, y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH, w, h, color=(0,255,0,255))
+                draw_img.copy_to(osd_img)
+                display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
             else:
-                osd_img.clear()
-                osd_img.draw_rectangle(0, 0, 128, 128, color=(0,0,0,0))
-                osd_img.copy_to(display_img)
-                display.show_image(display_img, 0, 0, DISPLAY_CHN_OSD3)
+                draw_img.clear()
+                draw_img.draw_rectangle(0, 0, 128, 128, color=(0,0,0,0))
+                draw_img.copy_to(osd_img)
+                display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
 
         camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_2, rgb888p_img)
 
