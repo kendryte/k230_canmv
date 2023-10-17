@@ -1,10 +1,39 @@
+import os
+
+from media.camera import *
+from media.display import *
+from media.media import *
+from time import *
+
 import nncase_runtime as nn
 import ulab.numpy as np
-import utime
 
-import os
 import time
-from ulab import numpy as np
+import image
+
+import random
+import gc
+
+DISPLAY_WIDTH = ALIGN_UP(1920, 16)
+DISPLAY_HEIGHT = 1080
+
+OUT_RGB888P_WIDTH = ALIGN_UP(1024, 16)
+OUT_RGB888P_HEIGH = 624
+
+confidence_threshold = 0.5
+top_k = 5000
+nms_threshold = 0.2
+keep_top_k = 750
+vis_thres = 0.5
+variance = [0.1, 0.2]
+
+anchors_path = '/sdcard/app/tests/nncase_runtime/face_detection/prior_data_320.bin'
+prior_data = np.fromfile(anchors_path, dtype=np.float)
+prior_data = prior_data.reshape((4200,4))
+
+scale = np.ones(4, dtype=np.uint8)*1024
+scale1 = np.ones(10, dtype=np.uint8)*1024
+
 
 def decode(loc, priors, variances):
     boxes = np.concatenate(
@@ -14,6 +43,7 @@ def decode(loc, priors, variances):
     boxes[:, 2:] += boxes[:, :2]
     return boxes
 
+
 def decode_landm(pre, priors, variances):
     landms = np.concatenate((priors[:, :2] + pre[:, :2] * variances[0] * priors[:, 2:],
                         priors[:, :2] + pre[:, 2:4] * variances[0] * priors[:, 2:],
@@ -22,6 +52,7 @@ def decode_landm(pre, priors, variances):
                         priors[:, :2] + pre[:, 8:10] * variances[0] * priors[:, 2:])
                         , axis=1)
     return landms
+
 
 def py_cpu_nms(dets, thresh):
     """Pure Python NMS baseline."""
@@ -71,6 +102,7 @@ def py_cpu_nms(dets, thresh):
         order = np.array(new_order,dtype=np.uint8)
     return keep
 
+
 def pad_img_to_square(image, rgb_mean):
     height, width, _ = image.shape
     long_side = max(width, height)
@@ -78,6 +110,7 @@ def pad_img_to_square(image, rgb_mean):
     image_t[:, :] = rgb_mean
     image_t[0:0 + height, 0:0 + width] = image
     return image_t
+
 
 def softmax(x):
     x = x[0]
@@ -90,8 +123,10 @@ def softmax(x):
 
     return softmax
 
+
 def draw_image(img_raw,dets):
     pass
+
 
 def get_result(output_data):
     loc = []
@@ -149,7 +184,10 @@ def get_result(output_data):
     for order_i in order:
         boxes_order.append(boxes_ind[order_i])
         scores_order.append(scores_ind[order_i])
-
+    if len(boxes_order)==0:
+        return []
+    #print('***',boxes_order,len(boxes_order))
+    #print('***',scores_order,len(scores_order))
     boxes_order = np.array(boxes_order)
     scores_order = np.array(scores_order).reshape((-1,1))
     #landms = landms[order]
@@ -171,74 +209,143 @@ def get_result(output_data):
     return dets_out
 
 
-# init kpu and load kmodel
-kpu = nn.kpu()
-ai2d = nn.ai2d()
-kpu.load_kmodel("/sdcard/app/tests/nncase_runtime/face_detection/face_detection_320.kmodel")
+def face_detect_test():
+    print("face_detect_test start")
 
-print("inputs info:")
-for i in range(kpu.inputs_size()):
-    print(kpu.inputs_desc(i))
-
-print("outputs info:")
-for i in range(kpu.outputs_size()):
-    print(kpu.outputs_desc(i))
-
-# load input bin
-# with open('/sdcard/app/tests/nncase_runtime/face_detection/face_detection_ai2d_input.bin', 'rb') as f:
-#     data = f.read()
-# ai2d_input = np.frombuffer(data, dtype=np.uint8)
-ai2d_input = np.fromfile("/sdcard/app/tests/nncase_runtime/face_detection/face_detection_ai2d_input.bin", dtype=np.uint8)
-ai2d_input = ai2d_input.reshape((1, 3, 624, 1024))
-ai2d_input_tensor = nn.from_numpy(ai2d_input)
+    # init kpu and load kmodel
+    kpu = nn.kpu()
+    ai2d = nn.ai2d()
+    kpu.load_kmodel("/sdcard/app/tests/nncase_runtime/face_detection/face_detection_320.kmodel")
+    ai2d.set_dtype(nn.ai2d_format.NCHW_FMT,
+                                   nn.ai2d_format.NCHW_FMT,
+                                   np.uint8, np.uint8)
+    ai2d.set_pad_param(True, [0,0,0,0,0,125,0,0], 0, [104,117,123])
+    ai2d.set_resize_param(True, nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel )
+    ai2d_builder = ai2d.build([1,3,OUT_RGB888P_HEIGH,OUT_RGB888P_WIDTH], [1,3,320,320])
 
 
-data = np.ones((1,3,320,320),dtype=np.uint8)
-ai2d_out = nn.from_numpy(data)
+    # use hdmi for display
+    display.init(LT9611_1920X1080_30FPS)
 
-ai2d.set_dtype(nn.ai2d_format.NCHW_FMT,
-               nn.ai2d_format.NCHW_FMT,
-               np.uint8, np.uint8)
-ai2d.set_pad_param(True, [0,0,0,0,0,125,0,0], 0, [104,117,123])
-ai2d.set_resize_param(True, nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel )
-ai2d_builder = ai2d.build([1,3,624,1024], [1,3,320,320])
+    config = k_vb_config()
+    config.max_pool_cnt = 1
+    config.comm_pool[0].blk_size = 4*DISPLAY_WIDTH*DISPLAY_HEIGHT
+    config.comm_pool[0].blk_cnt = 1
+    config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
 
-ai2d_builder.run(ai2d_input_tensor, ai2d_out)
+    ret = media.buffer_config(config)
 
-# set input
-kpu.set_input_tensor(0, ai2d_out)
-# run kmodel
-kpu.run()
+    camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
 
+    # set chn0 output yuv420sp
+    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, DISPLAY_WIDTH, DISPLAY_HEIGHT)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
 
-# get output
-results = []
-for i in range(kpu.outputs_size()):
-    result = kpu.get_output_tensor(i)
-    result = result.to_numpy()
-    results.append(result)
-    #file_ = "/sdcard/app/output_{}.bin".format(i)
-    #np.save(file_, result)
-    print("result: ", i, result.flatten()[-10:])
-    print(result.shape, result.dtype)
+    meida_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
+    meida_sink = media_device(DISPLAY_MOD_ID, DISPLAY_DEV_ID, DISPLAY_CHN_VIDEO1)
+    media.create_link(meida_source, meida_sink)
 
-# postprocess
-confidence_threshold = 0.5
-top_k = 5000
-nms_threshold = 0.2
-keep_top_k = 750
-vis_thres = 0.5
-variance = [0.1, 0.2]
+    display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
 
-anchors_path = '/sdcard/app/tests/nncase_runtime/face_detection/prior_data_320.bin'
-# with open(anchors_path, 'rb') as f:
-#      data = f.read()
-prior_data = np.fromfile(anchors_path, dtype=np.float)
-prior_data = prior_data.reshape((4200,4))
+    # set chn1 output rgb888
+    #camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGH)
+    #camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_RGB_888)
 
-scale = np.ones(4, dtype=np.uint8)*1024
-scale1 = np.ones(10, dtype=np.uint8)*1024
+    # set chn2 output rgb88planar
+    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_2, OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGH)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_2, PIXEL_FORMAT_BGR_888_PLANAR)
+
+    ret = media.buffer_init()
+    if ret:
+        print("face_detect_test, buffer init failed")
+        return ret
 
 
-dets = get_result(results)
-print(dets)
+    buffer = media.request_buffer(4*DISPLAY_WIDTH*DISPLAY_HEIGHT)
+    osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_MPGC)
+    display_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, poolid=buffer.pool_id, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr)
+
+    camera.start_stream(CAM_DEV_ID_0)
+    time.sleep(5)
+
+    while  True:
+        rgb888p_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_2)
+        if rgb888p_img == -1:
+            print("face_detect_test, capture_image failed")
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_2, rgb888p_img)
+            continue
+
+        # for rgb888planar
+        if rgb888p_img.format() == image.RGBP888:
+            ai2d_input = rgb888p_img.to_numpy_ref()
+
+            ai2d_input_tensor = nn.from_numpy(ai2d_input)
+
+            data = np.ones((1,3,320,320),dtype=np.uint8)
+            ai2d_out = nn.from_numpy(data)
+
+            ai2d_builder.run(ai2d_input_tensor, ai2d_out)
+
+            # set input
+            kpu.set_input_tensor(0, ai2d_out)
+            # run kmodel
+            kpu.run()
+
+            del ai2d_input_tensor
+            del ai2d_out
+            # get output
+            results = []
+            for i in range(kpu.outputs_size()):
+                data = kpu.get_output_tensor(i)
+                result = data.to_numpy()
+
+                tmp = (result.shape[0],result.shape[1],result.shape[2],result.shape[3])
+                result = result.reshape((result.shape[0]*result.shape[1],result.shape[2]*result.shape[3]))
+                result = result.transpose()
+                tmp2 = result.copy()
+                tmp2 = tmp2.reshape((tmp[0],tmp[2],tmp[3],tmp[1]))
+                del result
+                results.append(tmp2)
+            gc.collect()
+
+            # postprocess
+            dets = get_result(results)
+            if dets:
+                osd_img.clear()
+                for det in dets:
+                    x1, y1, x2, y2 = map(lambda x: int(round(x, 0)), det[:4])
+                    w = (x2 - x1) * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
+                    h = (y2 - y1) * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
+                    osd_img.draw_rectangle(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH, y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH, w, h, color=(0,255,0,255))
+                osd_img.copy_to(display_img)
+                display.show_image(display_img, 0, 0, DISPLAY_CHN_OSD3)
+            else:
+                osd_img.clear()
+                osd_img.draw_rectangle(0, 0, 128, 128, color=(0,0,0,0))
+                osd_img.copy_to(display_img)
+                display.show_image(display_img, 0, 0, DISPLAY_CHN_OSD3)
+
+        camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_2, rgb888p_img)
+
+    camera.stop_stream(CAM_DEV_ID_0)
+
+    display.deinit()
+
+    media.release_buffer(buffer)
+
+    media.destroy_link(meida_source, meida_sink)
+
+    time.sleep(1)
+
+    ret = media.buffer_deinit()
+    if ret:
+        print("face_detect_test, buffer_deinit failed")
+        return ret
+
+    print("face_detect_test end")
+    return 0
+
+
+face_detect_test()
+
+

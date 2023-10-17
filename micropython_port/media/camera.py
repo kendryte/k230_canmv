@@ -350,7 +350,7 @@ class camera:
     # capture_image
     @classmethod
     def capture_image(cls, dev_num, chn_num):
-        print("capture_image enter")
+        #print("capture_image enter")
 
         frame_info = k_video_frame_info()
 
@@ -389,14 +389,14 @@ class camera:
             print("capture_image, mmap failed")
             return -1;
 
-        print("capture_image exit")
+        #print("capture_image exit")
         return img
 
 
     # release_image
     @classmethod
     def release_image(cls, dev_num, chn_num, img):
-        print("release_image enter")
+        #print("release_image enter")
 
         frame_info = k_video_frame_info()
 
@@ -414,6 +414,6 @@ class camera:
         if ret:
             print(f"release_image, dev({dev_num}}) chn({chn_num}) release frame failed")
 
-        print("release_image exit")
+        #print("release_image exit")
         return 0
 
