@@ -50,6 +50,9 @@
 #include <signal.h>
 
 STATIC void sighandler(int signum) {
+    fprintf(stderr, "get sig(%d), exit\n", signum);
+    exit(0);
+    return;
     if (signum == SIGINT) {
         #if MICROPY_ASYNC_KBD_INTR
         #if MICROPY_PY_THREAD_GIL
@@ -76,7 +79,6 @@ STATIC void sighandler(int signum) {
 #endif
 
 void mp_hal_set_interrupt_char(char c) {
-    return;
     // configure terminal settings to (not) let ctrl-C through
     if (c == CHAR_CTRL_C) {
         #ifndef _WIN32

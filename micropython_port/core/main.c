@@ -214,7 +214,7 @@ STATIC int do_repl(void) {
     vstr_t line;
     vstr_init(&line, 16);
     for (;;) {
-        mp_hal_stdio_mode_raw();
+        // mp_hal_stdio_mode_raw();
 
     input_restart:
         vstr_reset(&line);
@@ -781,7 +781,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
     }
 
     if (ide_dbg_attach()) {
-        fprintf(stderr, "[mpy] enter script\n");
+        fprintf(stdout, "[mpy] enter script\n");
         nlr_buf_t nlr;
         if (nlr_push(&nlr) == 0) {
             extern char* ide_dbg_get_script();
@@ -796,7 +796,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
         }
         ide_dbg_on_script_end();
     } else {
-        fprintf(stderr, "[mpy] enter repl\n");
+        fprintf(stdout, "[mpy] enter repl\n");
         // FIXME: DO NOT CLEAR
         // clear terminal
         // mp_hal_stdout_tx_strn("\033[H\033[2J", 7);
