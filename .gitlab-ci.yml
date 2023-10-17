@@ -3,6 +3,10 @@ variables:
     HW_TYPE: k230
     HW_MODEL: canmv
     HW_VER: v0.1
+    TFTP_BASE: /data1/tftp_server
+    GITLAB_REPO: git@g.a-bug.org:maix_sw/k230_canmv.git
+    GITHUB_REPO: git@github.com:kendryte/k230_canmv.git
+    GITEE_REPO: git@gitee.com:kendryte/k230_canmv.git
 
 default:
   image: ai.b-bug.org:5000/k230_sdk:latest
@@ -14,6 +18,49 @@ stages:
   - build_setup
   - build_src
   - load_test
+  - publish
+
+# MR merged
+push_sync:
+  stage: publish
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+  extends:
+    - .sync_github_gitee
+
+# tag push
+tag_sync:
+  stage: publish
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+  extends:
+    - .sync_github_gitee
+
+.sync_github_gitee:
+  timeout: 30m
+  script:
+    - cd $CI_PROJECT_DIR
+    - ls -alht
+    - rm -rf ./k230_canmv/
+    - git clone ${GITLAB_REPO} k230_canmv || exit 1
+    - cd k230_canmv || exit 1
+    - pwd
+    - git checkout main
+    - git branch -a
+    - git status
+    - echo '---pull latest main branch---'
+    - git pull origin main
+    - echo '---fetch all tags---'
+    - git fetch --tags
+    - git remote add github ${GITHUB_REPO}
+    - git remote add gitee ${GITEE_REPO}
+    - git remote -v
+    - git branch -a
+    - git status
+    - echo "---push to gitee---"
+    - git push --atomic --tags -u -f gitee main || git push --atomic --tags -u -f gitee main
+    - echo "---push to github---"
+    - git push --atomic --tags -u -f github main || git push --atomic --tags -u -f github main || git push --atomic --tags -u -f github main
 
 .show_vars: &show_vars
   - echo "${JOB_TYPE}"
@@ -197,7 +244,7 @@ stages:
       if [[ "${CONF}" == "${DEFAULT_CONF}" ]];
       then
         echo "start to save test image for default config: ${CONF} ------"
-        echo ${TFTP_BASE}
+        echo ${TFTP_BASE} || exit 1
         echo "set DST_DIR with different type based on docs/images/src"
         DST_DIR="${TFTP_BASE}/${HW_TYPE}/${HW_MODEL}_${HW_VER}"
         echo ${DST_DIR}
@@ -244,7 +291,7 @@ stages:
     - test -f ./bin/ailab && rm -rf ./bin/ailab
     - wget -qc https://ai.b-bug.org/k510/downloads/github/ailab -O ./bin/ailab
     - chmod +x ./bin/ailab
-    - available=$(./bin/ailab show --dest available --hw_type ${HW_TYPE} --hw_model ${HW_MODEL} --hw_ver ${HW_VER} --format args)
+    - available=$(./bin/ailab show --dest available --domain ai --hw_type ${HW_TYPE} --hw_model ${HW_MODEL} --hw_ver ${HW_VER} --format args)
     - echo ${available}
     - >
        if [[ $available =~ "k230" ]]; then
@@ -280,15 +327,15 @@ stages:
             echo "ERROR: Reserve DUT failed"
             exit 1
           fi
-    - power=$(./bin/ailab power --type=cycle ${available})
-    - echo $power
-    - >
-          if [[ $power =~ "True" ]]; then
-            echo "Reset DUT pass"
-          else
-            echo "ERROR: Reset DUT failed"
-            exit 1
-          fi
+    # - power=$(./bin/ailab power --type=cycle ${available})
+    # - echo $power
+    # - >
+    #       if [[ $power =~ "True" ]]; then
+    #         echo "Reset DUT pass"
+    #       else
+    #         echo "ERROR: Reset DUT failed"
+    #         exit 1
+    #       fi
     - echo "----------save reserved/available for after_script----------"
     - echo "${available}" > available
     - echo "${reserved}" > reserved
@@ -312,15 +359,15 @@ stages:
             echo "ERROR: Release DUT failed"
             exit 1
           fi
-    - power=$(./bin/ailab power --type=cycle ${available})
-    - echo $power
-    - >
-          if [[ $power =~ "True" ]]; then
-            echo "Reset DUT pass"
-          else
-            echo "ERROR: Reset DUT failed"
-            exit 1
-          fi
+    # - power=$(./bin/ailab power --type=cycle ${available})
+    # - echo $power
+    # - >
+    #       if [[ $power =~ "True" ]]; then
+    #         echo "Reset DUT pass"
+    #       else
+    #         echo "ERROR: Reset DUT failed"
+    #         exit 1
+    #       fi
     - echo "----------release test device done----------"
   load_image:
     - echo "----------load image to test device----------"
@@ -335,13 +382,13 @@ stages:
         echo "---start to load image in for loop"
         stime=$(date +'%Y-%m-%d %H:%M:%S')
         echo "---load image start time: $stime"
-        power_off="./bin/ailab power --type=off ${available}"
-        power_on="./bin/ailab power --type=on ${available}"
+        power_reset="./bin/ailab power --type=cycle ${available}"
         load_cmd="./bin/aiload --pr_id ${CI_MERGE_REQUEST_IID} --job_id ${CI_PIPELINE_ID} --md5_sysimage ${sysimage_md5} ${available}"
         for i in {1..4}; do
           starttime=$(date +'%Y-%m-%d %H:%M:%S')
           echo "---loop $i start time: $starttime"
           echo "---start to load image in loop $i---"
+          $power_reset
           if $load_cmd
           then
             echo "---loop $i load image pass---"
@@ -349,10 +396,7 @@ stages:
           else
             echo "ERROR:loop $i load image failed, ignore Error and try again..."
             echo "---start to rerun in next loop..."
-            $power_off
-            sleep 2
-            $power_on
-            sleep 2
+            sleep 1
           fi
           endtime=$(date +'%Y-%m-%d %H:%M:%S')
           start_seconds=$(date -d "$starttime" +%s)
@@ -483,7 +527,6 @@ before_script:
   - uptime
   - pwd
   - ls -alht
-  - ls -alht micropython
   - uname -a
   - cat /etc/issue
   - echo $CI_PROJECT_DIR
@@ -557,7 +600,7 @@ build_image:
     reports:
       dotenv: build.env
 
-# # test setup for all jobs
+# test setup for all jobs
 # load_image_smoke_test:
 #   stage: load_test
 #   rules:
@@ -566,7 +609,9 @@ build_image:
 #     # release job
 #     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
 #     # pre-release job
-#     - if: $CI_PIPELINE_SOURCE == "web"
+#     - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+#     # manual job
+#     - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG !~ /^v\d+\.\d+.*$/
 #     # daily build
 #     - if: $CI_PIPELINE_SOURCE == "schedule"
 #   timeout: 30m
@@ -575,6 +620,6 @@ build_image:
 #     - *check_build_result
 #     - !reference [.test, test_setup]
 #     - !reference [.test, load_image]
-#     - !reference [.test, smoke_test]
+#     #- !reference [.test, smoke_test]
 #   after_script:
 #     - !reference [.test, test_teardown]
