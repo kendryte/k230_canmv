@@ -27,6 +27,7 @@
 #include <semaphore.h>
 #include <sha256.h>
 #include "py/runtime.h"
+#include <signal.h>
 
 #define CONFIG_CANMV_IDE_SUPPORT 1
 
@@ -147,7 +148,19 @@ static void interrupt_repl(void) {
     sem_post(&stdin_sem);
 }
 
+static void interrupt_ide(void) {
+    fprintf(stderr, "[usb] exit IDE mode\n");
+    ide_attached = false;
+    // exit script mode
+    if (script_string) {
+        free(script_string);
+        script_string = NULL;
+    }
+    sem_post(&script_sem);
+}
+
 static volatile bool enable_pic = true;
+static bool flag_wait_exit = false;
 
 static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* data, size_t length) {
     #if TEST_PIC
@@ -238,6 +251,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     case USBDBG_SCRIPT_STOP: {
                         // TODO
                         pr("cmd: USBDBG_SCRIPT_STOP");
+                        flag_wait_exit = true;
                         #if TEST_PIC
                         ide_script_running = 0;
                         #else
@@ -439,13 +453,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     case USBDBG_SYS_RESET: {
                         // TODO: reset serialport to REPL mode
                         pr("cmd: USBDBG_SYS_RESET");
-                        ide_attached = false;
-                        // exit script mode
-                        if (script_string) {
-                            free(script_string);
-                            script_string = NULL;
-                        }
-                        sem_post(&script_sem);
+                        interrupt_ide();
                         break;
                     }
                     case USBDBG_FB_ENABLE: {
@@ -491,30 +499,51 @@ static void* ide_dbg_task(void* args) {
     ide_dbg_state_t state;
     state.state = FRAME_HEAD;
     while (1) {
+        struct timeval tv = {
+            .tv_sec = 1,
+            .tv_usec = 0
+        };
+        fd_set rfds, efds;
+        FD_ZERO(&rfds);
+        FD_SET(usb_cdc_fd, &rfds);
+        FD_SET(STDIN_FILENO, &rfds);
+        FD_ZERO(&efds);
+        FD_SET(usb_cdc_fd, &efds);
+        int result = select(usb_cdc_fd + 1, &rfds, NULL, &efds, &tv);
+        if (result == 0) {
+            continue;
+        } else if (result < 0) {
+            perror("select() error");
+            kill(getpid(), SIGINT);
+            return NULL;
+        }
+        if (FD_ISSET(STDIN_FILENO, &rfds)) {
+            fprintf(stderr, "exit, press enter\n");
+            kill(getpid(), SIGINT);
+            return NULL;
+        }
+        if (FD_ISSET(usb_cdc_fd, &efds)) {
+            // RTS
+            fprintf(stderr, "[usb] RTS\n");
+            if (ide_dbg_attach()) {
+                if (flag_wait_exit) {
+                    interrupt_ide();
+                    flag_wait_exit = false;
+                }
+            } else {
+                interrupt_repl();
+            }
+        }
+        if (!FD_ISSET(usb_cdc_fd, &rfds)) {
+            continue;
+        }
         ssize_t size = read(usb_cdc_fd, usb_cdc_read_buf, sizeof(usb_cdc_read_buf));
         if (size == 0) {
-            // reset request
-            fprintf(stderr, "[usb] RTS\n");
-            // ignore the first RTS
-            static bool first_rts = true;
-            if (first_rts) {
-                first_rts = false;
-            } else {
-                if (ide_dbg_attach()) {
-                    fprintf(stderr, "[usb] exit IDE mode\n");
-                    ide_attached = false;
-                    // exit script mode
-                    if (script_string) {
-                        free(script_string);
-                        script_string = NULL;
-                    }
-                    sem_post(&script_sem);
-                } else {
-                    interrupt_repl();
-                }
-            }
+            fprintf(stderr, "[usb] read timeout\n");
+            continue;
         } else if (size < 0) {
-            // TODO: error
+            // TODO: error, but ???
+            perror("[usb] read ttyUSB1");
         } else if (ide_dbg_attach()) {
             ide_dbg_update(&state, usb_cdc_read_buf, size);
         } else {
@@ -523,7 +552,7 @@ static void* ide_dbg_task(void* args) {
             const char* IDE_TOKEN = "\x30\x8D\x04\x00\x00\x00"; // CanMV IDE
             const char* IDE_TOKEN2 = "\x30\x80\x0C\x00\x00\x00"; // OpenMV IDE
             const char* IDE_TOKEN3 = "\x30\x87\x04\x00\x00\x00";
-            if (size == 6 && (
+            if ((size == 6 || usb_cdc_read_buf[0] == 0x30) && (
                 (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN, size) == 0) ||
                 (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN2, size) == 0) ||
                 (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN3, size) == 0)
@@ -577,6 +606,11 @@ static void* ide_dbg_task(void* args) {
         }
     }
     return NULL;
+}
+
+void sighandler(int sig) {
+    fprintf(stderr, "get signal %d\n", sig);
+    exit(0);
 }
 
 void ide_dbg_init(void) {

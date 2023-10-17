@@ -2,6 +2,7 @@
 #include "usbd_core.h"
 #include "usbd_cdc.h"
 #include "usbd_msc.h"
+#include "dfs_poll.h"
 
 /*!< endpoint address */
 #define CDC_IN_EP  0x81
@@ -100,7 +101,7 @@ static const uint8_t cdc_msc_descriptor[] = {
     0x00
 };
 
-USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t read_buffer[2048];
+USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t usb_read_buffer[2048];
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t write_buffer[2048] = { 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30 };
 
 volatile char ep_tx_busy_flag = 0;
@@ -114,30 +115,30 @@ volatile char ep_tx_busy_flag = 0;
 void usbd_configure_done_callback(void)
 {
     /* setup first out ep read transfer */
-    usbd_ep_start_read(CDC_OUT_EP, read_buffer, 2048);
+    usbd_ep_start_read(CDC_OUT_EP, usb_read_buffer, 2048);
 }
 
 extern size_t actual_bytes;
 extern struct rt_semaphore cdc_read_sem;
 extern struct rt_semaphore cdc_write_sem;
-//extern struct rt_device g_cdc_rt_device;
-//extern volatile int g_cdc_mask;
+extern struct rt_device g_cdc_rt_device;
+extern volatile int g_cdc_mask;
 
 void usbd_cdc_acm_bulk_out(uint8_t ep, uint32_t nbytes)
 {
     //USB_LOG_RAW("actual out len:%d\r\n", nbytes);
-    rt_sem_release(&cdc_read_sem);
     actual_bytes = nbytes;
-    //g_cdc_mask |= POLL_IN;
-    //rt_wqueue_wakeup(&g_cdc_rt_device.wait_queue, (void*)POLL_IN);
+    g_cdc_mask |= POLLIN;
+    rt_wqueue_wakeup(&g_cdc_rt_device.wait_queue, (void*)POLLIN);
+    rt_sem_release(&cdc_read_sem);
     return;
 
     rt_kprintf("recv:");
     for (size_t i = 0; i < nbytes; i++) {
-        rt_kprintf("\\x%02X", ((unsigned char*)read_buffer)[i]);
+        rt_kprintf("\\x%02X", ((unsigned char*)usb_read_buffer)[i]);
     }
     rt_kprintf("\n");
-    usbd_ep_start_read(CDC_OUT_EP, read_buffer, 2048);
+    usbd_ep_start_read(CDC_OUT_EP, usb_read_buffer, 2048);
 }
 
 void usbd_cdc_acm_bulk_in(uint8_t ep, uint32_t nbytes)

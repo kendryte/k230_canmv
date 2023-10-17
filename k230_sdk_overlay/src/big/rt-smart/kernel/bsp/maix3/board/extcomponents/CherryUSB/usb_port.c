@@ -46,19 +46,21 @@ struct rt_semaphore cdc_read_sem, cdc_write_sem;
 extern volatile char ep_tx_busy_flag;
 volatile size_t actual_bytes = 0;
 static bool last_rts = false;
+extern uint32_t usb_read_buffer_ptr;
+extern uint8_t usb_read_buffer[];
 
 void usbd_cdc_acm_set_dtr(uint8_t intf, bool dtr) {
-    //USB_LOG_WRN("set DTR %d\n", dtr);
+    // USB_LOG_WRN("set DTR %d\n", dtr);
+    if (last_rts != dtr) {
+        //USB_LOG_WRN("RTS reset %d %d\n", last_rts, rts);
+        g_cdc_mask |= POLLERR;
+        rt_wqueue_wakeup(&g_cdc_rt_device.wait_queue, (void*)POLLERR);
+    }
+    last_rts = dtr;
 }
 
 void usbd_cdc_acm_set_rts(uint8_t intf, bool rts) {
-    //USB_LOG_WRN("set RTS %d\n", rts);
-    if ((last_rts == false) && (rts == true)) {
-        actual_bytes = 0;
-        //USB_LOG_WRN("RTS reset %d %d\n", last_rts, rts);
-        rt_sem_release(&cdc_read_sem);
-    }
-    last_rts = rts;
+    // USB_LOG_WRN("set RTS %d\n", rts);
 }
 
 static int cdc_open(struct dfs_fd *fd) {
@@ -68,19 +70,44 @@ static int cdc_open(struct dfs_fd *fd) {
 static int cdc_close(struct dfs_fd *fd) {
     return 0;
 }
-
+// FIXME: read block exit
 static int cdc_read(struct dfs_fd *fd, void *buf, size_t count) {
-    while(rt_sem_take(&cdc_read_sem, 0) == RT_EOK);
-    usbd_ep_start_read(CDC_OUT_EP, buf, count);
-    rt_sem_take(&cdc_read_sem, RT_WAITING_FOREVER);
-    return actual_bytes;
+    start:
+    if (actual_bytes) {
+        memcpy(buf, usb_read_buffer, actual_bytes);
+        int tmp = actual_bytes;
+        actual_bytes = 0;
+        usbd_ep_start_read(CDC_OUT_EP, usb_read_buffer, 2048);
+        return tmp;
+    }
+    rt_err_t error = rt_sem_take(&cdc_read_sem, 1000);
+    if (error == RT_EOK) {
+        goto start;
+    } else if (error == RT_ETIMEOUT) {
+        USB_LOG_WRN("read timeout\n");
+        return 0;
+    } else {
+        return -1;
+    }
 }
 
 static int cdc_write(struct dfs_fd *fd, const void *buf, size_t count) {
     if (count == 0) {
         return 0;
     }
-    rt_sem_take(&cdc_write_sem, RT_WAITING_FOREVER);
+    static void* hold_buffer = NULL;
+    // FIXME
+    rt_err_t error = rt_sem_take(&cdc_write_sem, 100);
+    if (error == RT_ETIMEOUT) {
+        return 0;
+    } else if (error != RT_EOK) {
+        return -1;
+    }
+    if (hold_buffer != NULL) {
+        rt_free(hold_buffer);
+    }
+    hold_buffer = rt_malloc(count);
+    rt_memcpy(hold_buffer, buf, count);
     #if 0
     rt_kprintf("write:");
     for (size_t i = 0; i < count; i++) {
@@ -88,7 +115,7 @@ static int cdc_write(struct dfs_fd *fd, const void *buf, size_t count) {
     }
     rt_kprintf("\n");
     #endif
-    usbd_ep_start_write(CDC_IN_EP, buf, count);
+    usbd_ep_start_write(CDC_IN_EP, hold_buffer, count);
     // FIXME: async
     // usleep(10000);
     // rt_sem_take(&cdc_write_sem, RT_WAITING_FOREVER);
@@ -96,10 +123,10 @@ static int cdc_write(struct dfs_fd *fd, const void *buf, size_t count) {
 }
 
 static int cdc_poll(struct dfs_fd *fd, struct rt_pollreq *req) {
-    g_cdc_mask = 0;
     rt_poll_add(&g_cdc_rt_device.wait_queue, req);
-    rt_kprintf("poll: %d\n", g_cdc_mask);
-    return g_cdc_mask;
+    int tmp = g_cdc_mask;
+    g_cdc_mask = 0;
+    return tmp;
 }
 
 static struct dfs_file_ops cdc_ops = {
