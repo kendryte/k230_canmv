@@ -261,7 +261,6 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                             mp_obj_exception_clear_traceback(mp_const_ide_interrupt);
                             mp_sched_exception(mp_const_ide_interrupt);
                         }
-                        ide_script_running = 0;
                         #endif
                         break;
                     }
@@ -552,7 +551,7 @@ static void* ide_dbg_task(void* args) {
             const char* IDE_TOKEN = "\x30\x8D\x04\x00\x00\x00"; // CanMV IDE
             const char* IDE_TOKEN2 = "\x30\x80\x0C\x00\x00\x00"; // OpenMV IDE
             const char* IDE_TOKEN3 = "\x30\x87\x04\x00\x00\x00";
-            if ((size == 6 || usb_cdc_read_buf[0] == 0x30) && (
+            if ((size == 6) && (
                 (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN, size) == 0) ||
                 (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN2, size) == 0) ||
                 (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN3, size) == 0)
