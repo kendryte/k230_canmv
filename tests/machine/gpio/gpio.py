@@ -7,4 +7,7 @@ gpio.value(1)
 value = gpio.value()
 print("value = %d" % value)
 
+def on_timer(arg):
+    print("time up: %d" % arg)
 
+gpio.irq(on_timer,3)
