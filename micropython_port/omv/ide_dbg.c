@@ -363,7 +363,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                             ide_dbg_sv_file.errcode = USBDBG_SVFILE_ERR_OPEN_ERR;
                             break;
                         }
-                        ide_dbg_sv_file.chunk_buffer = malloc(state->data_length);
+                        ide_dbg_sv_file.chunk_buffer = malloc(ide_dbg_sv_file.info.chunk_size);
                         ide_dbg_sv_file.errcode = USBDBG_SVFILE_ERR_NONE;
                         break;
                     }
