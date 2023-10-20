@@ -37,6 +37,7 @@
 #include "machine_timer.h"
 #include "machine_adc.h"
 #include "machine_fft.h"
+#include "machine_iomux_fpioa.h"
 
 
 #if MICROPY_PY_MACHINE
@@ -58,6 +59,7 @@ STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_PWM), MP_ROM_PTR(&machine_pwm_type) },
     { MP_ROM_QSTR(MP_QSTR_WDT), MP_ROM_PTR(&machine_wdt_type) },
     { MP_ROM_QSTR(MP_QSTR_GPIO), MP_ROM_PTR(&machine_gpio_type) },
+    { MP_ROM_QSTR(MP_QSTR_FPIOA), MP_ROM_PTR(&machine_fpioa_type) },
     { MP_ROM_QSTR(MP_QSTR_I2C), MP_ROM_PTR(&machine_i2c_type) },
     { MP_ROM_QSTR(MP_QSTR_Timer), MP_ROM_PTR(&machine_timer_type) },
     { MP_ROM_QSTR(MP_QSTR_ADC), MP_ROM_PTR(&machine_adc_type) },
