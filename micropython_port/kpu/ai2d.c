@@ -237,13 +237,12 @@ STATIC mp_obj_t mp_ai2d_set_affine_param(size_t n_args, const mp_obj_t *args) {
     ap.bound_ind = (uint)mp_obj_get_int(args[4]);
     ap.bound_val = mp_obj_get_int(args[5]);
     ap.bound_smooth = (uint)mp_obj_get_int(args[6]);
-    
 
     _kd_mpi_struct_test_f(args[7], ap.M.data, &ap.M.data_size);
     ai2d_set_affine_param(self->ai2d_, ap);
     return mp_const_none;
 }
-MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_ai2d_set_affine_param_obj, 7, 7, mp_ai2d_set_affine_param);
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_ai2d_set_affine_param_obj, 8, 8, mp_ai2d_set_affine_param);
 
 // set dict
 STATIC const mp_rom_map_elem_t ai2d_locals_dict_table[] = {
