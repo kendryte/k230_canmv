@@ -201,7 +201,7 @@ class camera:
 
             if pix_format == PIXEL_FORMAT_YUV_SEMIPLANAR_420:
                 buf_size = ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_4K)
-            elif pix_format in [PIXEL_FORMAT_RGB_888, PIXEL_FORMAT_BGR_888_PLANAR]:
+            elif pix_format in [PIXEL_FORMAT_RGB_888, PIXEL_FORMAT_RGB_888_PLANAR]:
                 buf_size = ALIGN_UP((out_width * out_height * 3), VICAP_ALIGN_4K)
             elif pix_format in [PIXEL_FORMAT_RGB_BAYER_10BPP, PIXEL_FORMAT_RGB_BAYER_12BPP, \
                                 PIXEL_FORMAT_RGB_BAYER_14BPP, PIXEL_FORMAT_RGB_BAYER_16BPP]:
@@ -255,7 +255,7 @@ class camera:
 
             if pix_format == PIXEL_FORMAT_YUV_SEMIPLANAR_420:
                 buf_size = ALIGN_UP((out_width * out_height * 3 // 2), VICAP_ALIGN_4K)
-            elif pix_format in [PIXEL_FORMAT_RGB_888, PIXEL_FORMAT_BGR_888_PLANAR]:
+            elif pix_format in [PIXEL_FORMAT_RGB_888, PIXEL_FORMAT_RGB_888_PLANAR]:
                 buf_size = ALIGN_UP((out_width * out_height * 3), VICAP_ALIGN_4K)
             elif pix_format in [PIXEL_FORMAT_RGB_BAYER_10BPP, PIXEL_FORMAT_RGB_BAYER_12BPP, \
                                 PIXEL_FORMAT_RGB_BAYER_14BPP, PIXEL_FORMAT_RGB_BAYER_16BPP]:
@@ -374,7 +374,7 @@ class camera:
         elif fmt == PIXEL_FORMAT_RGB_888:
             img_size = img_width * img_height * 3
             img_fmt = image.RGB888
-        elif fmt == PIXEL_FORMAT_BGR_888_PLANAR:
+        elif fmt == PIXEL_FORMAT_RGB_888_PLANAR:
             img_size = img_width * img_height * 3
             img_fmt = image.RGBP888
         else:

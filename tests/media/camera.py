@@ -42,7 +42,7 @@ def canmv_camera_test():
 
     # set chn2 output rgb888planar
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_2, out_width, out_height)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_2, PIXEL_FORMAT_BGR_888_PLANAR)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_2, PIXEL_FORMAT_RGB_888_PLANAR)
 
     ret = media.buffer_init()
     if ret:
@@ -53,7 +53,7 @@ def canmv_camera_test():
     time.sleep(15)
 
     capture_count = 0
-    while capture_count < 10:
+    while capture_count < 100:
         time.sleep(1)
         for dev_num in range(CAM_DEV_ID_MAX):
             if not camera.cam_dev[dev_num].dev_attr.dev_enable:
