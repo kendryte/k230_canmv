@@ -67,7 +67,7 @@ STATIC uint emit_opt = MP_EMIT_OPT_NONE;
 #if MICROPY_ENABLE_GC
 // Heap size of GC heap (if enabled)
 // Make it larger on a 64 bit machine, because pointers are larger.
-long heap_size = 1024 * 1024 * 16;
+long heap_size = 1024 * 1024 * 4;
 #endif
 
 // Number of heaps to assign by default if MICROPY_GC_SPLIT_HEAP=1
@@ -514,7 +514,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
     }
 
     // Define a reasonable stack limit to detect stack overflow.
-    mp_uint_t stack_limit = 1024 * 1024 * (sizeof(void *) / 4);
+    mp_uint_t stack_limit = 128 * 1024 * (sizeof(void *) / 4);
     soft_reset:
     #if MICROPY_PY_THREAD
     mp_thread_init();

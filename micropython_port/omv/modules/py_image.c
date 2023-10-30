@@ -1085,6 +1085,8 @@ static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_pa
         mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("1 <= quality <= 100!"));
     }
 
+    bool arg_e = py_helper_keyword_int(n_args, args, 13, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_encode_for_ide), encode_for_ide_default);
+
     image_t dst_img = {
         .w = fast_floorf(arg_roi.w * arg_x_scale),
         .h = fast_floorf(arg_roi.h * arg_y_scale),
@@ -1222,6 +1224,8 @@ static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_pa
         dst_img.pixfmt = PIXFORMAT_RGB565;
 
     if (dst_img.is_compressed) {
+        if (arg_e)
+            fb_encode_for_ide(NULL, &dst_img_tmp);
         memcpy(dst_img.data, dst_img_tmp.data, dst_img.size);
         fb_alloc_free_till_mark();
     } else {
