@@ -11,25 +11,20 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define FIL FILE
+#define FIL FILE*
 #define FRESULT int
-#define TCHAR char
-#define BYTE char
-#define FILINFO void
-#define UINT uint64_t
-#define FF_DIR void
+#define UINT size_t
 #define FR_OK 0
 
 extern const char *ffs_strerror(FRESULT res);
 
-//OOFATFS wrappers
-FRESULT f_open_helper(FIL *fp, const TCHAR *path, BYTE mode);
-FRESULT f_opendir_helper(FF_DIR *dp, const TCHAR *path);
-FRESULT f_stat_helper(const TCHAR *path, FILINFO *fno);
-FRESULT f_mkdir_helper(const TCHAR *path);
-FRESULT f_unlink_helper(const TCHAR *path);
-FRESULT f_rename_helper(const TCHAR *path_old, const TCHAR *path_new);
-FRESULT f_touch_helper(const TCHAR *path);
+size_t f_tell(FIL *fp);
+void f_close(FIL *fp);
+size_t f_size(FIL *fp);
+int f_eof(FIL *fp);
+FRESULT f_read(FIL* fp, void* buff, UINT btr, UINT* br);
+FRESULT f_write(FIL* fp, const void* buff, UINT btw, UINT* bw);
+FRESULT f_open_helper(FIL *fp, const char *path, char *mode);
 
 void ff_unsupported_format(FIL *fp);
 void ff_file_corrupted(FIL *fp);

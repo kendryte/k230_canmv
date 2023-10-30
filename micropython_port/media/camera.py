@@ -83,8 +83,8 @@ class camera:
         print("sensor_init enter")
 
         if (dev_num > CAM_DEV_ID_MAX - 1) or (type > CAM_SENSOR_TYPE_MAX - 1):
-            printf(f"sensor_init, invalid param, dev_num({dev_num}, sensor type({type}))");
-            return -1;
+            printf(f"sensor_init, invalid param, dev_num({dev_num}, sensor type({type}))")
+            return -1
 
         ret = kd_mpi_vicap_get_sensor_info(type, cls.cam_dev[dev_num].dev_attr.sensor_info)
         if ret:
@@ -113,8 +113,8 @@ class camera:
         print("set_inbufs enter")
 
         if (dev_num > CAM_DEV_ID_MAX - 1):
-            printf(f"set_inbufs, invalid param, dev_num({dev_num}");
-            return -1;
+            printf(f"set_inbufs, invalid param, dev_num({dev_num}")
+            return -1
 
         cls.cam_dev[dev_num].dev_attr.mode = VICAP_WORK_OFFLINE_MODE
         cls.cam_dev[dev_num].dev_attr.buffer_num = num
@@ -144,8 +144,8 @@ class camera:
         print("set_outbufs enter")
 
         if (dev_num > CAM_DEV_ID_MAX - 1) or (chn_num > CAM_CHN_ID_MAX - 1):
-            printf(f"set_outbufs, invalid param, dev_num({dev_num}, chn_num({chn_num}))");
-            return -1;
+            printf(f"set_outbufs, invalid param, dev_num({dev_num}, chn_num({chn_num}))")
+            return -1
 
         cls.cam_dev[dev_num].chn_attr[chn_num].chn_enable = True
         cls.cam_dev[dev_num].chn_attr[chn_num].buffer_num = num
@@ -175,15 +175,15 @@ class camera:
         print("set_outsize enter")
 
         if (dev_num > CAM_DEV_ID_MAX - 1) or (chn_num > CAM_CHN_ID_MAX - 1):
-            printf(f"invalid param, dev_num({dev_num}, chn_num({chn_num}))");
-            return -1;
+            printf(f"invalid param, dev_num({dev_num}, chn_num({chn_num}))")
+            return -1
 
         if (width > cls.cam_dev[dev_num].dev_attr.acq_win.width) \
            or (height > cls.cam_dev[dev_num].dev_attr.acq_win.height) \
            or (width < CAM_OUT_WIDTH_MIN) \
            or (height < CAM_OUT_HEIGHT_MIN):
-            printf(f"invalid out size, width({width}, height({height}))");
-            return -1;
+            printf(f"invalid out size, width({width}, height({height}))")
+            return -1
 
         cls.cam_dev[dev_num].chn_attr[chn_num].chn_enable = True
         cls.cam_dev[dev_num].chn_attr[chn_num].out_win.h_start = 0
@@ -239,8 +239,8 @@ class camera:
         print("set_outfmt enter")
 
         if (dev_num > CAM_DEV_ID_MAX - 1) or (chn_num > CAM_CHN_ID_MAX - 1):
-            printf(f"invalid param, dev_num({dev_num}, chn_num({chn_num}))");
-            return -1;
+            printf(f"invalid param, dev_num({dev_num}, chn_num({chn_num}))")
+            return -1
 
         cls.cam_dev[dev_num].chn_attr[chn_num].pix_format = pix_format
         cls.cam_dev[dev_num].chn_attr[chn_num].chn_enable = True
@@ -293,8 +293,8 @@ class camera:
         print("start_stream enter")
 
         if (dev_num > CAM_DEV_ID_MAX - 1):
-            printf(f"invalid param, dev_num({dev_num}");
-            return -1;
+            printf(f"invalid param, dev_num({dev_num}")
+            return -1
 
         ret = kd_mpi_vicap_set_dev_attr(dev_num, cls.cam_dev[dev_num].dev_attr)
         if ret:
@@ -330,8 +330,8 @@ class camera:
     def stop_stream(cls, dev_num):
         print("stop_stream enter")
         if (dev_num > CAM_DEV_ID_MAX - 1):
-            printf(f"stop_stream, invalid param, dev_num({dev_num}");
-            return -1;
+            printf(f"stop_stream, invalid param, dev_num({dev_num}")
+            return -1
 
         ret = kd_mpi_vicap_stop_stream(dev_num)
         if ret:
@@ -356,7 +356,7 @@ class camera:
 
         if (dev_num > CAM_DEV_ID_MAX - 1) or (chn_num > CAM_CHN_ID_MAX - 1):
             printf(f"capture_image, invalid param, dev_num({dev_num}, chn_num({chn_num}))")
-            return -1;
+            return -1
 
         ret = kd_mpi_vicap_dump_frame(dev_num, chn_num, VICAP_DUMP_YUV, frame_info, 1000)
         if ret:
@@ -379,7 +379,7 @@ class camera:
             img_fmt = image.RGBP888
         else:
             print("capture_image: unsupported format.")
-            return -1;
+            return -1
 
         virt_addr = kd_mpi_sys_mmap(phys_addr, img_size)
         if virt_addr:
@@ -387,7 +387,7 @@ class camera:
             img = image.Image(img_width, img_height, img_fmt, alloc=image.ALLOC_VB, phyaddr=phys_addr, virtaddr=virt_addr)
         else:
             print("capture_image, mmap failed")
-            return -1;
+            return -1
 
         #print("capture_image exit")
         return img
@@ -408,7 +408,7 @@ class camera:
         if ret:
             print(f"release_image, dev({dev_num}) chn({chn_num}) munmap failed")
 
-        frame_info.v_frame.phys_addr[0] = phy_addr;
+        frame_info.v_frame.phys_addr[0] = phy_addr
 
         ret = kd_mpi_vicap_dump_release(dev_num, chn_num, frame_info)
         if ret:
