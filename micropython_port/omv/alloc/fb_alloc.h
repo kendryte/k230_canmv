@@ -52,6 +52,7 @@
 #ifndef __FB_ALLOC_H__
 #define __FB_ALLOC_H__
 #include <stdint.h>
+#include "py/obj.h"
 #define FB_ALLOC_NO_HINT         0
 #define FB_ALLOC_PREFER_SPEED    1
 #define FB_ALLOC_PREFER_SIZE     2
@@ -69,4 +70,5 @@ void *fb_alloc_all(uint32_t *size, int hints); // returns pointer and sets size
 void *fb_alloc0_all(uint32_t *size, int hints); // returns pointer and sets size
 void fb_free();
 void fb_free_all();
+mp_obj_t fb_stat(int cmd);
 #endif /* __FF_ALLOC_H__ */

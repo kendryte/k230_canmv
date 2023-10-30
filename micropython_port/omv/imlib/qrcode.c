@@ -2490,7 +2490,7 @@ static void read_bit(const struct quirc_code *code,
     ds->data_bits++;
 }
 
-static void read_data(const struct quirc_code *code,
+static void _read_data(const struct quirc_code *code,
                       struct quirc_data *data,
                       struct datastream *ds)
 {
@@ -2855,7 +2855,7 @@ quirc_decode_error_t quirc_decode(const struct quirc_code *code,
     if (err)
         { fb_free(); return err; }
 
-    read_data(code, data, ds);
+    _read_data(code, data, ds);
     err = codestream_ecc(data, ds);
     if (err)
         { fb_free(); return err; }

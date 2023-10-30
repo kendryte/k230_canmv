@@ -82,8 +82,8 @@ either expressed or implied, of the Regents of The University of Michigan.
 #define log2(x) fast_log2(x)
 #undef log2f
 #define log2f(x) fast_log2(x)
-#define sin(x) arm_sin_f32(x)
-#define cos(x) arm_cos_f32(x)
+#define sin(x) sinf(x)
+#define cos(x) cosf(x)
 #define fmin(a, b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a < _b ? _a : _b; })
 #define fminf(a, b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a < _b ? _a : _b; })
 #define fmax(a, b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a > _b ? _a : _b; })
@@ -9658,10 +9658,6 @@ int quad_segment_maxima(apriltag_detector_t *td, zarray_t *cluster, struct line_
         fb_free(); // maxima_errs_copy
     }
 
-    fb_free(); // maxima_errs
-    fb_free(); // maxima
-    fb_free(); // errs
-
     int best_indices[4];
     float best_error = HUGE_VALF;
 
@@ -9717,6 +9713,10 @@ int quad_segment_maxima(apriltag_detector_t *td, zarray_t *cluster, struct line_
             }
         }
     }
+
+    fb_free(); // maxima_errs
+    fb_free(); // maxima
+    fb_free(); // errs
 
     if (best_error == HUGE_VALF)
         return 0;

@@ -71,7 +71,7 @@ unsigned short int umm_numblocks = 0;
 #define UMM_DATA(b)          (UMM_BLOCK(b).body.data)
 
 NORETURN void umm_alloc_fail() {
-    mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("Out of fast frame buffer stack memory"));
+    mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("umm_alloc_fail"));
 }
 
 static unsigned short int umm_blocks(size_t size) {

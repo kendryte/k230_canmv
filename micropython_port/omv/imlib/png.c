@@ -15,21 +15,8 @@
 #include "ff_wrapper.h"
 #if defined(IMLIB_ENABLE_PNG_ENCODER) || defined(IMLIB_ENABLE_PNG_DECODER)
 #include "lodepng.h"
-#include "umm_malloc.h"
 
 #define TIME_PNG    (0)
-
-void *lodepng_malloc(size_t size) {
-    return umm_malloc(size);
-}
-
-void *lodepng_realloc(void *ptr, size_t new_size) {
-    return umm_realloc(ptr, new_size);
-}
-
-void lodepng_free(void *ptr) {
-    return umm_free(ptr);
-}
 
 unsigned lodepng_convert_cb(unsigned char *out, const unsigned char *in,
                             const LodePNGColorMode *mode_out, const LodePNGColorMode *mode_in, unsigned w, unsigned h) {
@@ -226,6 +213,7 @@ void png_decompress(image_t *dst, image_t *src) {
     unsigned error = lodepng_decode(&png_data, (unsigned *) &dst->w, (unsigned *) &dst->h, &state, src->data, src->size);
     lodepng_state_cleanup(&state);
     if (error) {
+        fb_free();
         mp_raise_msg(&mp_type_RuntimeError, (mp_rom_error_text_t) lodepng_error_text(error));
     }
 
@@ -233,6 +221,7 @@ void png_decompress(image_t *dst, image_t *src) {
     if (new_img_size <= img_size) {
         memcpy(dst->data, png_data, new_img_size);
     } else {
+        fb_free();
         mp_raise_msg_varg(&mp_type_RuntimeError,
                           MP_ERROR_TEXT("Failed to compress image in place"));
     }
