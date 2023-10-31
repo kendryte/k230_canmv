@@ -726,6 +726,29 @@ static mp_obj_t py_image_to_numpy_ref(mp_obj_t img_obj) {
         shape[1] = 3;
         shape[2] = image->h;
         shape[3] = image->w;
+    } else if (pixfmt == PIXFORMAT_RGB888 || pixfmt == PIXFORMAT_BGR888) {
+        ndim = 3;
+        dtype = NDARRAY_UINT8;
+        shape[1] = image->h;
+        shape[2] = image->w;
+        shape[3] = 3;
+    } else if (pixfmt == PIXFORMAT_RGB565) {
+        ndim = 3;
+        dtype = NDARRAY_UINT8;
+        shape[1] = image->h;
+        shape[2] = image->w;
+        shape[3] = 2;
+    } else if (pixfmt == PIXFORMAT_ARGB8888 || pixfmt == PIXFORMAT_ABGR8888) {
+        ndim = 3;
+        dtype = NDARRAY_UINT8;
+        shape[1] = image->h;
+        shape[2] = image->w;
+        shape[3] = 4;
+    } else if (pixfmt == PIXFORMAT_GRAYSCALE) {
+        ndim = 2;
+        dtype = NDARRAY_UINT8;
+        shape[2] = image->h;
+        shape[3] = image->w;
     } else {
         mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("image format not support"));
     }
