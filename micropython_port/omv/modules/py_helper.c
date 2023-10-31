@@ -457,7 +457,9 @@ bool py_helper_is_equal_to_framebuffer(image_t *img) {
 }
 
 void py_helper_update_framebuffer(image_t *img) {
+    // fprintf(stderr, "[omv] %s %u %p %u %d %d\n", __func__, img->pixfmt, img->data, img->size, img->w, img->h);
 }
 
 void py_helper_set_to_framebuffer(image_t *img) {
+    // fprintf(stderr, "[omv] %s %u %p %u %d %d\n", __func__, img->pixfmt, img->data, img->size, img->w, img->h);
 }
