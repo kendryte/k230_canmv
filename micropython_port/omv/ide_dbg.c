@@ -162,6 +162,24 @@ static void interrupt_ide(void) {
 static volatile bool enable_pic = true;
 static bool flag_wait_exit = false;
 
+static volatile void* fb_data = NULL;
+static uint32_t fb_size = 0, fb_width = 0, fb_height = 0;
+static pthread_mutex_t fb_mutex;
+// FIXME: reuse buf
+void ide_set_fb(const void* data, uint32_t size, uint32_t width, uint32_t height) {
+    pthread_mutex_lock(&fb_mutex);
+    if (fb_data) {
+        pthread_mutex_unlock(&fb_mutex);
+        return;
+    }
+    fb_data = malloc(size);
+    memcpy((void*)fb_data, data, size);
+    fb_size = size;
+    fb_width = width;
+    fb_height = height;
+    pthread_mutex_unlock(&fb_mutex);
+}
+
 static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* data, size_t length) {
     #if TEST_PIC
     static unsigned pic_idx = 0;
@@ -398,7 +416,6 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         break;
                     }
                     case USBDBG_FRAME_SIZE: {
-                        // TODO
                         // DO NOT PRINT
                         #if PRINT_ALL
                         pr("cmd: USBDBG_FRAME_SIZE");
@@ -420,12 +437,20 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                             0, // height
                             0, // size
                         };
+                        pthread_mutex_lock(&fb_mutex);
+                        if (fb_data) {
+                            resp[0] = fb_width;
+                            resp[1] = fb_height;
+                            resp[2] = fb_size;
+                            pr("cmd: USBDBG_FRAME_SIZE %u %u %u", resp[0], resp[1], resp[2]);
+                        }
+                        pthread_mutex_unlock(&fb_mutex);
                         #endif
                         usb_tx(&resp, sizeof(resp));
                         break;
                     }
                     case USBDBG_FRAME_DUMP: {
-                        // TODO
+                        pr("cmd: USBDBG_FRAME_DUMP");
                         // DO NOT PRINT
                         #if PRINT_ALL
                         pr("cmd: USBDBG_FRAME_DUMP");
@@ -446,6 +471,18 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         }
                         pic_idx += 1;
                         pic_idx %= num_jpeg;
+                        #else
+                        pthread_mutex_lock(&fb_mutex);
+                        size_t x = 0;
+                        for (; x < fb_size; x += 1024) {
+                            usb_tx((char*)fb_data + x, 1024);
+                        }
+                        if (x < fb_size) {
+                            usb_tx((char*)fb_data + x, state->data_length - x);
+                        }
+                        free((void*)fb_data);
+                        fb_data = NULL;
+                        pthread_mutex_unlock(&fb_mutex);
                         #endif
                         break;
                     }
@@ -621,6 +658,7 @@ void ide_dbg_init(void) {
     }
     sem_init(&script_sem, 0, 0);
     sem_init(&stdin_sem, 0, 0);
+    pthread_mutex_init(&fb_mutex, NULL);
     ide_exception_str.data = (const byte*)"IDE interrupt";
     ide_exception_str.len  = 13;
     ide_exception_str.base.type = &mp_type_str;
