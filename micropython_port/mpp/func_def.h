@@ -109,7 +109,7 @@ STATIC mp_obj_t _##x(mp_obj_t obj0, mp_obj_t obj1) {                    \
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(x##_obj, _##x);
 
 #define DEF_INT_FUNC_INT_STRUCTPTR_STRUCTPTR(x, struct0_type, struct1_type) \
-STATIC mp_obj_t _##x(mp_obj_t obj0, mp_obj_t obj1, mp_obj_t obj2) {                    \
+STATIC mp_obj_t _##x(mp_obj_t obj0, mp_obj_t obj1, mp_obj_t obj2) {     \
     mp_buffer_info_t bufinfo[2];                                        \
     mp_get_buffer_raise(obj1, &bufinfo[0], MP_BUFFER_READ);             \
     mp_get_buffer_raise(obj2, &bufinfo[1], MP_BUFFER_READ);             \
@@ -121,7 +121,7 @@ STATIC mp_obj_t _##x(mp_obj_t obj0, mp_obj_t obj1, mp_obj_t obj2) {             
         mp_raise_msg_varg(&mp_type_TypeError,                           \
             MP_ERROR_TEXT("struct 1 expect size: %u, actual size: %u"), \
             sizeof(struct1_type), bufinfo[1].len);                      \
-    size_t ret = x(mp_obj_get_int(obj0), (struct0_type*)(bufinfo[0].buf),                     \
+    size_t ret = x(mp_obj_get_int(obj0), (struct0_type*)(bufinfo[0].buf), \
         (struct1_type*)(bufinfo[1].buf));                               \
     return mp_obj_new_int(ret);                                         \
 }                                                                       \
