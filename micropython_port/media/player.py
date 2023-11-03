@@ -35,18 +35,14 @@ class Player:
             self.pyaudio.initialize(CHUNK)
             if (self.audio_info.codec_id == K_MP4_CODEC_ID_G711A):
                 self.adec = g711.Decoder(K_PT_G711A,CHUNK)
-                print("=========create g711a ok")
             elif (self.audio_info.codec_id == K_MP4_CODEC_ID_G711U):
                 self.adec = g711.Decoder(K_PT_G711U,CHUNK)
-                print("=========create g711u ok")
 
         if (self.video_track):
             if (self.video_info.codec_id == K_MP4_CODEC_ID_H264):
                 self.vdec = vdecoder.Decoder(K_PT_H264)
-                print("=========create h264 ok")
             elif (self.video_info.codec_id == K_MP4_CODEC_ID_H265):
                 self.vdec = vdecoder.Decoder(K_PT_H265)
-                print("=========create h265 ok")
 
         ret = media.buffer_init()
         if ret:
@@ -84,14 +80,11 @@ class Player:
 
     def _do_file_data(self):
         frame_data =  k_mp4_frame_data_s()
-        print("======play status:",self.play_status)
         while(self.play_status == PLAY_START or self.play_status == PLAY_PAUSE):
             if (self.play_status == PLAY_PAUSE):
                 time.sleep(0.1)
             else:
-                print("==========kd_mp4_get_frame before")
                 ret = kd_mp4_get_frame(self.mp4_handle.value, frame_data)
-                print("==========kd_mp4_get_frame end")
                 if (ret < 0 ):
                     raise ValueError("get frame data failed")
 
@@ -100,20 +93,26 @@ class Player:
                     break
 
                 if (frame_data.codec_id == K_MP4_CODEC_ID_H264 or frame_data.codec_id == K_MP4_CODEC_ID_H265):
-                    print("========video:",frame_data.data_length)
                     data = uctypes.bytes_at(frame_data.data,frame_data.data_length)
                     self.vdec.decode(data)
                 elif(frame_data.codec_id == K_MP4_CODEC_ID_G711A or frame_data.codec_id == K_MP4_CODEC_ID_G711U):
                     data = uctypes.bytes_at(frame_data.data,frame_data.data_length)
                     self.audio_out_stream.write(self.adec.decode(data))
 
-        ret = kd_mp4_destroy(self.mp4_handle.value)
-        if (ret < 0):
-            print("destroy mp4 failed.")
-
         self.callback(K_PLAYER_EVENT_EOF,0)
-        print("========_do_file_data end")
 
+    def debug_codec_info(self):
+        if (self.video_track):
+            if (self.video_info.codec_id == K_MP4_CODEC_ID_H264):
+                print("video track h264")
+            elif (self.video_info.codec_id == K_MP4_CODEC_ID_H265):
+                print("video track h265")
+
+        if (self.audio_track):
+            if (self.audio_info.codec_id == K_MP4_CODEC_ID_G711A):
+                print("audio track g711a")
+            elif (self.audio_info.codec_id == K_MP4_CODEC_ID_G711U):
+                print("audio track g711u")
 
     def load(self,filename):
         self.mp4_cfg.config_type = K_MP4_CONFIG_DEMUXER
@@ -148,15 +147,16 @@ class Player:
                 if (track_info.audio_info.codec_id == K_MP4_CODEC_ID_G711A or track_info.audio_info.codec_id == K_MP4_CODEC_ID_G711U):
                     self.audio_track = True
                     self.audio_info = track_info.audio_info
-                    self.audio_info.channels = 2
                     print("    codec_id: ", self.audio_info.codec_id)
                     print("    track_id: ", self.audio_info.track_id)
                     print("    channels: ", self.audio_info.channels)
                     print("    sample_rate: ", self.audio_info.sample_rate)
                     print("    bit_per_sample: ", self.audio_info.bit_per_sample)
+                    #self.audio_info.channels = 2
                 else:
                     print("audio not support codecid:",track_info.audio_info.codec_id)
 
+        self.debug_codec_info()
         return 0
 
     def start(self):
@@ -164,10 +164,8 @@ class Player:
             raise ValueError("_init_media_buffer failed")
             return -1
 
-        print(("video enable:%d,audio enable:%d,vdec channel:%d")%(self.video_track,self.audio_track,self.vdec.get_vdec_channel()))
         if (self.video_track):
             self.vdec.start()
-            print("======vdec start")
             self.video_meida_source = media_device(VIDEO_DECODE_MOD_ID, VDEC_DEV_ID, self.vdec.get_vdec_channel())
             self.video_meida_sink = media_device(DISPLAY_MOD_ID, DISPLAY_DEV_ID, DISPLAY_CHN_VIDEO1)
             media.create_link(self.video_meida_source, self.video_meida_sink)
@@ -180,26 +178,24 @@ class Player:
                                         frames_per_buffer=self.audio_info.sample_rate//DIV)
 
         self.play_status = PLAY_START
-        self._do_file_data()
-        #_thread.start_new_thread(self._do_file_data,())
+        #self._do_file_data()
+        _thread.start_new_thread(self._do_file_data,())
 
 
     def stop(self):
         self.play_status = PLAY_STOP
-        print("=========111 before")
-        time.sleep(3)
         if (self.video_track):
             self.vdec.stop()
             media.destroy_link(self.video_meida_source, self.video_meida_sink)
 
-        print("=========222 before")
-        time.sleep(3)
+        ret = kd_mp4_destroy(self.mp4_handle.value)
+        if (ret < 0):
+            print("destroy mp4 failed.")
+
         if (self.audio_track):
             self.audio_out_stream.stop_stream()
             self.audio_out_stream.close()
 
-        print("=========333 before")
-        time.sleep(3)
         self._deinit_media_buffer()
 
     def pause(self):
@@ -210,3 +206,11 @@ class Player:
 
     def set_event_callback(self,callback):
         self.callback = callback
+
+
+    def destroy_mp4(self):
+        ret = kd_mp4_destroy(self.mp4_handle.value)
+        if (ret < 0):
+            print("destroy mp4 failed.")
+        else:
+            print("destroy mp4 ok.")
