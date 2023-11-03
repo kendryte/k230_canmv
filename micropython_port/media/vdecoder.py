@@ -106,17 +106,19 @@ class Decoder:
 
         kd_mpi_sys_munmap(vir_data,blk_size)
 
+        kd_mpi_vb_release_block(handle)
+
         ret = kd_mpi_vdec_send_stream(self.chn, stream, -1)
         if (ret != 0):
             raise ValueError("kd_mpi_vdec_send_stream failed,channel:",self.chn)
             return -1
 
-        print("kd_mpi_vdec_query_status before")
+        print("")
         status = k_vdec_chn_status()
         while(1):
             ret = kd_mpi_vdec_query_status(self.chn, status)
             if (status.end_of_stream == True):
-                print("kd_mpi_vdec_query_status end")
+                #print("kd_mpi_vdec_query_status end")
                 break
             else:
                 time.sleep(0.01)
