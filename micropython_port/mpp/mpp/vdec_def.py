@@ -33,16 +33,16 @@ def k_vdec_supplement_info_parse(s, kwargs):
     s.end_of_stream = kwargs.get("end_of_stream", 0)
 
 k_vdec_stream_desc = {
-    "type": 0 | uctypes.UINT32,
-    "is_valid_frame": 8 | uctypes.UINT64,
-    "end_of_stream": 16 | uctypes.UINT32,
+    "end_of_stream": 0 | uctypes.UINT32,
+    "pts": 8 | uctypes.UINT64,
+    "len": 16 | uctypes.UINT32,
     "phy_addr": 24 | uctypes.UINT64,
 }
 
 def k_vdec_stream_parse(s, kwargs):
-    s.type = kwargs.get("type", 0)
-    s.is_valid_frame = kwargs.get("is_valid_frame", 0)
     s.end_of_stream = kwargs.get("end_of_stream", 0)
+    s.pts = kwargs.get("pts", 0)
+    s.len = kwargs.get("len", 0)
     s.phy_addr = kwargs.get("phy_addr", 0)
 
 k_vdec_dec_err_desc = {
@@ -73,7 +73,7 @@ def k_vdec_chn_status_parse(s, kwargs):
     s.is_started = kwargs.get("is_started", 0)
     s.recv_stream_frames = kwargs.get("recv_stream_frames", 0)
     s.dec_stream_frames = kwargs.get("dec_stream_frames", 0)
-    s.dec_err = kwargs.get("dec_err", 0)
+    #s.dec_err = kwargs.get("dec_err", 0)
     s.width = kwargs.get("width", 0)
     s.height = kwargs.get("height", 0)
     s.latest_frame_pts = kwargs.get("latest_frame_pts", 0)

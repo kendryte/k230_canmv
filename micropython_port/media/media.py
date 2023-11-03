@@ -46,6 +46,7 @@ VENC_DEV_ID = const(0)
 
 # video decode device id definition
 # TODO
+VDEC_DEV_ID = const(0)
 
 # audio channel id definition
 # TODO
@@ -80,7 +81,11 @@ VENC_CHN_ID_MAX = VENC_MAX_CHN_NUMS
 VENC_PACK_CNT_MAX = const(12)
 
 # video decode channel id definition
-# TODO
+VDEC_CHN_ID_0 = const(0)
+VDEC_CHN_ID_1 = const(1)
+VDEC_CHN_ID_2 = const(2)
+VDEC_CHN_ID_3 = const(3)
+VDEC_CHN_ID_MAX = VDEC_MAX_CHN_NUMS
 
 
 # data align up
