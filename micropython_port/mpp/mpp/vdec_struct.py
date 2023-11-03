@@ -15,7 +15,7 @@ def k_vdec_chn_attr(**kwargs):
     layout = uctypes.NATIVE
     buf = bytearray(uctypes.sizeof(vdec_def.k_vdec_chn_attr_desc, layout))
     s = uctypes.struct(uctypes.addressof(buf), vdec_def.k_vdec_chn_attr_desc, layout)
-    vdec_def.rse(s, kwargs)
+    vdec_def.k_vdec_chn_attr_parse(s, kwargs)
     return s
 
 def k_vdec_supplement_info(**kwargs):
