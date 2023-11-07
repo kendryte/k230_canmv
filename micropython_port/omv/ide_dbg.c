@@ -450,7 +450,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         break;
                     }
                     case USBDBG_FRAME_DUMP: {
-                        pr("cmd: USBDBG_FRAME_DUMP");
+                        // pr("cmd: USBDBG_FRAME_DUMP");
                         // DO NOT PRINT
                         #if PRINT_ALL
                         pr("cmd: USBDBG_FRAME_DUMP");

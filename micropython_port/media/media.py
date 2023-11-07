@@ -191,6 +191,10 @@ class media:
             print("This method can only be called once, please check your code!!!")
             return -1
 
+        # for JPEG encoder
+        cls.buf_config.comm_pool[cls.config_index].blk_size = 1843200
+        cls.buf_config.comm_pool[cls.config_index].blk_cnt = 8
+        cls.buf_config.comm_pool[cls.config_index].mode = VB_REMAP_MODE_NOCACHE
         ret = kd_mpi_vb_set_config(cls.buf_config)
         if ret:
             print(f"buffer_init, vb config failed({ret})")
@@ -214,6 +218,7 @@ class media:
 
     @classmethod
     def buffer_deinit(cls):
+        return
         cls.buf_config.max_pool_cnt = 0
         cls.config_index = 0
         cls.__buf_has_init = False
