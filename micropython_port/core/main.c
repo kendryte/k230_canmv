@@ -42,6 +42,8 @@
 #include <errno.h>
 #include <signal.h>
 
+#include "mpi_vb_api.h"
+#include "mpi_venc_api.h"
 #include "nlr.h"
 #include "py/compile.h"
 #include "py/runtime.h"
@@ -847,6 +849,13 @@ MP_NOINLINE int main_(int argc, char **argv) {
     }
     #endif
     #endif
+    extern char jpeg_encoder_created;
+    if (jpeg_encoder_created) {
+        kd_mpi_venc_stop_chn(VENC_MAX_CHN_NUMS - 1);
+        kd_mpi_venc_destroy_chn(VENC_MAX_CHN_NUMS - 1);
+    }
+    jpeg_encoder_created = 0;
+    kd_mpi_vb_exit();
 
     // printf("total bytes = %d\n", m_get_total_bytes_allocated());
     goto soft_reset;

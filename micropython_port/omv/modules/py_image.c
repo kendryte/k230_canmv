@@ -1002,7 +1002,7 @@ static mp_obj_t py_image_midpoint_pooled(size_t n_args, const mp_obj_t *args, mp
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_midpoint_pooled_obj, 3, py_image_midpoint_pooled);
 #endif // IMLIB_ENABLE_MIDPOINT_POOLING
 
-static int rgb888_to_builtin(image_t *src, image_t *dst, mp_map_t *kw_args)
+/*static int rgb888_to_builtin(image_t *src, image_t *dst, mp_map_t *kw_args)
 {
     memcpy(dst, src, sizeof(image_t));
     dst->alloc_type = ALLOC_REF;
@@ -1021,13 +1021,13 @@ static int rgb888_to_builtin(image_t *src, image_t *dst, mp_map_t *kw_args)
     }
 
     return 0;
-}
+}*/
 
 static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_palette, bool copy_to_fb,
                             mp_obj_t copy_default, bool quality_is_first_arg, bool encode_for_ide_default,
                             size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
     image_t *src_img = py_image_cobj(args[0]);
-    image_t temp_img;
+    // image_t temp_img;
     bool dst_is_rgb888 = false;
 
     if (pixfmt == PIXFORMAT_RGB888) {
@@ -1035,8 +1035,8 @@ static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_pa
         pixfmt = PIXFORMAT_RGB565;
     }
 
-    rgb888_to_builtin(src_img, &temp_img, kw_args);
-    src_img = &temp_img;
+    //rgb888_to_builtin(src_img, &temp_img, kw_args);
+    //src_img = &temp_img;
 
     int quality_default = 90;
     if (quality_is_first_arg && (n_args > 1)) {
@@ -1242,7 +1242,9 @@ static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_pa
 
     if (dst_is_rgb888)
         dst_img.pixfmt = PIXFORMAT_RGB888;
+    fprintf(stderr, "[omv] enter py_image_alloc\n");
     py_image_alloc(&dst_img, kw_args);
+    fprintf(stderr, "[omv] exit py_image_alloc\n");
     if (dst_is_rgb888)
         dst_img.pixfmt = PIXFORMAT_RGB565;
 
@@ -1267,8 +1269,8 @@ static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_pa
         fb_alloc_free_till_mark();
     }
 
-    if (temp_img.alloc_type == ALLOC_MPGC)
-        xfree(temp_img.data);
+    // if (temp_img.alloc_type == ALLOC_MPGC)
+    //    xfree(temp_img.data);
 
     if (dst_is_rgb888) {
         uint16_t *rgb565 = (uint16_t *)(dst_img.data + dst_img.w * dst_img.h * 2);

@@ -34,7 +34,7 @@ void ide_set_fb(const void* data, uint32_t size, uint32_t width, uint32_t height
 
 void fb_encode_for_ide(uint8_t *ptr, image_t *img)
 {
-    fprintf(stderr, "[omv] %s %p %u %p\n", __func__, ptr, img->size, img->data);
+    // fprintf(stderr, "[omv] %s %p %u %p\n", __func__, ptr, img->size, img->data);
     ide_set_fb(img->data, img->size, img->w, img->h);
     #if 0
     FILE* f = fopen("/sdcard/img0.bin", "w");
