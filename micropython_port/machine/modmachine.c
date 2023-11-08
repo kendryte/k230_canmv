@@ -33,6 +33,7 @@
 #include <sys/mman.h>
 
 #include "extmod/machine_mem.h"
+#include "machine_uart.h"
 #include "machine_pwm.h"
 #include "machine_wdt.h"
 #include "machine_gpio.h"
@@ -59,6 +60,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_0(machine_reset_obj, machine_reset);
 STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_machine) },
     { MP_ROM_QSTR(MP_QSTR_reset), MP_ROM_PTR(&machine_reset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_UART), MP_ROM_PTR(&machine_uart_type) },
     { MP_ROM_QSTR(MP_QSTR_PWM), MP_ROM_PTR(&machine_pwm_type) },
     { MP_ROM_QSTR(MP_QSTR_WDT), MP_ROM_PTR(&machine_wdt_type) },
     { MP_ROM_QSTR(MP_QSTR_GPIO), MP_ROM_PTR(&machine_gpio_type) },
