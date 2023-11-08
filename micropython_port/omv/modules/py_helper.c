@@ -304,7 +304,29 @@ int py_helper_keyword_color(image_t *img, uint n_args, const mp_obj_t *args, uin
         }
     }
 
-    return default_val;
+    uint32_t p = default_val;
+
+    switch (img->pixfmt) {
+        case PIXFORMAT_BINARY:
+            p = COLOR_RGB888_TO_Y((uint8_t)(p >> 16), (uint8_t)(p >> 8), (uint8_t)p);
+            p = p > (((COLOR_Y_MAX - COLOR_Y_MIN) / 2) + COLOR_Y_MIN);
+            break;
+        case PIXFORMAT_GRAYSCALE:
+            p = COLOR_RGB888_TO_Y((uint8_t)(p >> 16), (uint8_t)(p >> 8), (uint8_t)p);
+            break;
+        case PIXFORMAT_RGB565:
+            p = ((p & 0x00f80000) >> 8) | ((p & 0x0000fc00) >> 5) | ((p & 0x000000f8) >> 3);
+            break;
+        case PIXFORMAT_RGB888:
+            p &= 0x00ffffff;
+            break;
+        case PIXFORMAT_ARGB8888:
+            break;
+        default:
+            break;
+    }
+
+    return p;
 }
 
 void py_helper_arg_to_thresholds(const mp_obj_t arg, list_t *thresholds) {

@@ -44,7 +44,7 @@
 #define RT_USING_DEVICE_OPS
 #define RT_USING_CONSOLE
 #define RT_CONSOLEBUF_SIZE 256
-#define RT_CONSOLE_DEVICE_NAME "uart"
+#define RT_CONSOLE_DEVICE_NAME "uart3"
 #define RT_VER_NUM 0x50000
 #define ARCH_CPU_64BIT
 #define RT_USING_CACHE
@@ -152,6 +152,7 @@
 #define RT_USING_HWTIMER
 #define RT_USING_HW_TIMER0
 #define RT_USING_HW_TIMER1
+#define RT_USING_HW_TIMER2
 #define RT_SDIO_STACK_SIZE 512
 #define RT_SDIO_THREAD_PRIORITY 15
 #define RT_MMCSD_STACK_SIZE 4096
@@ -159,7 +160,22 @@
 #define RT_MMCSD_MAX_PARTITION 16
 #define RT_USING_DEV_BUS
 #define RT_USING_REGULATOR
+/* canaan uart driver for uart1 uart2 uart4 */
+#define RT_USING_CANAAN_UART
+#define RT_USING_UART1
+#define RT_USING_UART2
+#define RT_USING_UART4
+#define UART_BUFFER_SIZE     (4096)
+#define POLLIN_SIZE          (UART_BUFFER_SIZE / 2)
+#define UART_TIMEOUT         (1000)
 
+//#define PKG_USING_CHERRYUSB
+//#define CONFIG_ENABLE_USB_DEVICE 1
+//#define PKG_CHERRYUSB_DEVICE_DWC2
+//#define PKG_CHERRYUSB_DEVICE_DWC2_PORT_HS
+//#define PKG_CHERRYUSB_DEVICE
+//#define PKG_CHERRYUSB_DEVICE_CDC
+//#define PKG_CHERRYUSB_DEVICE_MSC
 /* Using USB */
 
 /*Using fast boot*/
