@@ -13,13 +13,25 @@ FRAME_BUF_SIZE = MAX_WIDTH*MAX_HEIGHT*2
 INPUT_BUF_CNT = 4
 OUTPUT_BUF_CNT = 6
 
+def _vdec_vb_buffer_init():
+    config = k_vb_config()
+    config.max_pool_cnt = 2
+    return media.buffer_config(config)
+
 class Decoder:
+    #vb init flag
+    _vb_init = False
+
     input_pool_id = [-1 for i in range(0,VDEC_MAX_CHN_NUMS)]
     output_pool_id = [-1 for i in range(0,VDEC_MAX_CHN_NUMS)]
     chns_enable = [0 for i in range(0,VDEC_MAX_CHN_NUMS)]
 
     @classmethod
     def vb_create_pool(cls,chn):
+        if (not cls._vb_init):
+            _vdec_vb_buffer_init()
+            cls._vb_init = True
+
         pool_config = k_vb_pool_config()
         pool_config.blk_cnt = INPUT_BUF_CNT
         pool_config.blk_size = STREAM_BUF_SIZE
@@ -41,10 +53,20 @@ class Decoder:
         print("destory_pool output ", cls.output_pool_id[chn])
         kd_mpi_vb_destory_pool(cls.output_pool_id[chn])
 
+        if (cls.find_use_chn_index() == -1):
+            cls._vb_init = False
+
     @classmethod
     def get_free_chn_index(cls):
         for i in cls.chns_enable:
             if (i == 0):
+                return i
+        return -1
+
+    @classmethod
+    def find_use_chn_index(cls):
+        for i in cls.chns_enable:
+            if (i == 1):
                 return i
         return -1
 

@@ -125,7 +125,7 @@ class Player:
 
         file_info = k_mp4_file_info_s()
         kd_mp4_get_file_info(self.mp4_handle.value, file_info)
-        print("=====file_info: track_num:",file_info.track_num,"duration:",file_info.duration)
+        #print("=====file_info: track_num:",file_info.track_num,"duration:",file_info.duration)
 
         for i in range(file_info.track_num):
             track_info = k_mp4_track_info_s()
