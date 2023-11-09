@@ -1,3 +1,9 @@
+# audio input and output example
+#
+# Note: You will need an SD card to run this example.
+#
+# You can play wav files or capture audio to save as wav
+
 from media.pyaudio import *
 import media.wave as wave
 from media.media import *

@@ -1,3 +1,9 @@
+# play mp4 file example
+#
+# Note: You will need an SD card to run this example.
+#
+# You can load local files to play. The current version only supports MP4 format, video supports 264/265, and audio supports g711a/g711u.
+
 from media.player import *
 
 start_play = False

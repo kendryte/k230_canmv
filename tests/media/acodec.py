@@ -1,3 +1,10 @@
+# g711 encode/decode example
+#
+# Note: You will need an SD card to run this example.
+#
+# You can collect raw data and encode it into g711 or decode it into raw data output.
+
+
 from media.pyaudio import *
 from media.media import *
 import media.g711 as g711

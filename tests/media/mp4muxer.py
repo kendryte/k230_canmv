@@ -1,3 +1,9 @@
+# Save MP4 file example
+#
+# Note: You will need an SD card to run this example.
+#
+# You can capture audio and video and save them as MP4.The current version only supports MP4 format, video supports 264/265, and audio supports g711a/g711u.
+
 from media.mp4format import *
 
 def canmv_mp4_muxer_test():
