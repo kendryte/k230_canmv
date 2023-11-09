@@ -1,3 +1,9 @@
+# Video encode example
+#
+# Note: You will need an SD card to run this example.
+#
+# You can capture videos and encode them into 264 files
+
 from media.vencoder import *
 from media.camera import *
 from media.media import *
