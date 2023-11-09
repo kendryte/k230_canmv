@@ -1,9 +1,13 @@
 import nncase_runtime as nn
 import ulab.numpy as np
 
+# We will explain how to use nncase_runtime in this test script for `KPU`,
+# including model reading, printing input and output information of the model,
+# configuring input data, and how to obtain output.
+
 # init kpu and load kmodel
 kpu = nn.kpu()
-kpu.load_kmodel("/sdcard/app/tests/mbv2/test.kmodel")
+kpu.load_kmodel("/sdcard/app/tests/nncase_runtime/mbv2/test.kmodel")
 
 # dump model input and output info
 print("inputs info:")
@@ -15,7 +19,7 @@ for i in range(kpu.outputs_size()):
     print(kpu.outputs_desc(i))
 
 # set input tensor
-with open('/sdcard/app/tests/mbv2/input_0_0.bin', 'rb') as f:
+with open('/sdcard/app/tests/nncase_runtime/mbv2/input_0_0.bin', 'rb') as f:
     data = f.read()
 
 input_data = np.frombuffer(data, dtype=np.float)
