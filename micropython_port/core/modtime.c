@@ -34,95 +34,48 @@
 
 #include "py/mphal.h"
 #include "py/runtime.h"
-
-#ifdef _WIN32
-static inline int msec_sleep_tv(struct timeval *tv) {
-    msec_sleep(tv->tv_sec * 1000.0 + tv->tv_usec / 1000.0);
-    return 0;
-}
-#define sleep_select(a, b, c, d, e) msec_sleep_tv((e))
-#else
-#define sleep_select select
-#endif
-
-// mingw32 defines CLOCKS_PER_SEC as ((clock_t)<somevalue>) but preprocessor does not handle casts
-#if defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR)
-#define MP_REMOVE_BRACKETSA(x)
-#define MP_REMOVE_BRACKETSB(x) MP_REMOVE_BRACKETSA x
-#define MP_REMOVE_BRACKETSC(x) MP_REMOVE_BRACKETSB x
-#define MP_CLOCKS_PER_SEC MP_REMOVE_BRACKETSC(CLOCKS_PER_SEC)
-#else
-#define MP_CLOCKS_PER_SEC CLOCKS_PER_SEC
-#endif
-
-#if defined(MP_CLOCKS_PER_SEC)
-#define CLOCK_DIV (MP_CLOCKS_PER_SEC / MICROPY_FLOAT_CONST(1000.0))
-#else
-#error Unsupported clock() implementation
-#endif
+#include "py_clock.h"
 
 STATIC mp_obj_t mp_time_time_get(void) {
-    #if MICROPY_PY_BUILTINS_FLOAT && MICROPY_FLOAT_IMPL == MICROPY_FLOAT_IMPL_DOUBLE
+    return mp_obj_new_int((mp_int_t)time(NULL));
+}
+
+uint64_t mp_hal_time_ns(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    mp_float_t val = tv.tv_sec + (mp_float_t)tv.tv_usec / 1000000;
-    return mp_obj_new_float(val);
-    #else
-    return mp_obj_new_int((mp_int_t)time(NULL));
-    #endif
+    return (uint64_t)tv.tv_sec * 1000000000ULL + (uint64_t)tv.tv_usec * 1000ULL;
 }
 
-// Note: this is deprecated since CPy3.3, but pystone still uses it.
-STATIC mp_obj_t mod_time_clock(void) {
-    #if MICROPY_PY_BUILTINS_FLOAT
-    // float cannot represent full range of int32 precisely, so we pre-divide
-    // int to reduce resolution, and then actually do float division hoping
-    // to preserve integer part resolution.
-    return mp_obj_new_float((clock() / 1000) / CLOCK_DIV);
-    #else
-    return mp_obj_new_int((mp_int_t)clock());
-    #endif
+mp_uint_t mp_hal_ticks_cpu(void) {
+    return 0;
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_time_clock_obj, mod_time_clock);
 
-STATIC mp_obj_t mp_time_sleep(mp_obj_t arg) {
-    #if MICROPY_PY_BUILTINS_FLOAT
-    struct timeval tv;
-    mp_float_t val = mp_obj_get_float(arg);
-    mp_float_t ipart;
-    tv.tv_usec = (time_t)MICROPY_FLOAT_C_FUN(round)(MICROPY_FLOAT_C_FUN(modf)(val, &ipart) * MICROPY_FLOAT_CONST(1000000.));
-    tv.tv_sec = (suseconds_t)ipart;
-    int res;
-    while (1) {
-        MP_THREAD_GIL_EXIT();
-        res = sleep_select(0, NULL, NULL, NULL, &tv);
-        MP_THREAD_GIL_ENTER();
-        #if MICROPY_SELECT_REMAINING_TIME
-        // TODO: This assumes Linux behavior of modifying tv to the remaining
-        // time.
-        if (res != -1 || errno != EINTR) {
-            break;
-        }
+mp_uint_t mp_hal_ticks_ms(void) {
+    struct timespec tv;
+    clock_gettime(CLOCK_MONOTONIC, &tv);
+    return tv.tv_sec * 1000 + tv.tv_nsec / 1000000;
+}
+
+mp_uint_t mp_hal_ticks_us(void) {
+    struct timespec tv;
+    clock_gettime(CLOCK_MONOTONIC, &tv);
+    return tv.tv_sec * 1000000 + tv.tv_nsec / 1000;
+}
+
+void mp_hal_delay_us(mp_uint_t us) {
+    mp_uint_t start = mp_hal_ticks_us();
+    mp_uint_t stop = start + us;
+    while (start + 100000 < stop) {
+        usleep(100000);
         mp_handle_pending(true);
-        // printf("select: EINTR: %ld:%ld\n", tv.tv_sec, tv.tv_usec);
-        #else
-        break;
-        #endif
+        start = mp_hal_ticks_us();
     }
-    RAISE_ERRNO(res, errno);
-    #else
-    int seconds = mp_obj_get_int(arg);
-    for (;;) {
-        MP_THREAD_GIL_EXIT();
-        seconds = sleep(seconds);
-        MP_THREAD_GIL_ENTER();
-        if (seconds == 0) {
-            break;
-        }
-        mp_handle_pending(true);
-    }
-    #endif
-    return mp_const_none;
+    if (stop > start)
+        usleep(stop - start);
+}
+
+void mp_hal_delay_ms(mp_uint_t ms) {
+    mp_hal_delay_us(ms * 1000);
 }
 
 STATIC mp_obj_t mod_time_gm_local_time(size_t n_args, const mp_obj_t *args, struct tm *(*time_func)(const time_t *timep)) {
@@ -200,8 +153,14 @@ STATIC mp_obj_t mod_time_mktime(mp_obj_t tuple) {
 }
 MP_DEFINE_CONST_FUN_OBJ_1(mod_time_mktime_obj, mod_time_mktime);
 
+// Note: this is deprecated since CPy3.3, but pystone still uses it.
+STATIC mp_obj_t mod_time_clock(void) {
+    return mp_obj_new_int((mp_int_t)clock());
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_time_clock_obj, mod_time_clock);
+
 #define MICROPY_PY_TIME_EXTRA_GLOBALS \
-    { MP_ROM_QSTR(MP_QSTR_clock), MP_ROM_PTR(&mod_time_clock_obj) }, \
+    { MP_ROM_QSTR(MP_QSTR_clock), MP_ROM_PTR(&py_clock_type) }, \
     { MP_ROM_QSTR(MP_QSTR_gmtime), MP_ROM_PTR(&mod_time_gmtime_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_localtime), MP_ROM_PTR(&mod_time_localtime_obj) }, \
     { MP_ROM_QSTR(MP_QSTR_mktime), MP_ROM_PTR(&mod_time_mktime_obj) },
