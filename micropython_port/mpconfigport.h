@@ -73,24 +73,13 @@ typedef long long mp_off_t;
 #define MICROPY_HELPER_LEXER_UNIX   (1)
 #define MICROPY_VFS_POSIX           (1)
 #define MICROPY_READER_POSIX        (1)
-#ifndef MICROPY_TRACKED_ALLOC
 #define MICROPY_TRACKED_ALLOC       (0)
-#endif
-// VFS stat functions should return time values relative to 1970/1/1
-#define MICROPY_EPOCH_IS_1970       (1)
 // Assume that select() call, interrupted with a signal, and erroring
 // with EINTR, updates remaining timeout value.
 #define MICROPY_SELECT_REMAINING_TIME (1)
 // Disable stackless by default.
-#ifndef MICROPY_STACKLESS
 #define MICROPY_STACKLESS           (0)
 #define MICROPY_STACKLESS_STRICT    (0)
-#endif
-// If settrace is enabled then we need code saving.
-#if MICROPY_PY_SYS_SETTRACE
-#define MICROPY_PERSISTENT_CODE_SAVE (1)
-#define MICROPY_COMP_CONST (0)
-#endif
 
 #define MICROPY_ALLOC_PATH_MAX      (PATH_MAX)
 #define MICROPY_PY_HASHLIB_MD5      (1)
@@ -116,29 +105,6 @@ typedef long long mp_off_t;
 extern const struct _mp_print_t mp_stderr_print;
 #define MICROPY_DEBUG_PRINTER (&mp_stderr_print)
 #define MICROPY_ERROR_PRINTER (&mp_stderr_print)
-
-// For the native emitter configure how to mark a region as executable.
-void mp_unix_alloc_exec(size_t min_size, void **ptr, size_t *size);
-void mp_unix_free_exec(void *ptr, size_t size);
-void mp_unix_mark_exec(void);
-#define MP_PLAT_ALLOC_EXEC(min_size, ptr, size) mp_unix_alloc_exec(min_size, ptr, size)
-#define MP_PLAT_FREE_EXEC(ptr, size) mp_unix_free_exec(ptr, size)
-#ifndef MICROPY_FORCE_PLAT_ALLOC_EXEC
-// Use MP_PLAT_ALLOC_EXEC for any executable memory allocation, including for FFI
-// (overriding libffi own implementation)
-#define MICROPY_FORCE_PLAT_ALLOC_EXEC (0)
-#endif
-
-// If enabled, configure how to seed random on init.
-#ifdef MICROPY_PY_RANDOM_SEED_INIT_FUNC
-#include <stddef.h>
-void mp_hal_get_random(size_t n, void *buf);
-static inline unsigned long mp_random_seed_init(void) {
-    unsigned long r;
-    mp_hal_get_random(sizeof(r), &r);
-    return r;
-}
-#endif
 
 // From "man readdir": "Under glibc, programs can check for the availability
 // of the fields [in struct dirent] not defined in POSIX.1 by testing whether
@@ -246,7 +212,6 @@ static inline unsigned long mp_random_seed_init(void) {
 // Enable the unix-specific "time" module.
 #define MICROPY_PY_TIME                (1)
 #define MICROPY_PY_TIME_TIME_TIME_NS   (1)
-#define MICROPY_PY_TIME_CUSTOM_SLEEP   (1)
 #define MICROPY_PY_TIME_INCLUDEFILE    "core/modtime.c"
 
 #if MICROPY_PY_SSL
