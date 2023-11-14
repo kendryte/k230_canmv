@@ -4,6 +4,8 @@ variables:
     HW_MODEL: canmv
     HW_VER: v0.1
     TFTP_BASE: /data1/tftp_server
+    NFS_BASE: /data/nfs_server
+    NFS_SERVER: 10.10.1.94
     GITLAB_REPO: git@g.a-bug.org:maix_sw/k230_canmv.git
     GITHUB_REPO: git@github.com:kendryte/k230_canmv.git
     GITEE_REPO: git@gitee.com:kendryte/k230_canmv.git
@@ -224,6 +226,26 @@ tag_sync:
     - echo "---save sdk build output---"
     - sudo cp -rf --sparse=always ${SRC_DIR}/ ${DST_DIR}/${SUB_DIR}/
     - echo "${DST_DIR}/${SUB_DIR}/"
+    - |
+        echo "check linux and rtsmart should be enable at the same time to cp mpp/cdk demo"
+        config_rtsmart=$(cat ./configs/${CONF} | grep 'CONFIG_SUPPORT_RTSMART=y' || true)
+        config_linux=$(cat ./configs/${CONF} | grep 'CONFIG_SUPPORT_LINUX=y' || true)
+        if [[ -n "$config_rtsmart" ]] && [[ -n "$config_linux" ]];
+        then
+          sudo mkdir -p ${DST_DIR}/${SUB_DIR}/sdk_testcase/ || exit 1
+          echo "---save sdk testcase output---"
+          mkdir -p sdk_testcase/app_demo/
+          cp -rf --sparse=always ./src/big/mpp/userapps/sample/elf/* ./sdk_testcase/app_demo/
+          cp -rf --sparse=always ./src/common/cdk/user/out/big/* ./sdk_testcase/app_demo/
+          tree ./sdk_testcase/
+          echo "---compress sdk_testcase dir---"
+          tar -zcf k230_testcase_${SUB_BASE}.tar.gz ./sdk_testcase/ || exit 1
+          echo "---save zip file---"
+          sudo cp -rf --sparse=always k230_testcase_${SUB_BASE}.tar.gz ${DST_DIR}/${SUB_DIR}/sdk_testcase/
+        else
+            echo "current config only support linux or only support rtsmart ,skip cp mpp/cdk demo"
+        fi
+    - echo "${DST_DIR}/${SUB_DIR}/"
     - ls "${DST_DIR}/${SUB_DIR}/"
     - echo "add latest link for current build"
     - test -h ${DST_DIR}/latest && sudo rm ${DST_DIR}/latest
@@ -291,7 +313,7 @@ tag_sync:
     - test -f ./bin/ailab && rm -rf ./bin/ailab
     - wget -qc https://ai.b-bug.org/k510/downloads/github/ailab -O ./bin/ailab
     - chmod +x ./bin/ailab
-    - available=$(./bin/ailab show --dest available --domain ai --hw_type ${HW_TYPE} --hw_model ${HW_MODEL} --hw_ver ${HW_VER} --format args)
+    - available=$(./bin/ailab show --dest available --domain ${TEST_ENV} --hw_type ${HW_TYPE} --hw_model ${HW_MODEL} --hw_ver ${HW_VER} --format args)
     - echo ${available}
     - >
        if [[ $available =~ "k230" ]]; then
@@ -417,6 +439,112 @@ tag_sync:
         echo "---finished load image in loop $i"
     - echo "---load image pass"
     - echo "----------load image to test device done----------"
+  copy_test_resource:
+    - echo "----------Step 5. copy test resource----------"
+    - echo "get build step result"
+    - echo $sdk_path
+    - echo $image_path
+    - echo $utest_path
+    - echo $ai_poc_path
+    - echo $fancy_poc_path
+    - echo $SUB_BASE
+    - pwd
+    - |
+        echo "---get utest floder without build or with build---"
+        if [[ -z $utest_path ]]; then
+          echo "k230 utest NOT build in current job, use latest utest daily build"
+          echo "get latest K230 utest"
+          utest_ver=$(ls -alht /data1/k230/dev-release/utest/latest | awk -F '/' '{print $11}')
+          utest_dir=$(ls -alht /data1/k230/dev-release/utest/latest | awk -F '-> ' '{print $2}')
+          ls -alht $utest_dir || exit 1
+          utest_path="$utest_dir/k230_utest_${utest_ver}.tar.gz"
+          echo "---use latest utest path: $utest_path"
+          echo "---use latest utest ver: $utest_ver"
+        else
+          echo "k230 utest already build and exist in current job"
+          utest_ver=$SUB_BASE
+          echo "---use current utest path: $utest_path"
+          echo "---use current utest ver: $utest_ver"
+        fi
+    - echo "---get nfs case floder---"
+    - |
+      echo ${NFS_BASE}
+      echo "set NFS_DST_DIR with different type based on docs/images/src"
+      NFS_DST_DIR="${NFS_BASE}/${HW_TYPE}/${HW_MODEL}_${HW_VER}"
+      echo ${NFS_DST_DIR}
+      echo "---create NFS dir---"
+      echo "generate sub dir for MR/Pre-releae/relese job"
+      echo "check job from MR or tag or schedule or web"
+      sdk_testcase_copy="NO"
+      if [[ ${CI_MERGE_REQUEST_IID} ]]; then
+          echo "current job is MR, skip and use CI_MERGE_REQUEST_IID"
+          echo "set MR flag for sdk_testcase copy"
+          sdk_testcase_copy="YES"
+      elif [[ ${CI_COMMIT_TAG} ]]; then
+          echo "current job is release job, use CI_COMMIT_TAG"
+          CI_MERGE_REQUEST_IID=${CI_COMMIT_TAG}
+      elif [[ $CI_PIPELINE_SOURCE == "schedule" ]]; then
+          echo "current job is daily build schedule job, use CI_PIPELINE_SOURCE"
+          CI_MERGE_REQUEST_IID=$CI_PIPELINE_SOURCE
+      else
+          echo "current job is not match, use CI_PIPELINE_SOURCE"
+          CI_MERGE_REQUEST_IID=$CI_PIPELINE_SOURCE
+      fi
+      echo "current MR ID ${CI_MERGE_REQUEST_IID}"
+      SUB_DIR="${CI_MERGE_REQUEST_IID}_${CI_PIPELINE_ID}";
+      NFS_CASE_FOLDER="${NFS_DST_DIR}/${SUB_DIR}/${TEST_ENV}"
+      echo "NFS_CASE_FOLDER: $NFS_CASE_FOLDER"
+      echo "update current NFS_CASE_FOLDER permission before write"
+      sudo mkdir -p ${NFS_CASE_FOLDER} || exit 1
+      sudo chmod -R 777 ${NFS_CASE_FOLDER} || exit 1
+    - echo "---copy test resource to nfs dir in nfs_server"
+    - mkdir -p $NFS_CASE_FOLDER/output || exit 1
+    - sudo chmod -R 777 $NFS_CASE_FOLDER/output || exit 1
+    #- test -h $NFS_CASE_FOLDER/resource && rm -rf $NFS_CASE_FOLDER/resource
+    #- ln -s $NFS_BASE/$HW_TYPE/resource $NFS_CASE_FOLDER/resource || exit 1
+    - time cp -rf --sparse=always $NFS_BASE/$HW_TYPE/resource $NFS_CASE_FOLDER/resource
+    - echo "unzip utest file to nfs dir in nfs_server"
+    - cd $NFS_CASE_FOLDER/ || exit 1;
+    - ls $utest_path || exit 1
+    - time tar -zxf $utest_path || exit 1
+    - ls -alht || exit 1
+    - |
+       if [[ -d "testcase" ]]; then
+         echo "testcase dir exist, skip rename and continue"
+       elif [[ -d "utest" ]]; then
+         echo "testcase not exist and utest exist, rename utest dir to testcase"
+         mv -f utest testcase || exit 1
+       else
+         echo "utest and testcase dir not exit, return error and exit"
+         exit 1
+       fi
+    - echo "confirm testcase dir again"
+    - ls -alht testcase || exit 1
+    - |
+        echo "copy sdk testcase for MR smoke test"
+        if [[ "$sdk_testcase_copy" == "YES" ]]; then
+          echo "current job is MR, copy sdk_testcase from image path"
+          echo $image_path || exit 1
+          echo "get testcase full path"
+          ls $image_path/$DEFAULT_CONF/sdk_testcase/ |grep k230_testcase
+          sdk_testcase_name=$(ls $image_path/$DEFAULT_CONF/sdk_testcase/ |grep k230_testcase)
+          echo $sdk_testcase_name || exit 1
+          time tar -zxf $image_path/$DEFAULT_CONF/sdk_testcase/$sdk_testcase_name || exit 1
+        else
+          echo "current job is not MR, skip copy sdk testcase"
+        fi
+    - echo "show test resource in nfs_server"
+    - tree $NFS_CASE_FOLDER
+    - cd -
+    - pwd
+    - echo "finished copy test resource in nfs_server"
+    - echo "----------Step 6. generate test device yml file for test job----------"
+    - ./bin/ailab convert --dest=script --format yaml --file_name=${TEST_ENV}.yml --nfs_server_ip $NFS_SERVER --nfs_case_folder $NFS_CASE_FOLDER ${available}
+    - test -f ${TEST_ENV}.yml || exit 1
+    - echo "cp ${TEST_ENV}.yml to nfs_case_folder for NUC remote PC audio job"
+    - cp -rf --sparse=always ${TEST_ENV}.yml $NFS_CASE_FOLDER/ || exit 1
+    - test -f $NFS_CASE_FOLDER/${TEST_ENV}.yml || exit 1
+
   smoke_test:
     - echo "----------Run Smoke Test start----------"
     - test -d bin || mkdir ./bin
@@ -425,8 +553,11 @@ tag_sync:
     - chmod +x ./bin/airobot
     - test -f ./k230.robot && rm -rf ./k230.robot
     - wget -qc https://ai.b-bug.org/k510/downloads/github/k230.robot -O ./k230.robot
-    - ./bin/ailab convert --dest=script --format yaml --file_name=k230.yml ${available}
-    - test -f k230.yml || exit 1
+    - ./bin/ailab convert --dest=script --format yaml --file_name=${TEST_ENV}.yml --nfs_server_ip $NFS_SERVER --nfs_case_folder $NFS_CASE_FOLDER ${available}
+    - test -f ${TEST_ENV}.yml || exit 1
+    - echo "cp ${TEST_ENV}.yml to nfs_case_folder for NUC remote PC audio job"
+    - cp -rf --sparse=always ${TEST_ENV}.yml $NFS_CASE_FOLDER/ || exit 1
+    - test -f $NFS_CASE_FOLDER/${TEST_ENV}.yml || exit 1
     - echo ""----------Run smoke test start"----------"
     - |
         echo "---start to run smoke test in for loop"
@@ -600,26 +731,28 @@ build_image:
     reports:
       dotenv: build.env
 
-# test setup for all jobs
-# load_image_smoke_test:
-#   stage: load_test
-#   rules:
-#     # MR job
-#     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-#     # release job
-#     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
-#     # pre-release job
-#     - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
-#     # manual job
-#     - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG !~ /^v\d+\.\d+.*$/
-#     # daily build
-#     - if: $CI_PIPELINE_SOURCE == "schedule"
-#   timeout: 30m
-#   script:
-#     - *show_vars
-#     - *check_build_result
-#     - !reference [.test, test_setup]
-#     - !reference [.test, load_image]
-#     #- !reference [.test, smoke_test]
-#   after_script:
-#     - !reference [.test, test_teardown]
+#test setup for all jobs
+load_image_smoke_test:
+  stage: load_test
+  variables:
+    TEST_ENV: ai
+  rules:
+    # MR job
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # release job
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+    # pre-release job
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+    # manual job
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG !~ /^v\d+\.\d+.*$/
+    # daily build
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  timeout: 30m
+  script:
+    - *show_vars
+    - *check_build_result
+    - !reference [.test, test_setup]
+    - !reference [.test, load_image]
+    #- !reference [.test, smoke_test]
+  after_script:
+    - !reference [.test, test_teardown]
