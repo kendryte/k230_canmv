@@ -317,7 +317,7 @@ def face_detect_test():
                         x1, y1, x2, y2 = map(lambda x: int(round(x, 0)), det[:4])
                         w = (x2 - x1) * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
                         h = (y2 - y1) * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
-                        draw_img.draw_rectangle(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH, y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH, w, h, color=(0,255,0,255))
+                        draw_img.draw_rectangle(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH, y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH, w, h, color=(255,255,0,255))
                     draw_img.copy_to(osd_img)
                     display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
                 else:

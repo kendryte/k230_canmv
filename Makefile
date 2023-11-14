@@ -109,6 +109,7 @@ micropython: k230_sdk_build
 .PHONY: build-image
 build-image: micropython
 	@cp -r tests $(K230_CANMV_BUILD_DIR)/images/app
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_detection_320.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/nncase_runtime/face_detection
 	@make -C k230_sdk build-image
 
 .PHONY: micropython-clean
