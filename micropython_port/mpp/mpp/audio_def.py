@@ -10,7 +10,6 @@ k_audio_pdm_attr_desc = {
     "point_num_per_frame": 24 | uctypes.UINT32,
 }
 
-'''
 k_audio_i2s_attr_desc = {
     "chn_cnt": 0 | uctypes.UINT32,
     "sample_rate": 4 | uctypes.UINT32,
@@ -21,18 +20,6 @@ k_audio_i2s_attr_desc = {
     "frame_num": 24 | uctypes.UINT32,
     "point_num_per_frame": 28 | uctypes.UINT32,
     "i2s_type": 32 | uctypes.UINT32,
-}
-'''
-
-k_audio_i2s_attr_desc = {
-    "chn_cnt": 0 | uctypes.UINT32,
-    "sample_rate": 4 | uctypes.UINT32,
-    "bit_width": 8 | uctypes.UINT32,
-    "snd_mode": 12 | uctypes.UINT32,
-    "i2s_mode": 16 | uctypes.UINT32,
-    "frame_num": 20 | uctypes.UINT32,
-    "point_num_per_frame": 24 | uctypes.UINT32,
-    "i2s_type": 28 | uctypes.UINT32,
 }
 
 kd_audio_attr_desc = {
