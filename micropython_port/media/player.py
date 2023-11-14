@@ -44,6 +44,10 @@ class Player:
             elif (self.video_info.codec_id == K_MP4_CODEC_ID_H265):
                 self.vdec = vdecoder.Decoder(K_PT_H265)
 
+            if (not self.audio_track):
+                self.pyaudio = PyAudio()
+                self.pyaudio.initialize(48000//25)
+
         ret = media.buffer_init()
         if ret:
             raise ValueError("player buffer_init failed")
