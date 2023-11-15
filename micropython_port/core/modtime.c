@@ -66,12 +66,18 @@ void mp_hal_delay_us(mp_uint_t us) {
     mp_uint_t start = mp_hal_ticks_us();
     mp_uint_t stop = start + us;
     while (start + 100000 < stop) {
+        MP_THREAD_GIL_EXIT();
         usleep(100000);
+        MP_THREAD_GIL_ENTER();
         mp_handle_pending(true);
         start = mp_hal_ticks_us();
     }
-    if (stop > start)
+    if (stop > start) {
+        MP_THREAD_GIL_EXIT();
         usleep(stop - start);
+        MP_THREAD_GIL_ENTER();
+        mp_handle_pending(true);
+    }
 }
 
 void mp_hal_delay_ms(mp_uint_t ms) {

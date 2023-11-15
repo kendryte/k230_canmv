@@ -55,7 +55,7 @@ void mp_hal_stdout_tx_strn(const char *str, size_t len);
 #endif
 
 static pthread_t ide_dbg_task_p;
-static unsigned char usb_cdc_read_buf[1024];
+static unsigned char usb_cdc_read_buf[4096];
 static struct ide_dbg_svfil_t ide_dbg_sv_file;
 static mp_obj_exception_t ide_exception; //IDE interrupt
 static mp_obj_str_t ide_exception_str;
@@ -64,7 +64,7 @@ static mp_obj_tuple_t* ide_exception_str_tuple = NULL;
 static mp_obj_t mp_const_ide_interrupt = (mp_obj_t)(&ide_exception);
 #endif
 static sem_t stdin_sem;
-static char stdin_ring_buffer[256];
+static char stdin_ring_buffer[4096];
 static unsigned stdin_write_ptr = 0;
 static unsigned stdin_read_ptr = 0;
 
@@ -158,7 +158,7 @@ void ide_dbg_on_script_end(void) {
 
 static void interrupt_repl(void) {
     stdin_ring_buffer[stdin_write_ptr++] = CHAR_CTRL_D;
-    stdin_write_ptr %= 256;
+    stdin_write_ptr %= sizeof(stdin_ring_buffer);
     sem_post(&stdin_sem);
 }
 
