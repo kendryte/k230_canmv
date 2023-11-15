@@ -1,8 +1,9 @@
 from machine import I2C
 
-i2c4=machine.I2C(4)     # init i2c4
+i2c4=I2C(4)     # init i2c4
 
-i2c4.scan()     #scan i2c slave
+a=i2c4.scan()     #scan i2c slave
+print(a)
 
 i2c4.writeto_mem(0x3b,0xff,bytes([0x80]),mem_size=8)    # write hdmi page address(0x80)
 i2c4.readfrom_mem(0x3b,0x00,1,mem_size=8)   # read hdmi id0 ,value =0x17     
