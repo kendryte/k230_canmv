@@ -9,7 +9,7 @@ import ulab.numpy as np      # 导入numpy
 # init kpu、ai2d and load kmodel
 kpu = nn.kpu()
 ai2d = nn.ai2d()
-kpu.load_kmodel("/sdcard/app/tests/nncase_runtime/face_detection/face_detection.kmodel")
+kpu.load_kmodel("/sdcard/app/tests/nncase_runtime/face_detection/face_detection_320.kmodel")
 
 # init kpu input with zero for linking kpu and ai2d
 data = np.zeros((1,3,320,320),dtype=np.uint8)
