@@ -128,7 +128,7 @@ void mp_hal_stdio_mode_orig(void) {
 int mp_hal_stdin_rx_chr(void) {
     extern int usb_rx(void);
     char c = usb_rx();
-    fprintf(stderr, "[mpy] stdin rx %d\n", c);
+    // fprintf(stderr, "[mpy] stdin rx %d\n", c);
     return c;
 }
 
@@ -139,10 +139,10 @@ void mp_hal_stdout_tx_strn(const char *str, size_t len) {
         mpy_stdout_tx(str, len);
     } else {
         extern int usb_tx(const void* buffer, size_t size);
-        fprintf(stderr, "[usb] print: ");
-        extern void print_raw(uint8_t* data, size_t size);
-        fwrite(str, 1, len, stderr);
-        fwrite("\r\n", 1, 2, stderr);
+        // fprintf(stderr, "[usb] print: ");
+        // extern void print_raw(uint8_t* data, size_t size);
+        // fwrite(str, 1, len, stderr);
+        // fwrite("\r\n", 1, 2, stderr);
         usb_tx(str, len);
     }
     mp_os_dupterm_tx_strn(str, len);
