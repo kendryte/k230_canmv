@@ -1,1 +1,1 @@
-/sdcard/app/micropython
+/sharefs/app/micropython

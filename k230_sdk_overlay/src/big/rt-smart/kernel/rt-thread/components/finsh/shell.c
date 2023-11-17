@@ -449,15 +449,23 @@ void finsh_thread_entry(void *parameter)
     finsh_wait_auth();
 #endif
 
-    rt_kprintf(FINSH_PROMPT);
+    
+    
+
 static int shell_thread_first_run = 1;
     while (1)
     {
+
         if(shell_thread_first_run) {
-            shell_thread_first_run = 0;
+            struct stat stat_buf;
             // due to SD card probe slow
-            sleep(2);
-            msh_exec("/bin/init.sh", 13);
+            //int stat(const char *file_name, struct stat *buf);
+            if(0 == stat("/sharefs/app/micropython",&stat_buf)){
+                shell_thread_first_run = 0;
+                rt_kprintf(FINSH_PROMPT);
+                msh_exec("/bin/init.sh", 13);
+            }
+
             continue;
         }
         ch = finsh_getchar();

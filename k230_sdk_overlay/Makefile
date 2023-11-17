@@ -203,7 +203,11 @@ mpp-apps:check_src
 	export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH); \
 	cd $(MPP_SRC_DIR); \
 	make -C userapps/src || exit $?; \
+	mkdir -p userapps/sample/elf; \
+	mkdir -p userapps/sample/fastboot_elf; \
+	make -C userapps/sample || exit $?; \
 	mkdir -p $(RTSMART_SRC_DIR)/userapps/root/bin/; \
+	source $(K230_SDK_ROOT)/.config; [ "$${CONFIG_BOARD_K230D}" != "y" ] && cp userapps/sample/fastboot_elf/* $(RTSMART_SRC_DIR)/userapps/root/bin/; \
 	cp $(RTSMART_SRC_DIR)/init.sh $(RTSMART_SRC_DIR)/userapps/root/bin/; \
 	cd -;
 
@@ -230,14 +234,14 @@ poc:check_src
 	mkdir -p build; cd build; cmake ../; \
 	make && make install; rm ./* -rf; \
 	cd -;
-
+	
 	@export PATH=$(RTT_EXEC_PATH):$(PATH); \
 	export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH); \
 	cd $(K230_SDK_ROOT)/src/reference/business_poc/doorlock_ov9286/big; \
 	mkdir -p build; cd build; cmake ../; \
 	make && make install; rm ./* -rf; \
 	cd -;
-	
+
 .PHONY: peephole	
 peephole:check_src
 	@export PATH=$(RTT_EXEC_PATH):$(PATH); \

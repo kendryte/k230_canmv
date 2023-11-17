@@ -89,7 +89,7 @@
 };
 
 &mmc_sd0{
-    status = "disabled";
+    status = "okay";
     io_fixed_1v8;
     rx_delay_line = <0x00>;
     tx_delay_line = <0x00>;
@@ -99,7 +99,7 @@
 };
 
 &mmc_sd1{
-    status = "disabled";
+    status = "okay";
     no-1-8-v;
     cap-sd-highspeed;
     mshc_ctrl_r = <0x00>;
