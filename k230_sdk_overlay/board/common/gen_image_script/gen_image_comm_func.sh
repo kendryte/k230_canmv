@@ -2,6 +2,29 @@
 source ${K230_SDK_ROOT}/.config
 source ${K230_SDK_ROOT}/.last_conf
 
+gz_file_add_ver()
+{
+	[ $# -lt 1 ] && return
+	local f="$1"
+	
+	local sdk_ver="v0.0.0";
+	local nncase_ver="0.0.0";
+
+	local sdk_ver_file="${K230_SDK_ROOT}/board/common/post_copy_rootfs/etc/version/release_version"
+	local nncase_ver_file="${K230_SDK_ROOT}/src/big/nncase/riscv64/nncase/include/nncase/version.h"
+
+	local storage="$(echo "$f" | sed -nE "s#[^-]*-([^\.]*).*#\1#p")"
+	local conf_name="${CONF%%_defconfig}"
+
+	cat ${sdk_ver_file} | grep v | cut -d- -f 1 > /dev/null && \
+	 	sdk_ver=$(cat ${sdk_ver_file} | grep v | cut -d- -f 1)
+
+	cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2 > /dev/null && \
+		 nncase_ver=$(cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2)
+	rm -rf  ${conf_name}_${storage}_${sdk_ver}_nncase_v${nncase_ver}.img.gz;
+	ln -s  $f ${conf_name}_${storage}_${sdk_ver}_nncase_v${nncase_ver}.img.gz;
+}
+
 
 #依赖 BUILD_DIR，K230_SDK_ROOT
 copye_file_to_images()
@@ -29,6 +52,7 @@ copye_file_to_images()
 		cp -f ${LITTLE_OPENSBI_BUILD_DIR}/platform/generic/firmware/fw_*.bin ${BUILD_DIR}/images/little-core/
 		cp -f ${LITTLE_OPENSBI_BUILD_DIR}/platform/generic/firmware/fw_*.elf ${BUILD_DIR}/images/little-core/
 
+		rm ${BUILD_DIR}/images/little-core/ko-apps -rf
 		mkdir -p ${BUILD_DIR}/images/little-core/ko-apps
 		cp -rf ${LINUX_BUILD_DIR}/rootfs/* ${BUILD_DIR}/images/little-core/ko-apps/
 
@@ -74,6 +98,7 @@ gen_version()
 
 	git rev-parse --short HEAD  &&  commitid=$(git rev-parse --short HEAD) 
 	git describe --tags `git rev-list --tags --max-count=1` && last_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+	git describe --tags --exact-match  && last_tag=$(git describe --tags --exact-match)
 
 	ver="${last_tag}-$(date "+%Y%m%d-%H%M%S")-$(whoami)-$(hostname)-${commitid}"
 	echo -e "#############SDK VERSION######################################" >${ver_file}
@@ -197,7 +222,7 @@ gen_linux_bin ()
 	ROOTFS_END=`printf "0x%x" $ROOTFS_END`
 	sed -i "s/linux,initrd-end = <0x0 .*/linux,initrd-end = <0x0 $ROOTFS_END>;/g" hw/k230.dts.txt
 
-	${LINUX_BUILD_DIR}/scripts/dtc/dtc -I dts -O dtb hw/k230.dts.txt  >k230.dtb;		
+	${LINUX_BUILD_DIR}/scripts/dtc/dtc -I dts -q -O dtb hw/k230.dts.txt  >k230.dtb;		
 	k230_gzip fw_payload.bin;
 	echo a>rd;
 	${mkimage} -A riscv -O linux -T multi -C gzip -a ${CONFIG_MEM_LINUX_SYS_BASE} -e ${CONFIG_MEM_LINUX_SYS_BASE} -n linux -d fw_payload.bin.gz:rd:k230.dtb  ulinux.bin;
@@ -269,6 +294,7 @@ gen_image()
 	rm -rf "${GENIMAGE_TMP}"  
 	gzip -k -f ${image_name}
 	chmod a+rw ${image_name} ${image_name}.gz;
+	gz_file_add_ver ${image_name}.gz
 }
 
 gen_image_spinor_proc_ai_mode()
@@ -384,20 +410,22 @@ shrink_rootfs_common()
 	rm -rf usr/bin/otp_test_demo;
 	rm -rf usr/bin/iotwifi*;
 	rm -rf usr/bin/i2c-tools.sh;
+	rm -rf usr/bin/hostapd_cli
+	rm -rf usr/bin/*test*
+	rm -rf usr/bin/k230_timer_demo
+	rm -rf usr/bin/gpio_keys_demo
 	rm -rf mnt/*;
 	rm -rf app/;
 	rm -rf lib/tuning-server;	
 	rm -rf usr/bin/stress-ng  bin/bash usr/sbin/sshd usr/bin/trace-cmd usr/bin/lvgl_demo_widgets;
-	rm -rf usr/lib/libcrypto.so.1.1 usr/bin/ssh  etc/ssh/moduli  usr/lib/libssl.so.1.1 usr/bin/ssh-keygen \
+	rm -rf usr/bin/ssh  etc/ssh/moduli  usr/lib/libssl.so.1.1 usr/bin/ssh-keygen \
 		usr/libexec/ssh-keysign  usr/bin/ssh-keyscan  usr/bin/ssh-add usr/bin/ssh-agent usr/libexec/ssh-pkcs11-helper\
 		  usr/lib/libncurses.so.6.1 usr/lib/libvg_lite_util.so  usr/bin/par_ops usr/bin/sftp  usr/libexec/lzo/examples/lzotest;
-	#find . -name *.ko | xargs rm -rf ;	
-	fakeroot -- ${K230_SDK_ROOT}/tools/mkcpio-rootfs.sh;
-	cd ../;  tar -zcf rootfs-final.tar.gz rootfs;
+	#find . -name *.ko | xargs rm -rf ;
 
 	#裁剪大核rootfs;
 	cd ${BUILD_DIR}/images/big-core/root/bin/;
-	find . -type f  -not -name init.sh  -not -name  fastboot_app.elf  test.kmodel  | xargs rm -rf ; 
+	find . -type f  -not -name init.sh  -not -name  fastboot_app.elf -not -name   test.kmodel  | xargs rm -rf ; 
 
 	if [ -f "${K230_SDK_ROOT}/src/big/mpp/userapps/src/vicap/src/isp/sdk/t_frameworks/t_database_c/calibration_data/sensor_cfg.bin" ]; then
         mkdir -p ${cfg_data_file_path};
@@ -428,7 +456,6 @@ gen_image_spinand()
 	rm -rf usr/bin/stress-ng  bin/bash usr/sbin/sshd usr/bin/trace-cmd;
 	#find . -name *.ko | xargs rm -rf ;
 	fakeroot -- ${K230_SDK_ROOT}/tools/mkcpio-rootfs.sh; 
-	cd ../;  tar -zcf rootfs-final.tar.gz rootfs;
 
 
 	#裁剪大核romfs;
@@ -461,32 +488,33 @@ gen_env_bin()
 	local jffs2_env_file=${env_dir}/spinor.jffs2.env;
 	local spinand_env_file=${env_dir}/spinand.env;
 
-	[ -f ${jffs2_env_file} ] &&  sed -i -e "/^quick_boot/d"  ${jffs2_env_file}
-	[ -f ${spinand_env_file} ] &&  sed -i -e "/quick_boot/d"  ${spinand_env_file}
-	[ -f ${default_env_file} ] &&  sed -i -e "/^quick_boot/d"  ${default_env_file}
-	[ -f ${default_env_file} ] &&  sed -i -e "/restore_img/d"  ${default_env_file}
+	sed -i -e "/^quick_boot/d"  ${jffs2_env_file}
+	sed -i -e "/quick_boot/d"  ${spinand_env_file}
+	sed -i -e "/^quick_boot/d"  ${default_env_file}
+	sed -i -e "/restore_img/d"  ${default_env_file}
 
 	if [ "${CONFIG_QUICK_BOOT}" != "y" ] || [ "${CONFIG_REMOTE_TEST_PLATFORM}" = "y" ] ; then 
-		[ -f ${jffs2_env_file} ] &&  echo "quick_boot=false" >> ${jffs2_env_file}
-		[ -f ${spinand_env_file} ] &&  echo "quick_boot=false" >> ${spinand_env_file}
-		[ -f ${default_env_file} ] && echo "quick_boot=false" >> ${default_env_file}
+		echo "quick_boot=false" >> ${jffs2_env_file}
+		echo "quick_boot=false" >> ${spinand_env_file}
+		echo "quick_boot=false" >> ${default_env_file}
 	fi
 	if [ "${CONFIG_REMOTE_TEST_PLATFORM}" = "y" ] ; then 
 		echo "restore_img=mmc dev 0; mmc read 0x10000 0x200000 0x40000; gzwrite mmc 1 0x10000 0x8000000; reset" >> ${default_env_file}
 	fi
 
-	[ -f ${jffs2_env_file} ] &&  ${mkenvimage} -s 0x10000 -o little-core/uboot/jffs2.env ${jffs2_env_file}
-	[ -f ${spinand_env_file} ] && ${mkenvimage} -s 0x10000 -o little-core/uboot/spinand.env ${spinand_env_file}
-	[ -f ${default_env_file} ] && ${mkenvimage} -s 0x10000 -o little-core/uboot/env.env  ${default_env_file}
+	${mkenvimage} -s 0x10000 -o little-core/uboot/jffs2.env ${jffs2_env_file}
+	${mkenvimage} -s 0x10000 -o little-core/uboot/spinand.env ${spinand_env_file}
+	${mkenvimage} -s 0x10000 -o little-core/uboot/env.env  ${default_env_file}
 }
 copy_app()
 {
 	mkdir -p ${BUILD_DIR}/images/big-core/app
 	cp -r ${K230_CANMV_BUILD_DIR}/images/app/   ${BUILD_DIR}/images/big-core/
-	# if [ "${CONFIG_SUPPORT_RTSMART}" = "y" ] ; then
-	# 	cp ${K230_SDK_ROOT}/src/big/mpp/userapps/sample/elf/*   ${BUILD_DIR}/images/big-core/app
-	# 	[ "${CONFIG_SUPPORT_LINUX}" = "y" ] && cp ${K230_SDK_ROOT}/src/common/cdk/user/out/big/*  ${BUILD_DIR}/images/big-core/app
-	# fi
+	if [ "${CONFIG_SUPPORT_RTSMART}" = "y" ] ; then
+		cp ${K230_SDK_ROOT}/src/big/mpp/userapps/sample/elf/*   ${BUILD_DIR}/images/big-core/app
+		[ "${CONFIG_SUPPORT_LINUX}" = "y" ] && cp ${K230_SDK_ROOT}/src/common/cdk/user/out/big/*  ${BUILD_DIR}/images/big-core/app
+	fi
+	
 
 	if [ "${CONFIG_REMOTE_TEST_PLATFORM}" = "y" ] ; then 
 		local DIR="${K230_SDK_ROOT}/output/k230_evb_defconfig/images/k230_remote_test_platform"

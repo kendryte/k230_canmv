@@ -160,7 +160,7 @@
 };
 
 &mmc_sd1{
-    status = "disabled";
+    status = "okay";
     cd-gpios = <&port53 0 GPIO_ACTIVE_LOW>;
     no-1-8-v;
     cap-sd-highspeed;
