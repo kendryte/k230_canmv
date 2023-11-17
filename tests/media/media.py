@@ -1,3 +1,9 @@
+# Meida Example
+#
+# Note: You will need an SD card to run this example.
+#
+# You can get how to use the meida api form this example.
+
 from media.media import *
 
 
@@ -19,6 +25,7 @@ def media_buf_test():
     config.comm_pool[3].mode = VB_REMAP_MODE_CACHED
 
     print("media_buf_test buffer_config 111")
+    # config meida buffer
     ret = media.buffer_config(config)
     if ret:
         print("media_buf_test, buffer_config failed")
@@ -39,6 +46,7 @@ def media_buf_test():
     config.comm_pool[3].mode = VB_REMAP_MODE_CACHED
 
     print("media_buf_test buffer_config 222")
+    # config meida buffer
     ret = media.buffer_config(config)
     if ret:
         print("media_buf_test, buffer_config failed")
@@ -59,6 +67,7 @@ def media_buf_test():
     config.comm_pool[3].mode = VB_REMAP_MODE_CACHED
 
     print("media_buf_test buffer_config 333")
+    # config meida buffer
     ret = media.buffer_config(config)
     if ret:
         print("media_buf_test, buffer_config failed")
@@ -79,18 +88,21 @@ def media_buf_test():
     config.comm_pool[3].mode = VB_REMAP_MODE_CACHED
 
     print("media_buf_test buffer_config 444")
+    # config meida buffer
     ret = media.buffer_config(config)
     if ret:
         print("media_buf_test, buffer_config failed")
         return ret
 
     print("media_buf_test buffer_init")
+    # init meida buffer
     ret = media.buffer_init()
     if ret:
         print("media_buf_test, buffer_init failed")
 
 
     print("media_buf_test request_buffer")
+    # request meida buffer
     buffer = media.request_buffer(4*1024*1024)
     if buffer == -1:
         print("media_buf_test, request_buffer failed")
@@ -100,11 +112,13 @@ def media_buf_test():
         print(f"buffer phys_addr({buffer.phys_addr})")
         print(f"buffer virt_addr({buffer.virt_addr})")
         print(f"buffer size({buffer.size})")
+        # release meida buffer
         ret = media.release_buffer(buffer)
         if ret:
             print("media_buf_test, release_buffer failed")
 
     print("media_buf_test buffer_deinit")
+    # deinit meida buffer
     ret = media.buffer_deinit()
     if ret:
         print("media_buf_test, buffer_deinit failed")

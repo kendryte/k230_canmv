@@ -1,3 +1,9 @@
+# Camera Example
+#
+# Note: You will need an SD card to run this example.
+#
+# You can start camera preview and capture yuv image.
+
 from media.camera import *
 from media.display import *
 from media.media import *
@@ -20,35 +26,44 @@ def canmv_camera_test():
 
     out_width = 1920
     out_height = 1080
+    # set camera out width align up with 16Bytes
     out_width = ALIGN_UP(out_width, 16)
 
-    # set chn0 output yuv420sp
+    # set chn0 output size
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, out_width, out_height)
+    # set chn0 out format
     camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
 
+    # create meida source device
     meida_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
+    # create meida sink device
     meida_sink = media_device(DISPLAY_MOD_ID, DISPLAY_DEV_ID, DISPLAY_CHN_VIDEO1)
+    # create meida link
     media.create_link(meida_source, meida_sink)
-
+    # set display plane with video channel
     display.set_plane(0, 0, out_width, out_height, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
 
     out_width = 640
     out_height = 480
     out_width = ALIGN_UP(out_width, 16)
 
-    # set chn1 output rgb888
+    # set chn1 output size
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, out_width, out_height)
+    # set chn1 output format
     camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_RGB_888)
 
-    # set chn2 output rgb888planar
+    # set chn1 output size
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_2, out_width, out_height)
+    # set chn2 output format
     camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_2, PIXEL_FORMAT_RGB_888_PLANAR)
 
+    # init meida buffer
     ret = media.buffer_init()
     if ret:
         print("canmv_camera_test, buffer init failed")
         return ret
 
+    # start stream for camera device0
     camera.start_stream(CAM_DEV_ID_0)
     time.sleep(15)
 
@@ -64,7 +79,7 @@ def canmv_camera_test():
                     continue
 
                 print(f"canmv_camera_test, dev({dev_num}) chn({chn_num}) capture frame.")
-
+                # capture image from dev and chn
                 img = camera.capture_image(dev_num, chn_num)
                 if img == -1:
                     print("camera.capture_image failed")
@@ -85,24 +100,28 @@ def canmv_camera_test():
                 with open(filename, "wb") as f:
                     if f:
                         img_data = uctypes.bytearray_at(img.virtaddr(), img.size())
+                        # save yuv data to sdcard.
                         #f.write(img_data)
                     else:
                         print(f"capture_image, open dump file failed({filename})")
 
                 time.sleep(1)
-
+                # release image for dev and chn
                 camera.release_image(dev_num, chn_num, img)
 
                 capture_count += 1
 
+    # stop stream for camera device0
     camera.stop_stream(CAM_DEV_ID_0)
 
+    # deinit display
     display.deinit()
 
+    # destroy media link
     media.destroy_link(meida_source, meida_sink)
 
     time.sleep(1)
-
+    # deinit media buffer
     ret = media.buffer_deinit()
     if ret:
         print("camera test, media_buffer_deinit failed")
