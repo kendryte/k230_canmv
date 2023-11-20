@@ -324,7 +324,6 @@ STATIC int do_file(const char *file) {
 }
 
 STATIC int do_str(const char *str) {
-    fprintf(stderr, "run script:\n%s", str);
     return execute_from_lexer(LEX_SRC_STR, str, MP_PARSE_FILE_INPUT, false);
 }
 
