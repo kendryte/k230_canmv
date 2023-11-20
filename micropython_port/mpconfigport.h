@@ -72,6 +72,7 @@ typedef long long mp_off_t;
 #define MICROPY_READER_VFS          (1)
 #define MICROPY_HELPER_LEXER_UNIX   (1)
 #define MICROPY_VFS_POSIX           (1)
+#define MICROPY_PY_OS_STATVFS       (0)
 #define MICROPY_READER_POSIX        (1)
 #define MICROPY_TRACKED_ALLOC       (0)
 // Assume that select() call, interrupted with a signal, and erroring
