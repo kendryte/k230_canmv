@@ -157,8 +157,6 @@ void ide_dbg_on_script_end(void) {
 }
 
 static void interrupt_repl(void) {
-    stdin_ring_buffer[stdin_write_ptr++] = CHAR_CTRL_C;
-    stdin_write_ptr %= sizeof(stdin_ring_buffer);
     stdin_ring_buffer[stdin_write_ptr++] = CHAR_CTRL_D;
     stdin_write_ptr %= sizeof(stdin_ring_buffer);
     sem_post(&stdin_sem);
