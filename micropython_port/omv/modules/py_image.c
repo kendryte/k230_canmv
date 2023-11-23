@@ -1242,9 +1242,7 @@ static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_pa
 
     if (dst_is_rgb888)
         dst_img.pixfmt = PIXFORMAT_RGB888;
-    fprintf(stderr, "[omv] enter py_image_alloc\n");
     py_image_alloc(&dst_img, kw_args);
-    fprintf(stderr, "[omv] exit py_image_alloc\n");
     if (dst_is_rgb888)
         dst_img.pixfmt = PIXFORMAT_RGB565;
 
