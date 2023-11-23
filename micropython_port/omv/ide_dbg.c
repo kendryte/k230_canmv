@@ -157,6 +157,8 @@ void ide_dbg_on_script_end(void) {
 }
 
 static void interrupt_repl(void) {
+    stdin_ring_buffer[stdin_write_ptr++] = CHAR_CTRL_C;
+    stdin_write_ptr %= sizeof(stdin_ring_buffer);
     stdin_ring_buffer[stdin_write_ptr++] = CHAR_CTRL_D;
     stdin_write_ptr %= sizeof(stdin_ring_buffer);
     sem_post(&stdin_sem);
@@ -349,8 +351,10 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         // raise IDE interrupt
                         if (ide_script_running) {
                             // FIXME
+                            MP_THREAD_GIL_ENTER();
                             mp_obj_exception_clear_traceback(mp_const_ide_interrupt);
                             mp_sched_exception(mp_const_ide_interrupt);
+                            MP_THREAD_GIL_EXIT();
                         }
                         #endif
                         break;

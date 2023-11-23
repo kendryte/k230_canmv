@@ -77,6 +77,16 @@ void imlib_set_pixel(image_t *img, int x, int y, int p) {
                 IMAGE_PUT_ARGB8888_PIXEL(img, x, y, p);
                 break;
             }
+            case PIXFORMAT_YUV420: {
+                // fprintf(stderr, "[omv] draw pix x(%d),y(%d),off(%u),p(%08x)\n", x, y, img->w * y + x, p);
+                uint8_t py = p >> 16U;
+                uint8_t pu = p >> 8U;
+                uint8_t pv = p;
+                img->data[img->w * y + x] = py;
+                img->data[img->w * img->h + img->w * (y / 2) + (x & 0xfffe)] = pu;
+                img->data[img->w * img->h + img->w * (y / 2) + (x | 0b1)] = pv;
+                break;
+            }
             default: {
                 break;
             }
