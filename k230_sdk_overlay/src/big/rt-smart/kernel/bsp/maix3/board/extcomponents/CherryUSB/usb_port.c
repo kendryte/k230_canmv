@@ -43,6 +43,7 @@ static void dcd_int_handler_wrap(int irq, void *param)
 struct rt_device g_cdc_rt_device;
 volatile int g_cdc_mask = 0;
 struct rt_semaphore cdc_read_sem, cdc_write_sem;
+struct rt_mutex cdc_write_mutex;
 extern volatile char ep_tx_busy_flag;
 volatile size_t actual_bytes = 0;
 static bool last_rts = false;
@@ -95,30 +96,11 @@ static int cdc_write(struct dfs_fd *fd, const void *buf, size_t count) {
     if (count == 0) {
         return 0;
     }
-    static void* hold_buffer = NULL;
-    // FIXME
-    rt_err_t error = rt_sem_take(&cdc_write_sem, 100);
-    if (error == RT_ETIMEOUT) {
-        return 0;
-    } else if (error != RT_EOK) {
-        return -1;
-    }
-    if (hold_buffer != NULL) {
-        rt_free(hold_buffer);
-    }
-    hold_buffer = rt_malloc(count);
-    rt_memcpy(hold_buffer, buf, count);
-    #if 0
-    rt_kprintf("write:");
-    for (size_t i = 0; i < count; i++) {
-        rt_kprintf("\\x%02X", ((unsigned char*)buf)[i]);
-    }
-    rt_kprintf("\n");
-    #endif
-    usbd_ep_start_write(CDC_IN_EP, hold_buffer, count);
+    rt_mutex_take(&cdc_write_mutex, RT_WAITING_FOREVER);
+    usbd_ep_start_write(CDC_IN_EP, buf, count);
+    rt_err_t error = rt_sem_take(&cdc_write_sem, RT_WAITING_FOREVER);
+    rt_mutex_release(&cdc_write_mutex);
     // FIXME: async
-    // usleep(10000);
-    // rt_sem_take(&cdc_write_sem, RT_WAITING_FOREVER);
     return count;
 }
 
@@ -149,6 +131,8 @@ void usb_dc_low_level_init(void)
 
     rt_hw_interrupt_install(173, dcd_int_handler_wrap, NULL, "usb");
     rt_hw_interrupt_umask(173);
+
+    rt_mutex_init(&cdc_write_mutex, "cdc/write", RT_IPC_FLAG_FIFO);
 
     // CDC uart
     rt_err_t err = rt_device_register(device, DEV_NAME, RT_DEVICE_OFLAG_RDWR);
@@ -233,6 +217,7 @@ void usb_dc_low_level_deinit(void)
     rt_hw_interrupt_mask(173);
     rt_sem_detach(&cdc_read_sem);
     rt_sem_detach(&cdc_write_sem);
+    rt_mutex_detach(&cdc_write_mutex);
 }
 
 void usb_hc_low_level_init(void)

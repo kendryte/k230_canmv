@@ -109,6 +109,28 @@ micropython: k230_sdk_build
 .PHONY: build-image
 build-image: micropython
 	@cp -r tests $(K230_CANMV_BUILD_DIR)/images/app
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_detection_320.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/nncase_runtime/face_detection
+	@mkdir -p $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_recognition.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_detection_320.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/yolov8n_320.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/yolov8n_seg_320.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/LPD_640.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/ocr_det_int16.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/hand_det.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_landmark.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_pose.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_parse.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/LPD_640.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/licence_reco.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/handkp_det.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/ocr_rec_int16.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/hand_reco.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/person_detect_yolov5n.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/yolov8n-pose.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/kws.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_alignment.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_alignment_post.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
 	@make -C k230_sdk build-image
 
 .PHONY: micropython-clean

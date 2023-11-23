@@ -243,22 +243,41 @@ static mp_obj_t io_fromfile(size_t n_args, const mp_obj_t *pos_args, mp_map_t *k
         mp_raise_TypeError(translate("wrong input type"));
     }
 
-    FILE *f;
-    f = fopen(mp_obj_str_get_str(pos_args[0]), "rb");
-    if (!f)
-        mp_raise_OSError_with_filename(errno, mp_obj_str_get_str(pos_args[0]));
-
     mp_map_elem_t *kw_dtype = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_dtype), MP_MAP_LOOKUP);
     uint8_t dtype = NDARRAY_UINT8;
     if (kw_dtype)
         dtype = (uint8_t)mp_obj_get_int(kw_dtype->value);
 
+    mp_map_elem_t *kw_count = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_count), MP_MAP_LOOKUP);
+    uint64_t count = 0;
+    if (kw_count)
+        count = mp_obj_get_int(kw_count->value);
+
+    mp_map_elem_t *kw_offset = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_offset), MP_MAP_LOOKUP);
+    uint64_t offset = 0;
+    if (kw_offset)
+        offset = mp_obj_get_int(kw_offset->value);
+
+    if (count > UINT32_MAX || offset > UINT32_MAX)
+        mp_raise_ValueError(translate("count or offset out of range"));
+
+    FILE *f;
+    f = fopen(mp_obj_str_get_str(pos_args[0]), "rb");
+    if (!f)
+        mp_raise_OSError_with_filename(errno, mp_obj_str_get_str(pos_args[0]));
+
     fseek(f, 0, SEEK_END);
     size_t size = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    if (!kw_count)
+        count = size;
+    if (offset > size)
+        offset = size;
+    if (count + offset > size)
+        count = size - offset;
+    fseek(f, offset, SEEK_SET);
 
     size_t shape[ULAB_MAX_DIMS];
-    shape[ULAB_MAX_DIMS - 1] = size / ulab_binary_get_size(dtype);
+    shape[ULAB_MAX_DIMS - 1] = count / ulab_binary_get_size(dtype);
 
     ndarray_obj_t *ndarray = ndarray_new_ndarray(1, shape, NULL, dtype);
     fread(ndarray->origin, ndarray->len * ndarray->itemsize, 1, f);

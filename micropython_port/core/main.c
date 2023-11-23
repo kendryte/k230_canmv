@@ -42,6 +42,8 @@
 #include <errno.h>
 #include <signal.h>
 
+#include "mpi_vb_api.h"
+#include "mpi_venc_api.h"
 #include "nlr.h"
 #include "py/compile.h"
 #include "py/runtime.h"
@@ -67,7 +69,7 @@ STATIC uint emit_opt = MP_EMIT_OPT_NONE;
 #if MICROPY_ENABLE_GC
 // Heap size of GC heap (if enabled)
 // Make it larger on a 64 bit machine, because pointers are larger.
-long heap_size = 1024 * 1024 * 16;
+long heap_size = 1024 * 1024 * 4;
 #endif
 
 // Number of heaps to assign by default if MICROPY_GC_SPLIT_HEAP=1
@@ -322,7 +324,6 @@ STATIC int do_file(const char *file) {
 }
 
 STATIC int do_str(const char *str) {
-    fprintf(stderr, "run script:\n%s", str);
     return execute_from_lexer(LEX_SRC_STR, str, MP_PARSE_FILE_INPUT, false);
 }
 
@@ -514,7 +515,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
     }
 
     // Define a reasonable stack limit to detect stack overflow.
-    mp_uint_t stack_limit = 1024 * 1024 * (sizeof(void *) / 4);
+    mp_uint_t stack_limit = 128 * 1024 * (sizeof(void *) / 4);
     soft_reset:
     #if MICROPY_PY_THREAD
     mp_thread_init();
@@ -847,6 +848,13 @@ MP_NOINLINE int main_(int argc, char **argv) {
     }
     #endif
     #endif
+    extern char jpeg_encoder_created;
+    if (jpeg_encoder_created) {
+        kd_mpi_venc_stop_chn(VENC_MAX_CHN_NUMS - 1);
+        kd_mpi_venc_destroy_chn(VENC_MAX_CHN_NUMS - 1);
+    }
+    jpeg_encoder_created = 0;
+    kd_mpi_vb_exit();
 
     // printf("total bytes = %d\n", m_get_total_bytes_allocated());
     goto soft_reset;

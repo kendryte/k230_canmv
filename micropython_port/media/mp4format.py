@@ -4,8 +4,13 @@ from media.media import *
 from mpp.mp4_format import *
 from mpp.mp4_format_struct import *
 from mpp.aenc import *
+from media.pyaudio import *
+import media.g711 as g711
+from mpp.payload_struct import *
 import uctypes
 import time
+
+
 
 class MuxerCfgStr:
     def __init__(self):
@@ -59,6 +64,7 @@ class Mp4Container:
         self.idr_size = 0
         self.idr_pts = 0
         self.count = 0
+        self.audio_timestamp = 0
 
 
     def Create(self, mp4Cfg):
@@ -71,16 +77,19 @@ class Mp4Container:
                 print("Mp4Container, venc SetOutBufs failed.")
                 return -1
 
-            # audio vb
-            config = k_vb_config()
-            config.max_pool_cnt = 64
-            config.comm_pool[0].blk_cnt = 150
-            config.comm_pool[0].blk_size = 8000 * 2 * 4 // 25
-            config.comm_pool[0].mode = VB_REMAP_MODE_CACHED
-            config.comm_pool[1].blk_cnt = 2
-            config.comm_pool[1].blk_size = 8000 * 2 * 4 // 25 * 2
-            config.comm_pool[1].mode = VB_REMAP_MODE_CACHED
-            media.buffer_config(config)
+            # audio init
+
+            FORMAT = paInt16
+            CHANNELS = 2
+            RATE = 44100
+            CHUNK = RATE//25
+            self.pyaudio = PyAudio()
+            self.pyaudio.initialize(CHUNK)
+
+            if mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711U:
+                self.aenc = g711.Encoder(K_PT_G711A,CHUNK)
+            elif mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711A:
+                self.aenc = g711.Encoder(K_PT_G711A,CHUNK)
 
             ret = media.buffer_init()
             if ret:
@@ -107,34 +116,12 @@ class Mp4Container:
                 print("Mp4Container, venc Create failed.")
                 return -1
 
-            aenc_chn_attr = k_aenc_chn_attr()
-            if mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711U:
-                aenc_chn_attr.type = K_PT_G711U
-            elif mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711A:
-                aenc_chn_attr.type = K_PT_G711A
-            aenc_chn_attr.buf_size = 25
-            aenc_chn_attr.point_num_per_frame = 320  # 8000 / 25
-            ret = kd_mpi_aenc_create_chn(0, aenc_chn_attr)
-            if ret:
-                print("Mp4Container, aenc Create failed.")
-                return -1
-
-            aio_dev_attr = k_aio_dev_attr()
-            aio_dev_attr.audio_type = KD_AUDIO_INPUT_TYPE_I2S
-            aio_dev_attr.kd_audio_attr.i2s_attr.sample_rate = 8000
-            aio_dev_attr.kd_audio_attr.i2s_attr.bit_width = KD_AUDIO_BIT_WIDTH_16
-            aio_dev_attr.kd_audio_attr.i2s_attr.chn_cnt = 2
-            aio_dev_attr.kd_audio_attr.i2s_attr.i2s_mode = K_STANDARD_MODE
-            aio_dev_attr.kd_audio_attr.i2s_attr.frame_num = 25
-            aio_dev_attr.kd_audio_attr.i2s_attr.point_num_per_frame = 320   # 8000 / 25
-            aio_dev_attr.kd_audio_attr.i2s_attr.i2s_type = K_AIO_I2STYPE_INNERCODEC
-            ret = kd_mpi_ai_set_pub_attr(0, aio_dev_attr)
-            if ret:
-                print("Mp4Container, ai set pub sttr failed.")
-                return -1
-
-            kd_mpi_ai_enable(0)
-            kd_mpi_ai_enable_chn(0, 0)
+            self.aenc.create()
+            self.audio_stream = self.pyaudio.open(format=FORMAT,
+                            channels=CHANNELS,
+                            rate=RATE,
+                            input=True,
+                            frames_per_buffer=CHUNK)
 
             mp4_cfg = k_mp4_config_s()
             mp4_cfg.config_type = mp4Cfg.type
@@ -171,7 +158,7 @@ class Mp4Container:
                 audio_track_info.audio_info.codec_id = K_MP4_CODEC_ID_G711U
             elif mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711A:
                 audio_track_info.audio_info.codec_id = K_MP4_CODEC_ID_G711A
-            audio_track_info.audio_info.sample_rate = 8000
+            audio_track_info.audio_info.sample_rate = RATE
             audio_track_info.audio_info.bit_per_sample = 16
             audio_track_handle = k_u64_ptr()
             ret = kd_mp4_create_track(self.mp4_handle, audio_track_handle, audio_track_info)
@@ -189,13 +176,6 @@ class Mp4Container:
         ret = media.create_link(media_source, media_sink)
         if ret:
             print("Mp4Container, create link with camera failed.")
-            return -1
-
-        audio_source = media_device(AUDIO_IN_MOD_ID, 0, 0)
-        audio_sink = media_device(AUDIO_ENCODE_MOD_ID, 0, 0)
-        ret = media.create_link(audio_source, audio_sink)
-        if ret:
-            print("Mp4Container, create audio link with camera failed.")
             return -1
 
         ret = self.venc.Start(VENC_CHN_ID_0)
@@ -256,25 +236,18 @@ class Mp4Container:
             print("Mp4Container, venc ReleaseStream failed.")
             return -1
 
-        audio_stream = k_audio_stream()
-        ret = kd_mpi_aenc_get_stream(0, audio_stream, 1000)
-        if ret:
-            print("Mp4Container, get audio stream failed.")
-            return -1
-        vir_adata = kd_mpi_sys_mmap(audio_stream.phys_addr, audio_stream.len)
+        enc_data = self.aenc.encode(self.audio_stream.read())
         frame_data.codec_id = self.audio_payload_type
-        frame_data.data = vir_adata
-        frame_data.data_length = audio_stream.len
-        frame_data.time_stamp = audio_stream.time_stamp
+        frame_data.data = uctypes.addressof(enc_data)
+        frame_data.data_length = len(enc_data)
+        self.audio_timestamp += 40*1000
+        frame_data.time_stamp = self.audio_timestamp
         ret = kd_mp4_write_frame(self.mp4_handle, self.mp4_audio_track_handle, frame_data)
         if ret:
             print("Mp4Container, write audio stream failed.")
             return -1
-        kd_mpi_sys_munmap(vir_adata, audio_stream.len)
-        kd_mpi_aenc_release_stream(0, audio_stream)
 
         return 0
-
 
     def Stop(self):
         camera.stop_stream(CAM_DEV_ID_0)
@@ -286,20 +259,15 @@ class Mp4Container:
             print("Mp4Container, destroy link with camera failed.")
             return -1
 
-        audio_source = media_device(AUDIO_IN_MOD_ID, 0, 0)
-        audio_sink = media_device(AUDIO_ENCODE_MOD_ID, 0, 0)
-        ret = media.destroy_link(audio_source, audio_sink)
-        if ret:
-            print("Mp4Container, destroy audio link with camera failed.")
-            return -1
-
-        kd_mpi_ai_disable_chn(0, 0)
-        kd_mpi_ai_disable(0)
-
         self.venc.Stop(VENC_CHN_ID_0)
         if ret:
             print("Mp4Container, venc Stop failed.")
             return -1
+
+        self.audio_stream.stop_stream()
+        self.audio_stream.close()
+        self.pyaudio.terminate()
+        self.aenc.destroy()
 
         return 0
 

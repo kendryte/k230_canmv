@@ -1,3 +1,9 @@
+# Face detection Example
+#
+# Note: You will need an SD card to run this example.
+#
+# You can start camera preview and get face detection result.
+
 import os
 
 from media.camera import *
@@ -227,52 +233,63 @@ def face_detect_test():
     # use hdmi for display
     display.init(LT9611_1920X1080_30FPS)
 
+    # config vb for osd layer
     config = k_vb_config()
     config.max_pool_cnt = 1
     config.comm_pool[0].blk_size = 4*DISPLAY_WIDTH*DISPLAY_HEIGHT
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
-
+    # meida buffer config
     ret = media.buffer_config(config)
-
+    # init default sensor
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
 
-    # set chn0 output yuv420sp
+    # set chn0 output size
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, DISPLAY_WIDTH, DISPLAY_HEIGHT)
+    # set chn0 output format
     camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
 
+    # create meida source device
     meida_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
+    # create meida sink device
     meida_sink = media_device(DISPLAY_MOD_ID, DISPLAY_DEV_ID, DISPLAY_CHN_VIDEO1)
+    # create meida link
     media.create_link(meida_source, meida_sink)
-
+    # set display plane with video channel
     display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
 
     # set chn1 output rgb888
     #camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGH)
     #camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_RGB_888)
 
-    # set chn2 output rgb88planar
+    # set chn2 output size
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_2, OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGH)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_2, PIXEL_FORMAT_BGR_888_PLANAR)
+    # set chn2 output format
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_2, PIXEL_FORMAT_RGB_888_PLANAR)
 
     try:
+        # media buffer init
         ret = media.buffer_init()
         if ret:
             print("face_detect_test, buffer init failed")
             return ret
-
+        # request media buffer for osd image
         buffer = media.request_buffer(4*DISPLAY_WIDTH*DISPLAY_HEIGHT)
+        # create image for drawing
         draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_MPGC)
+        # create image for osd
         osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, poolid=buffer.pool_id, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr)
-
+        # start stream for camera device0
         camera.start_stream(CAM_DEV_ID_0)
         time.sleep(5)
 
         rgb888p_img = None
         while  True:
+            # capture image from dev and chn
             rgb888p_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_2)
             if rgb888p_img == -1:
                 print("face_detect_test, capture_image failed")
+                # release image for dev and chn
                 camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_2, rgb888p_img)
                 continue
 
@@ -317,7 +334,8 @@ def face_detect_test():
                         x1, y1, x2, y2 = map(lambda x: int(round(x, 0)), det[:4])
                         w = (x2 - x1) * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
                         h = (y2 - y1) * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
-                        draw_img.draw_rectangle(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH, y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH, w, h, color=(0,255,0,255))
+                        # draw detect result rectangle
+                        draw_img.draw_rectangle(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH, y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH, w, h, color=(255,255,0,255))
                     draw_img.copy_to(osd_img)
                     display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
                 else:
@@ -334,13 +352,13 @@ def face_detect_test():
     finally:
         if rgb888p_img is not None:
             camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_2, rgb888p_img)
-
+        # stop stream for camera device0
         camera.stop_stream(CAM_DEV_ID_0)
-
+        # deinit display
         display.deinit()
-
+        # release media buffer
         media.release_buffer(buffer)
-
+        # destroy media link
         media.destroy_link(meida_source, meida_sink)
 
         del kpu
@@ -348,7 +366,7 @@ def face_detect_test():
         gc.collect()
 
         time.sleep(1)
-
+        # deinit media buffer
         ret = media.buffer_deinit()
         if ret:
             print("face_detect_test, buffer_deinit failed")

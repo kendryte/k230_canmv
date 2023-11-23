@@ -81,7 +81,7 @@ class display:
         video_attr = k_vo_video_layer_attr()
         video_attr.pixel_format = pixelformat
         video_attr.func = mirror
-        video_attr.stride = (width // 8 - 1) + ((height - 1) << 16);
+        video_attr.stride = (width // 8 - 1) + ((height - 1) << 16)
         struct_copy(offset, video_attr.display_rect)
         struct_copy(img_size, video_attr.img_size)
         kd_mpi_vo_set_video_layer_attr(chn, video_attr)
@@ -124,13 +124,13 @@ class display:
         cls.set_plane(x, y, width, height, pixelformat, DISPLAY_MIRROR_NONE, chn)
 
         frame_info = k_video_frame_info()
-        frame_info.mod_id = K_ID_VO;
-        frame_info.pool_id = pool_id;
+        frame_info.mod_id = K_ID_VO
+        frame_info.pool_id = pool_id
         frame_info.v_frame.width = width
         frame_info.v_frame.height = height
         frame_info.v_frame.pixel_format = pixelformat
         frame_info.v_frame.stride[0] = width
-        frame_info.v_frame.phys_addr[0] = phys_addr;
+        frame_info.v_frame.phys_addr[0] = phys_addr
         if pixelformat == PIXEL_FORMAT_YUV_SEMIPLANAR_420:
             frame_info.v_frame.phys_addr[1] = phys_addr + (width * height)
         kd_mpi_vo_chn_insert_frame(chn, frame_info)

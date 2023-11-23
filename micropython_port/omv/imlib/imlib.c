@@ -597,6 +597,7 @@ void imlib_image_operation(image_t *img, const char *path, image_t *other, int s
     if (path) {
         #if defined(IMLIB_ENABLE_IMAGE_FILE_IO)
         uint32_t size = fb_avail() / 2;
+        size = IM_MIN(size, (1024 * 1024 * 2U));
         void *alloc = fb_alloc(size, FB_ALLOC_NO_HINT); // We have to do this before the read.
         // This code reads a window of an image in at a time and then executes
         // the line operation on each line in that window before moving to the

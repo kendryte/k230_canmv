@@ -105,12 +105,11 @@ prepare_toolchain: extract_toolchain
 .PHONY: prepare_sourcecode check_toolchain
 prepare_sourcecode:prepare_toolchain
 	@echo "prepare source code"
-	@cd $(UNITTEST_SRC_PATH);cp -rf testcases ../rt-smart/userapps;cd -
 #ai
 	@echo "download nncase sdk"
 	@rm -rf src/big/utils/; rm -rf src/big/ai;
-	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/kmodel/kmodel_v2.3.0.tgz -O - | tar -xzC src/big/
-	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/nncase/nncase_k230_v2.3.0.tgz -O - | tar -xzC src/big/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/kmodel/kmodel_v2.4.0.1.tgz -O - | tar -xzC src/big/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/nncase/nncase_k230_v2.4.0.tgz -O - | tar -xzC src/big/
 
 #big utils
 	@echo "download big utils"

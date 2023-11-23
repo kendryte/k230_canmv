@@ -25,7 +25,6 @@
 // FB Heap Block Size
 #define OMV_UMM_BLOCK_SIZE                    256
 
-#define OMV_FB_SIZE                           (8 * 1024 * 1024) // FB memory: header + VGA/GS image
 #define OMV_FB_ALLOC_SIZE                     (8 * 1024 * 1024) // minimum fb alloc size
 #define OMV_FB_ALLOC_BUFFER_COUNT             (256)
 

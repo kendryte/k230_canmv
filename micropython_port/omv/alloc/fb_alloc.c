@@ -96,7 +96,7 @@ void *fb_alloc(uint32_t size, int hints) {
         return NULL;
 
     align = hints & FB_ALLOC_CACHE_ALIGN ? FB_ALLOC_ALIGNMENT : 8;
-    size = size < 8 ? 8 : size;
+    size = (size + 7) & (~7UL);
 
     if (fb_alloc_mgt.alloc_buffer >= OMV_FB_ALLOC_BUFFER_COUNT)
         fb_alloc_buffer_fail();
@@ -135,6 +135,7 @@ void *fb_alloc_all(uint32_t *size, int hints) {
 
     align = hints & FB_ALLOC_CACHE_ALIGN ? FB_ALLOC_ALIGNMENT : 8;
     avail = fb_avail();
+    avail &= (~7UL);
 
     if (avail < 8 || fb_alloc_mgt.alloc_buffer >= OMV_FB_ALLOC_BUFFER_COUNT)
         return NULL;
@@ -184,4 +185,30 @@ void fb_free_all() {
     while (fb_alloc_mgt.alloc_buffer) {
         fb_free();
     }
+}
+
+mp_obj_t fb_stat(int cmd)
+{
+    vstr_t vstr;
+
+    vstr_init(&vstr, 256);
+    vstr_printf(&vstr, "fb stat:\n"
+    "total_buffer: %d, total_bytes: %d\n"
+    "alloc_buffer: %d, alloc_buffer_peak: %d\n"
+    "alloc_bytes: %d, alloc_bytes_peak: %d"
+    , OMV_FB_ALLOC_SIZE, OMV_FB_ALLOC_BUFFER_COUNT,
+    fb_alloc_mgt.alloc_buffer, fb_alloc_mgt.alloc_buffer_peak,
+    fb_alloc_mgt.alloc_bytes, fb_alloc_mgt.alloc_bytes_peak
+    );
+
+    if (cmd == 1) {
+        fb_alloc_mgt.alloc_buffer_peak = fb_alloc_mgt.alloc_buffer;
+        fb_alloc_mgt.alloc_bytes_peak = fb_alloc_mgt.alloc_bytes;
+    } else if (cmd == 2) {
+        fb_free_all();
+        fb_alloc_mgt.alloc_buffer_peak = 0;
+        fb_alloc_mgt.alloc_bytes_peak = 0;
+    }
+
+    return mp_obj_new_str_from_vstr(&vstr);
 }

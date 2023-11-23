@@ -28,6 +28,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
 #include <errno.h>
 #include "sys/ioctl.h"
 #include "machine_gpio.h"
@@ -48,7 +49,18 @@
 #define	GPIO_WRITE_LOW           _IOW('G', 4, int)
 #define	GPIO_WRITE_HIGH          _IOW('G', 5, int)
 
-#define GPIO_READ_VALUE       	_IOW('G', 12, int)
+#define	KD_GPIO_PE_RISING           _IOW('G', 7, int)
+#define	KD_GPIO_PE_FALLING          _IOW('G', 8, int)
+#define	KD_GPIO_PE_BOTH             _IOW('G', 9, int)
+#define	KD_GPIO_PE_HIGH             _IOW('G', 10, int)
+#define	KD_GPIO_PE_LOW              _IOW('G', 11, int)
+
+#define GPIO_READ_VALUE       	     _IOW('G', 12, int)
+#define	KD_GPIO_ENABLE_IRQ           _IOW('G', 13, int)
+#define	KD_GPIO_DISABLE_IRQ          _IOW('G', 14, int)
+#define	KD_GPIO_ATTACH_IRQ           _IOW('G', 15, int)
+#define	KD_GPIO_DETACH_IRQ           _IOW('G', 16, int)
+
 
 enum {
     GPIO_DM_PULL_NONE = -1,
@@ -68,12 +80,39 @@ typedef struct kd_pin_mode
     unsigned short mode;    /* pin level status, 0 low level, 1 high level */
 } pin_mode_t;
 
+typedef enum _gpio_pin_edge
+{
+    GPIO_PE_NONE,
+    GPIO_PE_FALLING,
+    GPIO_PE_RISING,
+    GPIO_PE_BOTH,
+    GPIO_PE_LOW,
+    GPIO_PE_HIGH = 8,
+} gpio_pin_edge_t;
 
 typedef struct _machine_gpio_obj_t {
     mp_obj_base_t base;
     int fd;
     pin_mode_t gpio;
+    mp_obj_t callback;
+    mp_obj_t arg;
 } machine_gpio_obj_t;
+
+machine_gpio_obj_t *overall_self;
+
+STATIC void sigroutine(int signo)
+{
+   switch (signo){
+   case SIGUSR2:
+        printf("Catch a signal -- SIGUSR2 \n");
+        mp_sched_schedule(overall_self->callback,overall_self->arg);
+        break;
+   case SIGUSR1:
+        printf("Catch a signal -- SIGUSR1 \n");
+        break;
+   }
+}
+
 
 STATIC void mp_machine_gpio_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     machine_gpio_obj_t *self = self_in;
@@ -223,9 +262,66 @@ STATIC mp_obj_t machine_gpio_mode(mp_obj_t self_o, mp_obj_t mode)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(machine_gpio_mode_obj, machine_gpio_mode);
 
+
+STATIC mp_obj_t machine_gpio_irq(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+    enum { ARG_handler, ARG_trigger, ARG_wake ,ARG_priority};
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_handler, MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_trigger, MP_ARG_INT, {.u_int = GPIO_PE_BOTH} },
+        { MP_QSTR_wake, MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_priority, MP_ARG_INT, {.u_int = 7} },
+    };
+    machine_gpio_obj_t *self = MP_OBJ_TO_PTR(pos_args[0]);
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+    signal(SIGUSR2,sigroutine);
+    if ((n_args > 1 || kw_args->used != 0)) {
+        // configure irq
+        mp_obj_t handler = args[ARG_handler].u_obj;
+        uint32_t trigger = args[ARG_trigger].u_int;
+        mp_obj_t wake_obj = args[ARG_wake].u_obj;
+        mp_int_t temp_wake_int;
+        mp_obj_get_int_maybe(args[ARG_wake].u_obj,&temp_wake_int);
+        if(wake_obj != mp_const_none && temp_wake_int != 0){
+            mp_raise_ValueError("This platform does not support interrupt wakeup");
+        }else{
+            if (trigger == GPIO_PE_NONE || trigger == GPIO_PE_RISING || trigger == GPIO_PE_FALLING || trigger == GPIO_PE_BOTH) {
+                if (handler == mp_const_none) {
+                    handler = MP_OBJ_NULL;
+                    trigger = 0;
+                }
+                self->callback = handler;
+                // overall_self->callback = handler;
+                if(ioctl(self->fd,KD_GPIO_PE_BOTH,&(self->gpio)))
+                    mp_raise_ValueError("set GPIO trigger failed");
+                
+                if(ioctl(self->fd,KD_GPIO_ENABLE_IRQ,&(self->gpio)))
+                    mp_raise_ValueError("set GPIO irq enable failed");                
+            }else{
+
+            }
+        }
+
+    }
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_KW(machine_gpio_irq_obj, 1, machine_gpio_irq);
+
+
+STATIC mp_obj_t machine_gpio_disirq(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+    machine_gpio_obj_t *self = MP_OBJ_TO_PTR(pos_args[0]);
+    if(ioctl(self->fd,KD_GPIO_DISABLE_IRQ,&(self->gpio)))
+        mp_raise_ValueError("set GPIO trigger failed");   
+    return mp_const_none;
+}
+
+STATIC  MP_DEFINE_CONST_FUN_OBJ_KW(machine_gpio_disirq_obj,1,machine_gpio_disirq);
+
 STATIC const mp_rom_map_elem_t machine_gpio_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_mode), MP_ROM_PTR(&machine_gpio_mode_obj) },
     { MP_ROM_QSTR(MP_QSTR_value), MP_ROM_PTR(&machine_gpio_value_obj) },
+    { MP_ROM_QSTR(MP_QSTR_irq), MP_ROM_PTR(&machine_gpio_irq_obj) },
+    { MP_ROM_QSTR(MP_QSTR_disirq), MP_ROM_PTR(&machine_gpio_disirq_obj) },
     { MP_ROM_QSTR(MP_QSTR_IN), MP_ROM_INT(GPIO_INPUT) },
     { MP_ROM_QSTR(MP_QSTR_OUT), MP_ROM_INT(GPIO_OUTPUT) },
     { MP_ROM_QSTR(MP_QSTR_PULL_UP), MP_ROM_INT(GPIO_INPUT_PULL_UP) },

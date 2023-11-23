@@ -80,7 +80,7 @@ extern const char *LODEPNG_VERSION_STRING;
    you can define the functions lodepng_free, lodepng_malloc and lodepng_realloc in your
    source files with custom allocators.*/
 #ifndef LODEPNG_NO_COMPILE_ALLOCATORS
-//#define LODEPNG_COMPILE_ALLOCATORS
+#define LODEPNG_COMPILE_ALLOCATORS
 #endif
 
 /*compile the C++ version (you can disable the C++ wrapper here even when compiling for C++)*/

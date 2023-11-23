@@ -58,28 +58,33 @@ void imlib_set_pixel(image_t *img, int x, int y, int p) {
     if ((0 <= x) && (x < img->w) && (0 <= y) && (y < img->h)) {
         switch (img->pixfmt) {
             case PIXFORMAT_BINARY: {
-                p = COLOR_RGB888_TO_Y((uint8_t)(p >> 16), (uint8_t)(p >> 8), (uint8_t)p);
-                p = p > (((COLOR_Y_MAX - COLOR_Y_MIN) / 2) + COLOR_Y_MIN);
                 IMAGE_PUT_BINARY_PIXEL(img, x, y, p);
                 break;
             }
             case PIXFORMAT_GRAYSCALE: {
-                p = COLOR_RGB888_TO_Y((uint8_t)(p >> 16), (uint8_t)(p >> 8), (uint8_t)p);
                 IMAGE_PUT_GRAYSCALE_PIXEL(img, x, y, p);
                 break;
             }
             case PIXFORMAT_RGB565: {
-                p = ((p & 0x00f80000) >> 8) | ((p & 0x0000fc00) >> 5) | ((p & 0x000000f8) >> 3);
                 IMAGE_PUT_RGB565_PIXEL(img, x, y, p);
                 break;
             }
             case PIXFORMAT_RGB888: {
-                p &= 0x00ffffff;
                 IMAGE_PUT_RGB888_PIXEL(img, x, y, p);
                 break;
             }
             case PIXFORMAT_ARGB8888: {
                 IMAGE_PUT_ARGB8888_PIXEL(img, x, y, p);
+                break;
+            }
+            case PIXFORMAT_YUV420: {
+                // fprintf(stderr, "[omv] draw pix x(%d),y(%d),off(%u),p(%08x)\n", x, y, img->w * y + x, p);
+                uint8_t py = p >> 16U;
+                uint8_t pu = p >> 8U;
+                uint8_t pv = p;
+                img->data[img->w * y + x] = py;
+                img->data[img->w * img->h + img->w * (y / 2) + (x & 0xfffe)] = pu;
+                img->data[img->w * img->h + img->w * (y / 2) + (x | 0b1)] = pv;
                 break;
             }
             default: {

@@ -1,8 +1,16 @@
+# Save MP4 file example
+#
+# Note: You will need an SD card to run this example.
+#
+# You can capture audio and video and save them as MP4.The current version only supports MP4 format, video supports 264/265, and audio supports g711a/g711u.
+
 from media.mp4format import *
 
 def canmv_mp4_muxer_test():
     width = 1280
     height = 720
+
+    # 实例化mp4 container
     mp4_muxer = Mp4Container()
 
     mp4_cfg = Mp4CfgStr(mp4_muxer.MP4_CONFIG_TYPE_MUXER)
@@ -10,11 +18,13 @@ def canmv_mp4_muxer_test():
         file_name = "/sdcard/app/tests/test.mp4"
         mp4_cfg.SetMuxerCfg(file_name, mp4_muxer.MP4_CODEC_ID_H265, width, height, mp4_muxer.MP4_CODEC_ID_G711U)
 
+    # 创建mp4 muxer
     ret = mp4_muxer.Create(mp4_cfg)
     if ret:
         print("canmv_mp4_muxer_test, mp4 muxer Create failed.")
         return -1
 
+    # 启动mp4 muxer
     ret = mp4_muxer.Start()
     if ret:
         print("canmv_mp4_muxer_test, mp4 muxer Start failed.")
@@ -23,6 +33,7 @@ def canmv_mp4_muxer_test():
     frame_count = 0
 
     while True:
+        # 处理音视频数据，按MP4格式写入文件
         ret = mp4_muxer.Process()
         if ret:
             print("canmv_mp4_muxer_test, mp4 muxer Process failed.")
@@ -33,11 +44,13 @@ def canmv_mp4_muxer_test():
         if frame_count >= 100:
             break
 
+    # 停止mp4 muxer
     ret = mp4_muxer.Stop()
     if ret:
         print("canmv_mp4_muxer_test, mp4 muxer Stop failed.")
         return -1
 
+    # 销毁mp4 muxer
     ret = mp4_muxer.Destroy()
     if ret:
         print("canmv_mp4_muxer_test, mp4 muxer Destroy failed.")

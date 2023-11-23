@@ -442,7 +442,7 @@ typedef enum {
   PIXFORMAT_YUV        = (PIXFORMAT_FLAGS_CY | (PIXFORMAT_ID_YUV422 << 16) | (SUBFORMAT_ID_YUV422 << 8) | PIXFORMAT_BPP_YUV422 ),
   PIXFORMAT_YUV422     = (PIXFORMAT_FLAGS_CY | (PIXFORMAT_ID_YUV422 << 16) | (SUBFORMAT_ID_YUV422 << 8) | PIXFORMAT_BPP_YUV422 ),
   PIXFORMAT_YVU422     = (PIXFORMAT_FLAGS_CY | (PIXFORMAT_ID_YUV422 << 16) | (SUBFORMAT_ID_YVU422 << 8) | PIXFORMAT_BPP_YUV422 ),
-  PIXFORMAT_YUV420     = (PIXFORMAT_FLAGS_CY | (PIXFORMAT_ID_YUV420 << 16) | (SUBFORMAT_ID_YUV420 << 8) | PIXFORMAT_BPP_YUV420 ),
+  PIXFORMAT_YUV420     = (PIXFORMAT_FLAGS_CY | PIXFORMAT_FLAGS_M | (PIXFORMAT_ID_YUV420 << 16) | (SUBFORMAT_ID_YUV420 << 8) | PIXFORMAT_BPP_YUV420 ),
   PIXFORMAT_YVU420     = (PIXFORMAT_FLAGS_CY | (PIXFORMAT_ID_YUV420 << 16) | (SUBFORMAT_ID_YVU420 << 8) | PIXFORMAT_BPP_YUV420 ),
   PIXFORMAT_JPEG       = (PIXFORMAT_FLAGS_CJ | (PIXFORMAT_ID_JPEG   << 16) | (0                   << 8) | 0                    ),
   PIXFORMAT_PNG        = (PIXFORMAT_FLAGS_CJ | (PIXFORMAT_ID_PNG    << 16) | (0                   << 8) | 0                    ),
@@ -692,9 +692,9 @@ bool image_get_mask_pixel(image_t *ptr, int x, int y);
         __typeof__ (x) _x = (x);                           \
         __typeof__ (y) _y = (y);                           \
         uint32_t offset = ((_image->w * _y) + _x) * 3;     \
-        (((uint8_t *) _image->data)[offset] << 16) |       \
+        (((uint8_t *) _image->data)[offset + 0] << 0) |    \
         (((uint8_t *) _image->data)[offset + 1] << 8) |    \
-        (((uint8_t *) _image->data)[offset + 2] << 0)      \
+        (((uint8_t *) _image->data)[offset + 2] << 16)     \
     })
 
 #define IMAGE_PUT_RGB888_PIXEL(image, x, y, v)                  \
@@ -704,9 +704,9 @@ bool image_get_mask_pixel(image_t *ptr, int x, int y);
         __typeof__ (y) _y = (y);                                \
         __typeof__ (v) _v = (v);                                \
         uint32_t offset = ((_image->w * _y) + _x) * 3;          \
-        ((uint8_t *) _image->data)[offset] = _v >> 16;          \
+        ((uint8_t *) _image->data)[offset + 0] = _v >> 0;       \
         ((uint8_t *) _image->data)[offset + 1] = _v >> 8;       \
-        ((uint8_t *) _image->data)[offset + 2] = _v;            \
+        ((uint8_t *) _image->data)[offset + 2] = _v >> 16;      \
     })
 
 #define IMAGE_GET_ARGB8888_PIXEL(image, x, y)              \

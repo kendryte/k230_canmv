@@ -11,6 +11,9 @@
 #include "imlib.h"
 #include "fft.h"
 
+#define isnanf __builtin_isnanf
+#define isinff __builtin_isinff
+
 void imlib_logpolar_int(image_t *dst, image_t *src, rectangle_t *roi, bool linear, bool reverse) {
     int w = roi->w; // == dst_w
     int h = roi->h; // == dst_h

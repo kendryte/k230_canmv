@@ -46,6 +46,7 @@ VENC_DEV_ID = const(0)
 
 # video decode device id definition
 # TODO
+VDEC_DEV_ID = const(0)
 
 # audio channel id definition
 # TODO
@@ -80,7 +81,11 @@ VENC_CHN_ID_MAX = VENC_MAX_CHN_NUMS
 VENC_PACK_CNT_MAX = const(12)
 
 # video decode channel id definition
-# TODO
+VDEC_CHN_ID_0 = const(0)
+VDEC_CHN_ID_1 = const(1)
+VDEC_CHN_ID_2 = const(2)
+VDEC_CHN_ID_3 = const(3)
+VDEC_CHN_ID_MAX = VDEC_MAX_CHN_NUMS
 
 
 # data align up
@@ -186,6 +191,10 @@ class media:
             print("This method can only be called once, please check your code!!!")
             return -1
 
+        # for JPEG encoder
+        cls.buf_config.comm_pool[cls.config_index].blk_size = 1843200
+        cls.buf_config.comm_pool[cls.config_index].blk_cnt = 8
+        cls.buf_config.comm_pool[cls.config_index].mode = VB_REMAP_MODE_NOCACHE
         ret = kd_mpi_vb_set_config(cls.buf_config)
         if ret:
             print(f"buffer_init, vb config failed({ret})")
@@ -209,6 +218,7 @@ class media:
 
     @classmethod
     def buffer_deinit(cls):
+        return
         cls.buf_config.max_pool_cnt = 0
         cls.config_index = 0
         cls.__buf_has_init = False

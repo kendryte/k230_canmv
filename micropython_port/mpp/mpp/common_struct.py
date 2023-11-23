@@ -17,6 +17,15 @@ def k_u32_ptr(value=0):
 def k_u8_ptr(value=0):
     return _k_ptr_base(uctypes.UINT8, value)
 
+def k_s64_ptr(value=0):
+    return _k_ptr_base(uctypes.INT64, value)
+
+def k_s32_ptr(value=0):
+    return _k_ptr_base(uctypes.INT32, value)
+
+def k_s8_ptr(value=0):
+    return _k_ptr_base(uctypes.INT8, value)
+
 def k_bool_ptr(value=0):
     return _k_ptr_base(uctypes.UINT32, value)
 
