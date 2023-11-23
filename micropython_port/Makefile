@@ -35,6 +35,10 @@ INC += -Iinclude/maix
 INC += -Iinclude/mpp
 INC += -Iinclude/kpu
 INC += -Iinclude/omv
+INC += -Iinclude/ai_cube
+INC += -Iinclude/ai_demo
+INC += -Iinclude/ai_demo/kws
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/utils/lib/opencv/include/opencv4
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/comm
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/ioctl
@@ -91,6 +95,11 @@ LDFLAGS_MP4 += -L$(MP4_LIB_PATH) -lmp4
 
 LDFLAGS += $(LDFLAGS_MPP) $(LDFLAGS_MP4)
 
+OPENCV_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/utils/lib/opencv/lib
+OPENCV_DEP_LIB_PATH= $(K230_CANMV_ROOT)/k230_sdk/src/big/utils/lib/opencv/lib/opencv4/3rdparty
+OPENCV_LIBS = -lstdc++ -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -lopencv_highgui -lopencv_videoio -lzlib -llibjpeg-turbo -llibopenjp2 -llibpng -llibtiff -llibwebp -lcsi_cv -latomic
+LDFLAGS += -L$(OPENCV_LIB_PATH) -L$(OPENCV_DEP_LIB_PATH) -Wl,--start-group $(OPENCV_LIBS) -Wl,--end-group
+
 ifeq ($(MICROPY_PY_TERMIOS),1)
 CFLAGS += -DMICROPY_PY_TERMIOS=1
 endif
@@ -112,6 +121,8 @@ MAIX_SRC_C = $(wildcard maix/*.c)
 MPP_SRC_C = $(wildcard mpp/*.c)
 KPU_SRC_C = $(wildcard kpu/*.c)
 OMV_SRC_C = $(wildcard omv/*.c)
+AICUBE_SRC_C = $(wildcard ai_cube/*.c)
+AIDEMO_SRC_C = $(wildcard ai_demo/*.c)
 
 OMV_SRC_C += $(wildcard omv/*/*.c)
 INC += -Iomv/alloc -Iomv/boards/canmv -Iomv/common -Iomv/imlib -Iomv/modules
@@ -121,7 +132,9 @@ SRC_C += \
 	${MAIX_SRC_C} \
 	${MPP_SRC_C} \
 	${KPU_SRC_C} \
-	${OMV_SRC_C}
+	${OMV_SRC_C} \
+	${AICUBE_SRC_C} \
+	${AIDEMO_SRC_C}
 
 SHARED_SRC_C += $(addprefix shared/,\
 	runtime/gchelper_generic.c \
@@ -132,6 +145,12 @@ SHARED_SRC_C += $(addprefix shared/,\
 
 KPU_SRC_CXX = $(wildcard kpu/*.cpp)
 SRC_CXX += ${KPU_SRC_CXX}
+AICUBE_SRC_CXX = $(wildcard ai_cube/*.cpp)
+SRC_CXX += ${AICUBE_SRC_CXX}
+AIDEMO_SRC_CXX = $(wildcard ai_demo/*.cpp)
+SRC_CXX += ${AIDEMO_SRC_CXX}
+AIDEMO_KWS_SRC_CXX = $(wildcard ai_demo/kws/*.cpp)
+SRC_CXX += ${AIDEMO_KWS_SRC_CXX}
 
 OBJ = $(PY_O)
 OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
