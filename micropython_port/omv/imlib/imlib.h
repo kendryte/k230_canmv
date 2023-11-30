@@ -692,9 +692,9 @@ bool image_get_mask_pixel(image_t *ptr, int x, int y);
         __typeof__ (x) _x = (x);                           \
         __typeof__ (y) _y = (y);                           \
         uint32_t offset = ((_image->w * _y) + _x) * 3;     \
-        (((uint8_t *) _image->data)[offset + 0] << 0) |    \
+        (((uint8_t *) _image->data)[offset + 2] << 0) |    \
         (((uint8_t *) _image->data)[offset + 1] << 8) |    \
-        (((uint8_t *) _image->data)[offset + 2] << 16)     \
+        (((uint8_t *) _image->data)[offset + 0] << 16)     \
     })
 
 #define IMAGE_PUT_RGB888_PIXEL(image, x, y, v)                  \
@@ -704,9 +704,9 @@ bool image_get_mask_pixel(image_t *ptr, int x, int y);
         __typeof__ (y) _y = (y);                                \
         __typeof__ (v) _v = (v);                                \
         uint32_t offset = ((_image->w * _y) + _x) * 3;          \
-        ((uint8_t *) _image->data)[offset + 0] = _v >> 0;       \
+        ((uint8_t *) _image->data)[offset + 2] = _v >> 0;       \
         ((uint8_t *) _image->data)[offset + 1] = _v >> 8;       \
-        ((uint8_t *) _image->data)[offset + 2] = _v >> 16;      \
+        ((uint8_t *) _image->data)[offset + 0] = _v >> 16;      \
     })
 
 #define IMAGE_GET_ARGB8888_PIXEL(image, x, y)              \

@@ -386,7 +386,7 @@ class camera:
                 print("capture_image: unsupported format.")
                 return -1
 
-            virt_addr = kd_mpi_sys_mmap(phys_addr, img_size)
+            virt_addr = kd_mpi_sys_mmap_cached(phys_addr, img_size)
             if virt_addr:
                 # Create image object
                 img = image.Image(img_width, img_height, img_fmt, alloc=image.ALLOC_VB, phyaddr=phys_addr, virtaddr=virt_addr, poolid=frame_info.pool_id)

@@ -54,13 +54,13 @@ void mp_hal_stdout_tx_strn(const char *str, size_t len);
 #define pr(fmt,...)
 #endif
 
-static pthread_t ide_dbg_task_p;
+pthread_t ide_dbg_task_p;
 static unsigned char usb_cdc_read_buf[4096];
 static struct ide_dbg_svfil_t ide_dbg_sv_file;
 static mp_obj_exception_t ide_exception; //IDE interrupt
 static mp_obj_str_t ide_exception_str;
 static mp_obj_tuple_t* ide_exception_str_tuple = NULL;
-#if !TEST_PIC
+#if 0
 static mp_obj_t mp_const_ide_interrupt = (mp_obj_t)(&ide_exception);
 #endif
 static sem_t stdin_sem;
@@ -70,7 +70,13 @@ static unsigned stdin_read_ptr = 0;
 
 int usb_rx(void) {
     char c;
-    sem_wait(&stdin_sem);
+    struct timeval tval;
+    struct timespec to;
+    gettimeofday(&tval, NULL);
+    to.tv_sec = tval.tv_sec + 1;
+    to.tv_nsec = tval.tv_usec * 1000;
+    if (sem_timedwait(&stdin_sem, &to) != 0)
+        return -1;
     c = stdin_ring_buffer[stdin_read_ptr++];
     stdin_read_ptr %= sizeof(stdin_ring_buffer);
     return c;
@@ -156,13 +162,16 @@ void ide_dbg_on_script_end(void) {
     }
 }
 
-static void interrupt_repl(void) {
+void interrupt_repl(void) {
+    stdin_ring_buffer[stdin_write_ptr++] = CHAR_CTRL_C;
+    stdin_write_ptr %= sizeof(stdin_ring_buffer);
+    sem_post(&stdin_sem);
     stdin_ring_buffer[stdin_write_ptr++] = CHAR_CTRL_D;
     stdin_write_ptr %= sizeof(stdin_ring_buffer);
     sem_post(&stdin_sem);
 }
 
-static void interrupt_ide(void) {
+void interrupt_ide(void) {
     pr("[usb] exit IDE mode");
     ide_attached = false;
     // exit script mode
@@ -348,11 +357,8 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         #else
                         // raise IDE interrupt
                         if (ide_script_running) {
-                            // FIXME
-                            MP_THREAD_GIL_ENTER();
-                            mp_obj_exception_clear_traceback(mp_const_ide_interrupt);
-                            mp_sched_exception(mp_const_ide_interrupt);
-                            MP_THREAD_GIL_EXIT();
+                            extern void mp_thread_set_exception_main(mp_obj_t obj);
+                            mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&ide_exception));
                         }
                         #endif
                         break;
@@ -665,6 +671,10 @@ extern volatile bool repl_script_running;
 static void* ide_dbg_task(void* args) {
     ide_dbg_state_t state;
     state.state = FRAME_HEAD;
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+    struct sched_param param;
+    param.sched_priority = 20;
+    pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
     while (1) {
         struct timeval tv = {
             .tv_sec = 1,
@@ -682,12 +692,14 @@ static void* ide_dbg_task(void* args) {
         } else if (result < 0) {
             perror("select() error");
             kill(getpid(), SIGINT);
-            return NULL;
+            continue;
         }
         if (FD_ISSET(STDIN_FILENO, &rfds)) {
-            pr("exit, press enter");
-            kill(getpid(), SIGINT);
-            return NULL;
+            char tmp;
+            read(STDIN_FILENO, &tmp, 1);
+            if (tmp == CHAR_CTRL_C || tmp == 'q')
+                kill(getpid(), SIGINT);
+            continue;
         }
         if (FD_ISSET(usb_cdc_fd, &efds)) {
             // RTS
@@ -697,8 +709,6 @@ static void* ide_dbg_task(void* args) {
                     interrupt_ide();
                     flag_wait_exit = false;
                 }
-            } else {
-                interrupt_repl();
             }
         }
         if (!FD_ISSET(usb_cdc_fd, &rfds)) {
@@ -750,10 +760,10 @@ static void* ide_dbg_task(void* args) {
                 pr("[usb] read %lu bytes ", size);
                 print_raw(usb_cdc_read_buf, size);
                 if ((size == 1) && (usb_cdc_read_buf[0] == CHAR_CTRL_C) && repl_script_running) {
-                    // terminate script running, FIXME: multithread raise
+                    // terminate script running
                     #if MICROPY_KBD_EXCEPTION
-                    mp_sched_keyboard_interrupt();
-                    //nlr_raise(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
+                    extern void mp_thread_set_exception_main(mp_obj_t obj);
+                    mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
                     #endif
                 } else {
                     if (stdin_write_ptr + size <= sizeof(stdin_ring_buffer)) {
@@ -787,6 +797,8 @@ void ide_dbg_init(void) {
         perror("open /dev/ttyUSB1 error");
         return;
     }
+    // clear input buffer
+    while (0 < read(usb_cdc_fd, usb_cdc_read_buf, sizeof(usb_cdc_read_buf)));
     sem_init(&script_sem, 0, 0);
     sem_init(&stdin_sem, 0, 0);
     pthread_mutex_init(&fb_mutex, NULL);
