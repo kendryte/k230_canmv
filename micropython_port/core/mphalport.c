@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include "py/mphal.h"
 #include "py/mpthread.h"
@@ -44,13 +45,22 @@
 #endif
 #endif
 
-#ifndef _WIN32
-#include <signal.h>
+extern bool process_exit;
+extern bool ide_dbg_attach(void);
+extern void interrupt_repl(void);
+extern void interrupt_ide(void);
 
-STATIC void sighandler(int signum) {
-    fprintf(stderr, "get sig(%d), exit\n", signum);
-    exit(0);
-    return;
+STATIC void sigint_handler_other(int signum) {
+    if (signum == SIGINT) {
+        process_exit = true;
+        if (ide_dbg_attach())
+            interrupt_ide();
+        else
+            interrupt_repl();
+    }
+}
+
+STATIC void sigint_handler_ctrl_c(int signum) {
     if (signum == SIGINT) {
         #if MICROPY_ASYNC_KBD_INTR
         #if MICROPY_PY_THREAD_GIL
@@ -66,36 +76,28 @@ STATIC void sighandler(int signum) {
         sigprocmask(SIG_SETMASK, &mask, NULL);
         nlr_raise(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
         #else
-        if (MP_STATE_MAIN_THREAD(mp_pending_exception) == MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception))) {
-            // this is the second time we are called, so die straight away
-            exit(1);
-        }
-        mp_sched_keyboard_interrupt();
+        process_exit = true;
+        extern void mp_thread_set_exception_main(mp_obj_t obj);
+        mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
+        if (!ide_dbg_attach())
+            interrupt_repl();
         #endif
     }
 }
-#endif
 
 void mp_hal_set_interrupt_char(char c) {
-    // configure terminal settings to (not) let ctrl-C through
     if (c == CHAR_CTRL_C) {
-        #ifndef _WIN32
-        // enable signal handler
         struct sigaction sa;
         sa.sa_flags = 0;
-        sa.sa_handler = sighandler;
+        sa.sa_handler = sigint_handler_ctrl_c;
         sigemptyset(&sa.sa_mask);
         sigaction(SIGINT, &sa, NULL);
-        #endif
     } else {
-        #ifndef _WIN32
-        // disable signal handler
         struct sigaction sa;
         sa.sa_flags = 0;
-        sa.sa_handler = SIG_DFL;
+        sa.sa_handler = sigint_handler_other;
         sigemptyset(&sa.sa_mask);
         sigaction(SIGINT, &sa, NULL);
-        #endif
     }
 }
 
@@ -126,9 +128,16 @@ void mp_hal_stdio_mode_orig(void) {
 #endif
 
 int mp_hal_stdin_rx_chr(void) {
+    char c;
     extern int usb_rx(void);
-    char c = usb_rx();
-    // fprintf(stderr, "[mpy] stdin rx %d\n", c);
+    while (1) {
+        MP_THREAD_GIL_EXIT();
+        c = usb_rx();
+        MP_THREAD_GIL_ENTER();
+        if (c != -1)
+            break;
+        mp_handle_pending(true);
+    }
     return c;
 }
 
@@ -139,10 +148,6 @@ void mp_hal_stdout_tx_strn(const char *str, size_t len) {
         mpy_stdout_tx(str, len);
     } else {
         extern int usb_tx(const void* buffer, size_t size);
-        // fprintf(stderr, "[usb] print: ");
-        // extern void print_raw(uint8_t* data, size_t size);
-        // fwrite(str, 1, len, stderr);
-        // fwrite("\r\n", 1, 2, stderr);
         usb_tx(str, len);
     }
     mp_os_dupterm_tx_strn(str, len);

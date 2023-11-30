@@ -60,6 +60,7 @@ typedef long long mp_off_t;
 #endif
 #endif
 
+#define MICROPY_USE_INTERNAL_PRINTF (0)
 #define MICROPY_USE_READLINE        (1)
 // Always enable GC.
 #define MICROPY_ENABLE_GC           (1)
@@ -138,6 +139,12 @@ extern const struct _mp_print_t mp_stderr_print;
         usleep(500); /* equivalent to mp_hal_delay_us(500) */ \
     } while (0);
 #endif
+
+#define MICROPY_VM_HOOK_LOOP \
+    do { \
+        extern void mp_thread_get_exception(void); \
+        mp_thread_get_exception(); \
+    } while (0);
 
 // Configure the implementation of machine.idle().
 #include <sched.h>

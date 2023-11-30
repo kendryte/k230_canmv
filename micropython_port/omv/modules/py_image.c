@@ -1002,41 +1002,10 @@ static mp_obj_t py_image_midpoint_pooled(size_t n_args, const mp_obj_t *args, mp
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_midpoint_pooled_obj, 3, py_image_midpoint_pooled);
 #endif // IMLIB_ENABLE_MIDPOINT_POOLING
 
-/*static int rgb888_to_builtin(image_t *src, image_t *dst, mp_map_t *kw_args)
-{
-    memcpy(dst, src, sizeof(image_t));
-    dst->alloc_type = ALLOC_REF;
-    if (src->pixfmt != PIXFORMAT_RGB888)
-        return 0;
-    dst->pixfmt = PIXFORMAT_RGB565;
-    dst->alloc_type = ALLOC_MPGC;
-    dst->data = xalloc(image_size(dst));
-
-    uint8_t *rgb888 = src->data;
-    uint16_t *rgb565 = (uint16_t *)dst->data;
-
-    for (int i = 0; i < src->w * src->h; i++) {
-        *rgb565++ = COLOR_R8_G8_B8_TO_RGB565(rgb888[2], rgb888[1], rgb888[0]);
-        rgb888 += 3;
-    }
-
-    return 0;
-}*/
-
 static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_palette, bool copy_to_fb,
                             mp_obj_t copy_default, bool quality_is_first_arg, bool encode_for_ide_default,
                             size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
     image_t *src_img = py_image_cobj(args[0]);
-    // image_t temp_img;
-    bool dst_is_rgb888 = false;
-
-    if (pixfmt == PIXFORMAT_RGB888) {
-        dst_is_rgb888 = true;
-        pixfmt = PIXFORMAT_RGB565;
-    }
-
-    //rgb888_to_builtin(src_img, &temp_img, kw_args);
-    //src_img = &temp_img;
 
     int quality_default = 90;
     if (quality_is_first_arg && (n_args > 1)) {
@@ -1109,6 +1078,32 @@ static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_pa
     }
 
     bool arg_e = py_helper_keyword_int(n_args, args, 13, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_encode_for_ide), encode_for_ide_default);
+    image_t temp_img;
+    bool dst_is_rgb888 = false;
+    bool src_is_rgb888 = false;
+
+    if (pixfmt == PIXFORMAT_RGB888) {
+        dst_is_rgb888 = true;
+        pixfmt = PIXFORMAT_RGB565;
+    }
+
+    if (src_img->pixfmt == PIXFORMAT_RGB888) {
+        src_is_rgb888 = true;
+        memcpy(&temp_img, src_img, sizeof(image_t));
+        temp_img.pixfmt = PIXFORMAT_RGB565;
+        temp_img.alloc_type = ALLOC_MPGC;
+        temp_img.data = xalloc(image_size(&temp_img));
+
+        uint8_t *rgb888 = src_img->data;
+        uint16_t *rgb565 = (uint16_t *)temp_img.data;
+
+        for (int i = 0; i < src_img->w * src_img->h; i++) {
+            *rgb565++ = COLOR_R8_G8_B8_TO_RGB565(rgb888[0], rgb888[1], rgb888[2]);
+            rgb888 += 3;
+        }
+
+        src_img = &temp_img;
+    }
 
     image_t dst_img = {
         .w = fast_floorf(arg_roi.w * arg_x_scale),
@@ -1267,8 +1262,8 @@ static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_pa
         fb_alloc_free_till_mark();
     }
 
-    // if (temp_img.alloc_type == ALLOC_MPGC)
-    //    xfree(temp_img.data);
+    if (src_is_rgb888)
+       xfree(temp_img.data);
 
     if (dst_is_rgb888) {
         uint16_t *rgb565 = (uint16_t *)(dst_img.data + dst_img.w * dst_img.h * 2);
@@ -1278,9 +1273,9 @@ static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_pa
             rgb565--;
             rgb888 -= 3;
             uint16_t register tmp = *rgb565;
-            rgb888[2] = (tmp >> 8) & 0xF8;
+            rgb888[0] = (tmp >> 8) & 0xF8;
             rgb888[1] = (tmp >> 3) & 0xFC;
-            rgb888[0] = (tmp << 3) & 0xF8;
+            rgb888[2] = (tmp << 3) & 0xF8;
         }
 
         dst_img.pixfmt = PIXFORMAT_RGB888;

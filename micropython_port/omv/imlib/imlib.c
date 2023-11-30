@@ -747,7 +747,13 @@ void imlib_load_image(image_t *img, const char *path) {
 }
 
 void imlib_save_image(image_t *img, const char *path, rectangle_t *roi, int quality) {
-    switch (imblib_parse_extension(img, path)) {
+    save_image_format_t format = imblib_parse_extension(img, path);
+    if ((img->pixfmt_id == PIXFORMAT_ID_RGB8 || img->pixfmt_id == PIXFORMAT_ID_ARGB8 ||
+        img->pixfmt_id == PIXFORMAT_ID_YUV420) && format != FORMAT_DONT_CARE) {
+        fb_alloc_free_till_mark();
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("current format not support save function!"));
+    }
+    switch (format) {
         case FORMAT_BMP:
             bmp_write_subimg(img, path, roi);
             break;
@@ -785,10 +791,10 @@ void imlib_save_image(image_t *img, const char *path, rectangle_t *roi, int qual
                 file_close(&fp);
                 fb_free();
             } else {
-                // RGB or GS, save as BMP.
-                char *new_path = strcat(strcpy(fb_alloc(strlen(path) + 5, FB_ALLOC_NO_HINT), path), ".bmp");
-                bmp_write_subimg(img, new_path, roi);
-                fb_free();
+                FIL fp;
+                file_write_open(&fp, path);
+                write_data(&fp, img->pixels, image_size(img));
+                file_close(&fp);
             }
             break;
     }

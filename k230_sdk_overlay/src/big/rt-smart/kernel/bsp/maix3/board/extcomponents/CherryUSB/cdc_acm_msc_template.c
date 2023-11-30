@@ -174,7 +174,7 @@ struct usbd_interface intf2;
 void cdc_acm_msc_init(void)
 {
     rt_sem_init(&cdc_read_sem, "cdc/read", 0, RT_IPC_FLAG_FIFO);
-    rt_sem_init(&cdc_write_sem, "cdc/write", 0, RT_IPC_FLAG_FIFO);
+    rt_sem_init(&cdc_write_sem, "cdc/write", 1, RT_IPC_FLAG_FIFO);
     usbd_desc_register(cdc_msc_descriptor);
     usbd_add_interface(usbd_cdc_acm_init_intf(&intf0));
     usbd_add_interface(usbd_cdc_acm_init_intf(&intf1));

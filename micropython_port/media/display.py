@@ -18,7 +18,7 @@ DISPLAY_CHN_OSD3 = K_VO_DISPLAY_CHN_ID6
 # define pixelformat
 DISPLAY_OUT_NV12 = PIXEL_FORMAT_YVU_PLANAR_420
 DISPLAY_OUT_ARGB8888 = PIXEL_FORMAT_ARGB_8888
-DISPLAY_OUT_RGB888 = PIXEL_FORMAT_RGB_888
+DISPLAY_OUT_RGB888 = PIXEL_FORMAT_BGR_888
 DISPLAY_OUT_RGB565 = PIXEL_FORMAT_RGB_565
 
 # define VO mirror
@@ -140,6 +140,5 @@ class display:
         for i in range(0, 7):
             if cls.plane_array[i] == 1:
                 cls.disable_plane(i)
-                print(i)
         kd_display_reset()
 

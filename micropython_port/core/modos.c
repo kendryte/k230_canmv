@@ -110,3 +110,11 @@ STATIC mp_obj_t mp_os_errno(size_t n_args, const mp_obj_t *args) {
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_os_errno_obj, 0, 1, mp_os_errno);
+
+STATIC mp_obj_t mp_os_exit_exception_mask(mp_obj_t obj) {
+    bool mask = mp_obj_is_true(obj);
+    extern void mp_thread_set_exit_exception_mask(bool mask);
+    mp_thread_set_exit_exception_mask(mask);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_os_exit_exception_mask_obj, mp_os_exit_exception_mask);
