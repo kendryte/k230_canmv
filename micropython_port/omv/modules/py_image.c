@@ -19,6 +19,7 @@
 #include "py/objtype.h"
 #include "py/runtime.h"
 #include "py/mphal.h"
+#include "py/gc.h"
 
 #include "imlib.h"
 #include "array.h"
@@ -926,13 +927,13 @@ static mp_obj_t py_image_mean_pool(mp_obj_t img_obj, mp_obj_t x_div_obj, mp_obj_
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(py_image_mean_pool_obj, py_image_mean_pool);
 
-static mp_obj_t py_image_mean_pooled(mp_obj_t img_obj, mp_obj_t x_div_obj, mp_obj_t y_div_obj) {
-    image_t *arg_img = py_helper_arg_to_image_mutable(img_obj);
+static mp_obj_t py_image_mean_pooled(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    image_t *arg_img = py_helper_arg_to_image_mutable(args[0]);
 
-    int arg_x_div = mp_obj_get_int(x_div_obj);
+    int arg_x_div = mp_obj_get_int(args[1]);
     PY_ASSERT_TRUE_MSG(arg_x_div >= 1, "Width divisor must be greater than >= 1");
     PY_ASSERT_TRUE_MSG(arg_x_div <= arg_img->w, "Width divisor must be less than <= img width");
-    int arg_y_div = mp_obj_get_int(y_div_obj);
+    int arg_y_div = mp_obj_get_int(args[2]);
     PY_ASSERT_TRUE_MSG(arg_y_div >= 1, "Height divisor must be greater than >= 1");
     PY_ASSERT_TRUE_MSG(arg_y_div <= arg_img->h, "Height divisor must be less than <= img height");
 
@@ -940,12 +941,12 @@ static mp_obj_t py_image_mean_pooled(mp_obj_t img_obj, mp_obj_t x_div_obj, mp_ob
     out_img.w = arg_img->w / arg_x_div;
     out_img.h = arg_img->h / arg_y_div;
     out_img.pixfmt = arg_img->pixfmt;
-    out_img.pixels = xalloc(image_size(&out_img));
+    py_image_alloc(&out_img, kw_args);
 
     imlib_mean_pool(arg_img, &out_img, arg_x_div, arg_y_div);
     return py_image_from_struct(&out_img);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_3(py_image_mean_pooled_obj, py_image_mean_pooled);
+STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_mean_pooled_obj, 3, py_image_mean_pooled);
 #endif // IMLIB_ENABLE_MEAN_POOLING
 
 #ifdef IMLIB_ENABLE_MIDPOINT_POOLING
@@ -994,7 +995,7 @@ static mp_obj_t py_image_midpoint_pooled(size_t n_args, const mp_obj_t *args, mp
     out_img.w = arg_img->w / arg_x_div;
     out_img.h = arg_img->h / arg_y_div;
     out_img.pixfmt = arg_img->pixfmt;
-    out_img.pixels = xalloc(image_size(&out_img));
+    py_image_alloc(&out_img, kw_args);
 
     imlib_midpoint_pool(arg_img, &out_img, arg_x_div, arg_y_div, arg_bias);
     return py_image_from_struct(&out_img);
@@ -2014,7 +2015,10 @@ STATIC mp_obj_t py_image_binary(size_t n_args, const mp_obj_t *args, mp_map_t *k
     out.w = arg_img->w;
     out.h = arg_img->h;
     out.pixfmt = arg_to_bitmap ? PIXFORMAT_BINARY  : arg_img->pixfmt;
-    out.pixels = arg_copy ? xalloc(image_size(&out)) : arg_img->pixels;
+    if (arg_copy)
+        py_image_alloc(&out, kw_args);
+    else
+        out.pixels = arg_img->pixels;
 
     fb_alloc_mark();
     imlib_binary(&out, arg_img, &arg_thresholds, arg_invert, arg_zero, arg_msk);
@@ -6963,6 +6967,7 @@ void py_image_alloc(image_t *image, mp_map_t *kw_args)
     bool cache = true;
     mp_obj_t data_obj = NULL;
     mp_buffer_info_t bufinfo;
+    int collected = 0;
 
     if (kw_arg_alloc_type) {
         alloc_type = mp_obj_get_int(kw_arg_alloc_type->value);
@@ -6989,15 +6994,21 @@ void py_image_alloc(image_t *image, mp_map_t *kw_args)
         if (size > bufinfo.len)
             mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("Not enough data"));
     }
-
+retry:
     if (alloc_type == ALLOC_MMZ) {
         int ret = 0;
         if (cache)
             ret = kd_mpi_sys_mmz_alloc_cached(&image->phy_addr, (void**)&image->data, "img", "anonymous", size);
         else
             ret = kd_mpi_sys_mmz_alloc(&image->phy_addr, (void**)&image->data, "img", "anonymous", size);
-        if (ret)
+        if (ret) {
+            if (!collected) {
+                gc_collect();
+                collected = 1;
+                goto retry;
+            }
             mp_raise_msg_varg(&mp_type_MemoryError, MP_ERROR_TEXT("image mmz alloc failed: %d"), ret);
+        }
     } else if (alloc_type == ALLOC_VB) {
         mp_map_elem_t *kw_arg_phyaddr = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_phyaddr), MP_MAP_LOOKUP);
         mp_map_elem_t *kw_arg_virtaddr = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_virtaddr), MP_MAP_LOOKUP);
@@ -7015,8 +7026,14 @@ void py_image_alloc(image_t *image, mp_map_t *kw_args)
         image->data = bufinfo.buf;
     } else if (alloc_type == ALLOC_HEAP) {
         image->data = malloc(size);
-        if (image->data == NULL)
+        if (image->data == NULL) {
+            if (!collected) {
+                gc_collect();
+                collected = 1;
+                goto retry;
+            }
             mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("image malloc failed"));
+        }
     } else if (alloc_type == ALLOC_MPGC) {
         image->data = xalloc(size);
     } else {
