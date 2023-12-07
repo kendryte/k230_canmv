@@ -46,18 +46,19 @@ struct rt_semaphore cdc_read_sem, cdc_write_sem;
 struct rt_mutex cdc_write_mutex;
 extern volatile char ep_tx_busy_flag;
 volatile size_t actual_bytes = 0;
-static bool last_rts = false;
+volatile size_t actual_write = 0;
+static volatile bool last_dtr = false;
 extern uint32_t usb_read_buffer_ptr;
 extern uint8_t usb_read_buffer[];
 
 void usbd_cdc_acm_set_dtr(uint8_t intf, bool dtr) {
     // USB_LOG_WRN("set DTR %d\n", dtr);
-    if (last_rts != dtr) {
+    if (last_dtr != dtr) {
         //USB_LOG_WRN("RTS reset %d %d\n", last_rts, rts);
         g_cdc_mask |= POLLERR;
         rt_wqueue_wakeup(&g_cdc_rt_device.wait_queue, (void*)POLLERR);
     }
-    last_rts = dtr;
+    last_dtr = dtr;
 }
 
 void usbd_cdc_acm_set_rts(uint8_t intf, bool rts) {

@@ -193,8 +193,14 @@ class media:
 
         # for JPEG encoder
         cls.buf_config.comm_pool[cls.config_index].blk_size = 1843200
-        cls.buf_config.comm_pool[cls.config_index].blk_cnt = 8
+        cls.buf_config.comm_pool[cls.config_index].blk_cnt = 16
         cls.buf_config.comm_pool[cls.config_index].mode = VB_REMAP_MODE_NOCACHE
+        cls.config_index += 1
+        # for VO writeback
+        cls.buf_config.comm_pool[cls.config_index].blk_size = 3117056
+        cls.buf_config.comm_pool[cls.config_index].blk_cnt = 4
+        cls.buf_config.comm_pool[cls.config_index].mode = VB_REMAP_MODE_NOCACHE
+        cls.config_index += 1
         ret = kd_mpi_vb_set_config(cls.buf_config)
         if ret:
             print(f"buffer_init, vb config failed({ret})")
@@ -212,17 +218,17 @@ class media:
             print(f"buffer_init, vb init failed({ret})")
             return ret
         cls.__buf_has_init = True
-
+        ide_dbg_vo_wbc_init()
         return 0
 
 
     @classmethod
-    def buffer_deinit(cls):
-        return
+    def buffer_deinit(cls, force=False):
         cls.buf_config.max_pool_cnt = 0
         cls.config_index = 0
         cls.__buf_has_init = False
-
+        if not force:
+            return
         ret = kd_mpi_vb_exit()
         if ret:
             print(f"buffer_deinit, vb deinit failed({ret})")

@@ -859,6 +859,8 @@ main_thread_exit:
         kd_mpi_venc_destroy_chn(VENC_MAX_CHN_NUMS - 1);
     }
     jpeg_encoder_created = 0;
+    void ide_dbg_vo_deinit(void);
+    ide_dbg_vo_deinit();
     kd_mpi_vb_exit();
 
     // printf("total bytes = %d\n", m_get_total_bytes_allocated());
