@@ -39,6 +39,8 @@ class display:
         connector_fd = kd_mpi_connector_open(uctypes.string_at(connector_info.connector_name))
         kd_mpi_connector_power_set(connector_fd, 1)
         kd_mpi_connector_init(connector_fd, connector_info)
+        print(type)
+        ide_dbg_vo_init(type)
         cls.plane_array = [0] * 7
 
     @classmethod
@@ -140,5 +142,7 @@ class display:
         for i in range(0, 7):
             if cls.plane_array[i] == 1:
                 cls.disable_plane(i)
+                print(i)
+        ide_dbg_vo_deinit()
         kd_display_reset()
 

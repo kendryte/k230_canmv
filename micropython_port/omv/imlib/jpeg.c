@@ -1962,12 +1962,13 @@ int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int ti
     }
     pthread_mutex_lock(&hd_jpeg_mutex);
     static bool first_frame = true;
+    static k_venc_chn_attr attr;
+    init:
     if (jpeg_encoder_created == 0) {
         // create channel
-        k_venc_chn_attr attr;
         memset(&attr, 0, sizeof(attr));
-        attr.venc_attr.pic_width = 1920;
-        attr.venc_attr.pic_height = 1920;
+        attr.venc_attr.pic_width = frame->v_frame.width;
+        attr.venc_attr.pic_height = frame->v_frame.height;
         attr.venc_attr.stream_buf_size = (1920 * 1920 / 2 + 0xfff) & ~0xfff;
         attr.venc_attr.stream_buf_cnt = 8;
         attr.venc_attr.type = K_PT_JPEG;
@@ -1991,6 +1992,14 @@ int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int ti
         }
         jpeg_encoder_created = 1;
         first_frame = true;
+    }
+    // check resolution and format
+    if ((attr.venc_attr.pic_width != frame->v_frame.width) || (attr.venc_attr.pic_height != frame->v_frame.height)) {
+        // reinit
+        kd_mpi_venc_stop_chn(VENC_MAX_CHN_NUMS - 1);
+        kd_mpi_venc_destroy_chn(VENC_MAX_CHN_NUMS - 1);
+        jpeg_encoder_created = 0;
+        goto init;
     }
     send_again:
     error = kd_mpi_venc_send_frame(VENC_MAX_CHN_NUMS - 1, frame, timeout);
