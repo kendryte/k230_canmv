@@ -1,11 +1,16 @@
-# Data Matrices Example
+# Local Binary Patterns (LBP) Example
 #
-# This example shows off how easy it is to detect data matrices.
+# This example shows off how to use the local binary pattern feature descriptor
+# on your CanMV Cam. LBP descriptors work like Freak feature descriptors.
+#
+# WARNING: LBP supports needs to be reworked! As of right now this feature needs
+# a lot of work to be made into somethin useful. This script will reamin to show
+# that the functionality exists, but, in its current state is inadequate.
 
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, math, os, gc
+import time, os, gc
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -61,6 +66,19 @@ def camera_deinit():
     # deinit media buffer
     media.buffer_deinit()
 
+def camera_drop(frame):
+    for i in range(frame):
+        os.exit_exception_mask(1)
+        img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
+        if img == -1:
+            # release image for dev and chn
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, img)
+            os.exit_exception_mask(0)
+            raise OSError("camera capture image failed")
+        else:
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, img)
+            os.exit_exception_mask(0)
+
 def capture_picture():
     # create image for drawing
     draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
@@ -68,7 +86,17 @@ def capture_picture():
     buffer = globals()["buffer"]
     osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
     osd_img.clear()
+    osd_img.draw_string(0, 0, "Please wait...")
     display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD0)
+    # Load Haar Cascade
+    # By default this will use all stages, lower satges is faster but less accurate.
+    face_cascade = image.HaarCascade("frontalface", stages=25)
+    print(face_cascade)
+    d0 = None
+    #d0 = image.load_descriptor("/desc.lbp")
+    # Skip a few frames to allow the sensor settle down
+    # Note: This takes more time when exec from the IDE.
+    camera_drop(90)
     fps = time.clock()
     while True:
         fps.tick()
@@ -81,18 +109,25 @@ def capture_picture():
                 os.exit_exception_mask(0)
                 raise OSError("camera capture image failed")
             else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
+                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, data=yuv420_img)
                 camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
                 os.exit_exception_mask(0)
-                matrices = img.find_datamatrices()
                 draw_img.clear()
-                for matrix in matrices:
-                    draw_img.draw_rectangle([v*SCALE for v in matrix.rect()], color=(255, 0, 0))
-                    print_args = (matrix.rows(), matrix.columns(), matrix.payload(), (180 * matrix.rotation()) / math.pi, fps.fps())
-                    print("Matrix [%d:%d], Payload \"%s\", rotation %f (degrees), FPS %f" % print_args)
+                objects = img.find_features(face_cascade, threshold=0.5, scale_factor=1.25)
+                if objects:
+                    face = objects[0]
+                    d1 = img.find_lbp(face)
+                    if (d0 == None):
+                        d0 = d1
+                    else:
+                        dist = image.match_descriptor(d0, d1)
+                        draw_img.draw_string(0, 10, "Match %d%%"%(dist))
+                        print("Match %d%%"%(dist))
+
+                    draw_img.draw_rectangle([v*SCALE for v in face])
+                # Draw FPS
+                draw_img.draw_string(0, 0, "FPS:%.2f"%(fps.fps()))
                 draw_img.copy_to(osd_img)
-                if not matrices:
-                    print("FPS %f" % fps.fps())
                 del img
                 gc.collect()
         except Exception as e:

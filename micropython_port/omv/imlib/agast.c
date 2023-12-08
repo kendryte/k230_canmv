@@ -18,7 +18,7 @@
 #include "fb_alloc.h"
 #include "gc.h"
 
-#define MAX_ROW          (480u)
+#define MAX_ROW          (1080u)
 #define MAX_CORNERS      (2000u)
 #define Compare(X, Y)    ((X) >= (Y))
 

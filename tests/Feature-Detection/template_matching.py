@@ -1,11 +1,18 @@
-# Data Matrices Example
+# Template Matching Example - Normalized Cross Correlation (NCC)
 #
-# This example shows off how easy it is to detect data matrices.
+# This example shows off how to use the NCC feature of your CanMV Cam to match
+# image patches to parts of an image... expect for extremely controlled enviorments
+# NCC is not all to useful.
+#
+# WARNING: NCC supports needs to be reworked! As of right now this feature needs
+# a lot of work to be made into somethin useful. This script will reamin to show
+# that the functionality exists, but, in its current state is inadequate.
 
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, math, os, gc
+import time, os, gc
+from image import SEARCH_EX, SEARCH_DS
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -68,7 +75,14 @@ def capture_picture():
     buffer = globals()["buffer"]
     osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
     osd_img.clear()
+    osd_img.draw_string(0, 0, "Please wait...")
     display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD0)
+    # Load template.
+    # Template should be a small (eg. 32x32 pixels) grayscale image.
+    # template = image.Image("/sd/template.bmp")
+    # template.to_grayscale()
+    template = image.Image(32, 32, image.GRAYSCALE)
+    template.draw_circle(16,16,16,color=(255,255,255),fill=True)
     fps = time.clock()
     while True:
         fps.tick()
@@ -81,20 +95,24 @@ def capture_picture():
                 os.exit_exception_mask(0)
                 raise OSError("camera capture image failed")
             else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
+                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, data=yuv420_img)
                 camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
                 os.exit_exception_mask(0)
-                matrices = img.find_datamatrices()
                 draw_img.clear()
-                for matrix in matrices:
-                    draw_img.draw_rectangle([v*SCALE for v in matrix.rect()], color=(255, 0, 0))
-                    print_args = (matrix.rows(), matrix.columns(), matrix.payload(), (180 * matrix.rotation()) / math.pi, fps.fps())
-                    print("Matrix [%d:%d], Payload \"%s\", rotation %f (degrees), FPS %f" % print_args)
+                # find_template(template, threshold, [roi, step, search])
+                # ROI: The region of interest tuple (x, y, w, h).
+                # Step: The loop step used (y+=step, x+=step) use a bigger step to make it faster.
+                # Search is either image.SEARCH_EX for exhaustive search or image.SEARCH_DS for diamond search
+                #
+                # Note1: ROI has to be smaller than the image and bigger than the template.
+                # Note2: In diamond search, step and ROI are both ignored.
+                r = img.find_template(template, 0.50, step=4, search=SEARCH_EX) #, roi=(10, 0, 60, 60))
+                if r:
+                    draw_img.draw_rectangle([v*SCALE for v in r],color=(255,0,0))
                 draw_img.copy_to(osd_img)
-                if not matrices:
-                    print("FPS %f" % fps.fps())
                 del img
                 gc.collect()
+                print(fps.fps())
         except Exception as e:
             print(e)
             break

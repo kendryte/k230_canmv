@@ -1,17 +1,15 @@
-# Data Matrices Example
+# Keypoints Drawing
 #
-# This example shows off how easy it is to detect data matrices.
+# This example shows off drawing keypoints on the CanMV Cam. Usually you call draw_keypoints()
+# on a keypoints object but you can also call it on a list of 3-value tuples...
 
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, math, os, gc
+import time, os, gc, urandom
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
-SCALE = 4
-DETECT_WIDTH = DISPLAY_WIDTH // SCALE
-DETECT_HEIGHT = DISPLAY_HEIGHT // SCALE
 
 def camera_init():
     # use hdmi for display
@@ -38,9 +36,6 @@ def camera_init():
     media.create_link(meida_source, meida_sink)
     # set display plane with video channel
     display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
-    # set chn1 output nv12
-    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, DETECT_WIDTH, DETECT_HEIGHT)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
     # media buffer init
     media.buffer_init()
     # request media buffer for osd image
@@ -61,9 +56,9 @@ def camera_deinit():
     # deinit media buffer
     media.buffer_deinit()
 
-def capture_picture():
+def draw():
     # create image for drawing
-    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
+    img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
     # create image for osd
     buffer = globals()["buffer"]
     osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
@@ -72,32 +67,18 @@ def capture_picture():
     fps = time.clock()
     while True:
         fps.tick()
-        try:
-            os.exit_exception_mask(1)
-            yuv420_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if yuv420_img == -1:
-                # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
-                os.exit_exception_mask(0)
-                raise OSError("camera capture image failed")
-            else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
-                os.exit_exception_mask(0)
-                matrices = img.find_datamatrices()
-                draw_img.clear()
-                for matrix in matrices:
-                    draw_img.draw_rectangle([v*SCALE for v in matrix.rect()], color=(255, 0, 0))
-                    print_args = (matrix.rows(), matrix.columns(), matrix.payload(), (180 * matrix.rotation()) / math.pi, fps.fps())
-                    print("Matrix [%d:%d], Payload \"%s\", rotation %f (degrees), FPS %f" % print_args)
-                draw_img.copy_to(osd_img)
-                if not matrices:
-                    print("FPS %f" % fps.fps())
-                del img
-                gc.collect()
-        except Exception as e:
-            print(e)
-            break
+        img.clear()
+        for i in range(10):
+            x = (urandom.getrandbits(30) % (2*img.width())) - (img.width()//2)
+            y = (urandom.getrandbits(30) % (2*img.height())) - (img.height()//2)
+            rot = urandom.getrandbits(30) % 360
+            r = (urandom.getrandbits(30) % 127) + 128
+            g = (urandom.getrandbits(30) % 127) + 128
+            b = (urandom.getrandbits(30) % 127) + 128
+            # This method draws a keypoints object or a list of (x, y, rot) tuples...
+            img.draw_keypoints([(x, y, rot)], color = (r, g, b), size = 20, thickness = 2, fill = False)
+        img.copy_to(osd_img)
+        print(fps.fps())
 
 def main():
     camera_is_init = False
@@ -107,8 +88,8 @@ def main():
         camera_init()
         camera_is_init = True
         os.exit_exception_mask(0)
-        print("camera capture")
-        capture_picture()
+        print("draw")
+        draw()
     except Exception as e:
         os.exit_exception_mask(1)
         print(e)

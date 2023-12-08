@@ -2031,6 +2031,9 @@ STATIC mp_obj_t py_image_binary(size_t n_args, const mp_obj_t *args, mp_map_t *k
         py_helper_update_framebuffer(&out);
     }
 
+    if (!arg_copy)
+        return args[0];
+
     return py_image_from_struct(&out);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_binary_obj, 2, py_image_binary);
@@ -6220,7 +6223,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_find_lbp_obj, 2, py_image_find_lbp);
 
 #ifdef IMLIB_ENABLE_FIND_KEYPOINTS
 static mp_obj_t py_image_find_keypoints(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
-    image_t *arg_img = py_helper_arg_to_image_mutable(args[0]);
+    image_t *arg_img = py_helper_arg_to_image_grayscale(args[0]);
 
     rectangle_t roi;
     py_helper_keyword_rectangle_roi(arg_img, n_args, args, 1, kw_args, &roi);
@@ -7363,6 +7366,7 @@ int py_image_descriptor_from_roi(image_t *img, const char *path, rectangle_t *ro
     FIL fp;
     FRESULT res = FR_OK;
 
+    py_helper_arg_to_image_grayscale(img);
     printf("Save Descriptor: ROI(%d %d %d %d)\n", roi->x, roi->y, roi->w, roi->h);
     array_t *kpts = orb_find_keypoints(img, false, 20, 1.5f, 100, CORNER_AGAST, roi);
     printf("Save Descriptor: KPTS(%d)\n", array_length(kpts));

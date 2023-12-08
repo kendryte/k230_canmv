@@ -9,6 +9,9 @@ import time, math, os, gc
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
+SCALE = 4
+DETECT_WIDTH = DISPLAY_WIDTH // SCALE
+DETECT_HEIGHT = DISPLAY_HEIGHT // SCALE
 
 def camera_init():
     # use hdmi for display
@@ -36,10 +39,12 @@ def camera_init():
     # set display plane with video channel
     display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
     # set chn1 output nv12
-    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, 480, 270)
+    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, DETECT_WIDTH, DETECT_HEIGHT)
     camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
     # media buffer init
     media.buffer_init()
+    # request media buffer for osd image
+    globals()["buffer"] = media.request_buffer(4 * DISPLAY_WIDTH * DISPLAY_HEIGHT)
     # start stream for camera device0
     camera.start_stream(CAM_DEV_ID_0)
 
@@ -48,10 +53,12 @@ def camera_deinit():
     camera.stop_stream(CAM_DEV_ID_0)
     # deinit display
     display.deinit()
+    time.sleep_ms(100)
+    # release media buffer
+    media.release_buffer(globals()["buffer"])
     # destroy media link
     media.destroy_link(globals()["meida_source"], globals()["meida_sink"])
     # deinit media buffer
-    time.sleep_ms(100)
     media.buffer_deinit()
 
 def barcode_name(code):
@@ -89,6 +96,13 @@ def barcode_name(code):
         return "CODE128"
 
 def capture_picture():
+    # create image for drawing
+    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
+    # create image for osd
+    buffer = globals()["buffer"]
+    osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
+    osd_img.clear()
+    display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD0)
     fps = time.clock()
     while True:
         fps.tick()
@@ -105,9 +119,12 @@ def capture_picture():
                 camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
                 os.exit_exception_mask(0)
                 codes = img.find_barcodes()
+                draw_img.clear()
                 for code in codes:
+                    draw_img.draw_rectangle([v*SCALE for v in code.rect()], color=(255, 0, 0))
                     print_args = (barcode_name(code), code.payload(), (180 * code.rotation()) / math.pi, code.quality(), fps.fps())
                     print("Barcode %s, Payload \"%s\", rotation %f (degrees), quality %d, FPS %f" % print_args)
+                draw_img.copy_to(osd_img)
                 if not codes:
                     print("FPS %f" % fps.fps())
                 del img

@@ -1,17 +1,30 @@
-# Data Matrices Example
+# Single Color Code Tracking Example
 #
-# This example shows off how easy it is to detect data matrices.
+# This example shows off single color code tracking using the CanMV Cam.
+#
+# A color code is a blob composed of two or more colors. The example below will
+# only track colored objects which have both the colors below in them.
 
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, math, os, gc
+import time, os, gc, math
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
 SCALE = 4
 DETECT_WIDTH = DISPLAY_WIDTH // SCALE
 DETECT_HEIGHT = DISPLAY_HEIGHT // SCALE
+
+# Color Tracking Thresholds (L Min, L Max, A Min, A Max, B Min, B Max)
+# The below thresholds track in general red/green things. You may wish to tune them...
+thresholds = [(30, 100, 15, 127, 15, 127), # generic_red_thresholds -> index is 0 so code == (1 << 0)
+              (30, 100, -64, -8, -32, 32)] # generic_green_thresholds -> index is 1 so code == (1 << 1)
+# Codes are or'ed together when "merge=True" for "find_blobs"
+
+# Only blobs that with more pixels than "pixel_threshold" and more area than "area_threshold" are
+# returned by "find_blobs" below. Change "pixels_threshold" and "area_threshold" if you change the
+# camera resolution. "merge=True" must be set to merge overlapping color blobs for color codes.
 
 def camera_init():
     # use hdmi for display
@@ -40,7 +53,7 @@ def camera_init():
     display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
     # set chn1 output nv12
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, DETECT_WIDTH, DETECT_HEIGHT)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_RGB_888)
     # media buffer init
     media.buffer_init()
     # request media buffer for osd image
@@ -74,27 +87,33 @@ def capture_picture():
         fps.tick()
         try:
             os.exit_exception_mask(1)
-            yuv420_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if yuv420_img == -1:
+            rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
+            if rgb888_img == -1:
                 # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
                 raise OSError("camera capture image failed")
             else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                img = rgb888_img.to_rgb565()
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
-                matrices = img.find_datamatrices()
                 draw_img.clear()
-                for matrix in matrices:
-                    draw_img.draw_rectangle([v*SCALE for v in matrix.rect()], color=(255, 0, 0))
-                    print_args = (matrix.rows(), matrix.columns(), matrix.payload(), (180 * matrix.rotation()) / math.pi, fps.fps())
-                    print("Matrix [%d:%d], Payload \"%s\", rotation %f (degrees), FPS %f" % print_args)
+                for blob in img.find_blobs(thresholds, pixels_threshold=100, area_threshold=100, merge=True):
+                    if blob.code() == 3: # r/g code == (1 << 1) | (1 << 0)
+                        # These values depend on the blob not being circular - otherwise they will be shaky.
+                        # if blob.elongation() > 0.5:
+                        #     img.draw_edges(blob.min_corners(), color=(255,0,0))
+                        #     img.draw_line(blob.major_axis_line(), color=(0,255,0))
+                        #     img.draw_line(blob.minor_axis_line(), color=(0,0,255))
+                        # These values are stable all the time.
+                        draw_img.draw_rectangle([v*SCALE for v in blob.rect()])
+                        draw_img.draw_cross(blob.cx()*SCALE, blob.cy()*SCALE)
+                        # Note - the blob rotation is unique to 0-180 only.
+                        draw_img.draw_keypoints([(blob.cx()*SCALE, blob.cy()*SCALE, int(math.degrees(blob.rotation())))], size=20)
                 draw_img.copy_to(osd_img)
-                if not matrices:
-                    print("FPS %f" % fps.fps())
                 del img
                 gc.collect()
+                print(fps.fps())
         except Exception as e:
             print(e)
             break

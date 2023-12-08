@@ -1,6 +1,6 @@
-# Data Matrices Example
+# AprilTags Example
 #
-# This example shows off how easy it is to detect data matrices.
+# This example shows the power of the CanMV Cam to detect April Tags.
 
 from media.camera import *
 from media.display import *
@@ -12,6 +12,39 @@ DISPLAY_HEIGHT = 1080
 SCALE = 4
 DETECT_WIDTH = DISPLAY_WIDTH // SCALE
 DETECT_HEIGHT = DISPLAY_HEIGHT // SCALE
+
+# Note! Unlike find_qrcodes the find_apriltags method does not need lens correction on the image to work.
+
+# The apriltag code supports up to 6 tag families which can be processed at the same time.
+# Returned tag objects will have their tag family and id within the tag family.
+
+tag_families = 0
+tag_families |= image.TAG16H5 # comment out to disable this family
+tag_families |= image.TAG25H7 # comment out to disable this family
+tag_families |= image.TAG25H9 # comment out to disable this family
+tag_families |= image.TAG36H10 # comment out to disable this family
+tag_families |= image.TAG36H11 # comment out to disable this family (default family)
+tag_families |= image.ARTOOLKIT # comment out to disable this family
+
+# What's the difference between tag families? Well, for example, the TAG16H5 family is effectively
+# a 4x4 square tag. So, this means it can be seen at a longer distance than a TAG36H11 tag which
+# is a 6x6 square tag. However, the lower H value (H5 versus H11) means that the false positve
+# rate for the 4x4 tag is much, much, much, higher than the 6x6 tag. So, unless you have a
+# reason to use the other tags families just use TAG36H11 which is the default family.
+
+def family_name(tag):
+    if(tag.family() == image.TAG16H5):
+        return "TAG16H5"
+    if(tag.family() == image.TAG25H7):
+        return "TAG25H7"
+    if(tag.family() == image.TAG25H9):
+        return "TAG25H9"
+    if(tag.family() == image.TAG36H10):
+        return "TAG36H10"
+    if(tag.family() == image.TAG36H11):
+        return "TAG36H11"
+    if(tag.family() == image.ARTOOLKIT):
+        return "ARTOOLKIT"
 
 def camera_init():
     # use hdmi for display
@@ -84,15 +117,14 @@ def capture_picture():
                 img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
                 camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
                 os.exit_exception_mask(0)
-                matrices = img.find_datamatrices()
                 draw_img.clear()
-                for matrix in matrices:
-                    draw_img.draw_rectangle([v*SCALE for v in matrix.rect()], color=(255, 0, 0))
-                    print_args = (matrix.rows(), matrix.columns(), matrix.payload(), (180 * matrix.rotation()) / math.pi, fps.fps())
-                    print("Matrix [%d:%d], Payload \"%s\", rotation %f (degrees), FPS %f" % print_args)
+                for tag in img.find_apriltags(families=tag_families):
+                    draw_img.draw_rectangle([v*SCALE for v in tag.rect()], color=(255, 0, 0))
+                    draw_img.draw_cross(tag.cx()*SCALE, tag.cy()*SCALE, color=(0, 255, 0))
+                    print_args = (family_name(tag), tag.id(), (180 * tag.rotation()) / math.pi)
+                    print("Tag Family %s, Tag ID %d, rotation %f (degrees)" % print_args)
                 draw_img.copy_to(osd_img)
-                if not matrices:
-                    print("FPS %f" % fps.fps())
+                print(fps.fps())
                 del img
                 gc.collect()
         except Exception as e:

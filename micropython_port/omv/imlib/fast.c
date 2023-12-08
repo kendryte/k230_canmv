@@ -37,7 +37,7 @@
 
 #ifdef IMLIB_ENABLE_FAST
 
-#define MAX_ROW          (480U)
+#define MAX_ROW          (1080u)
 #define MAX_CORNERS      (2000U)
 #define Compare(X, Y)    ((X) >= (Y))
 

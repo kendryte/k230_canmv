@@ -1,11 +1,16 @@
-# Data Matrices Example
+# Find Rects Example
 #
-# This example shows off how easy it is to detect data matrices.
+# This example shows off how to find rectangles in the image using the quad threshold
+# detection code from our April Tags code. The quad threshold detection algorithm
+# detects rectangles in an extremely robust way and is much better than Hough
+# Transform based methods. For example, it can still detect rectangles even when lens
+# distortion causes those rectangles to look bent. Rounded rectangles are no problem!
+# (But, given this the code will also detect small radius circles too)...
 
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, math, os, gc
+import time, os, gc
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -40,7 +45,7 @@ def camera_init():
     display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
     # set chn1 output nv12
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, DETECT_WIDTH, DETECT_HEIGHT)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_RGB_888)
     # media buffer init
     media.buffer_init()
     # request media buffer for osd image
@@ -74,27 +79,29 @@ def capture_picture():
         fps.tick()
         try:
             os.exit_exception_mask(1)
-            yuv420_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if yuv420_img == -1:
+            rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
+            if rgb888_img == -1:
                 # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
                 raise OSError("camera capture image failed")
             else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                img = rgb888_img.to_rgb565()
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
-                matrices = img.find_datamatrices()
                 draw_img.clear()
-                for matrix in matrices:
-                    draw_img.draw_rectangle([v*SCALE for v in matrix.rect()], color=(255, 0, 0))
-                    print_args = (matrix.rows(), matrix.columns(), matrix.payload(), (180 * matrix.rotation()) / math.pi, fps.fps())
-                    print("Matrix [%d:%d], Payload \"%s\", rotation %f (degrees), FPS %f" % print_args)
+                # `threshold` below should be set to a high enough value to filter out noise
+                # rectangles detected in the image which have low edge magnitudes. Rectangles
+                # have larger edge magnitudes the larger and more contrasty they are...
+
+                for r in img.find_rects(threshold = 10000):
+                    draw_img.draw_rectangle([v*SCALE for v in r.rect()], color = (255, 0, 0))
+                    for p in r.corners(): draw_img.draw_circle(p[0]*SCALE, p[1]*SCALE, 5*SCALE, color = (0, 255, 0))
+                    print(r)
                 draw_img.copy_to(osd_img)
-                if not matrices:
-                    print("FPS %f" % fps.fps())
                 del img
                 gc.collect()
+                print(fps.fps())
         except Exception as e:
             print(e)
             break

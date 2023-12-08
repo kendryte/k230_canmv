@@ -1,6 +1,6 @@
-# QRCode Example
+# Flood Fill
 #
-# This example shows the power of the CanMV Cam to detect QR Codes.
+# This example shows off flood filling areas in the image.
 
 from media.camera import *
 from media.display import *
@@ -9,9 +9,6 @@ import time, os, gc
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
-SCALE = 4
-DETECT_WIDTH = DISPLAY_WIDTH // SCALE
-DETECT_HEIGHT = DISPLAY_HEIGHT // SCALE
 
 def camera_init():
     # use hdmi for display
@@ -26,21 +23,21 @@ def camera_init():
     ret = media.buffer_config(config)
     # init default sensor
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
-    # set chn0 output size
-    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, DISPLAY_WIDTH, DISPLAY_HEIGHT)
-    # set chn0 output format
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
-    # create meida source device
-    globals()["meida_source"] = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
-    # create meida sink device
-    globals()["meida_sink"] = media_device(DISPLAY_MOD_ID, DISPLAY_DEV_ID, DISPLAY_CHN_VIDEO1)
-    # create meida link
-    media.create_link(meida_source, meida_sink)
-    # set display plane with video channel
-    display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
+    # # set chn0 output size
+    # camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, DISPLAY_WIDTH, DISPLAY_HEIGHT)
+    # # set chn0 output format
+    # camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
+    # # create meida source device
+    # globals()["meida_source"] = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
+    # # create meida sink device
+    # globals()["meida_sink"] = media_device(DISPLAY_MOD_ID, DISPLAY_DEV_ID, DISPLAY_CHN_VIDEO1)
+    # # create meida link
+    # media.create_link(meida_source, meida_sink)
+    # # set display plane with video channel
+    # display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
     # set chn1 output nv12
-    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, DETECT_WIDTH, DETECT_HEIGHT)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
+    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, DISPLAY_WIDTH, DISPLAY_HEIGHT)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_RGB_888)
     # media buffer init
     media.buffer_init()
     # request media buffer for osd image
@@ -57,16 +54,14 @@ def camera_deinit():
     # release media buffer
     media.release_buffer(globals()["buffer"])
     # destroy media link
-    media.destroy_link(globals()["meida_source"], globals()["meida_sink"])
+    # media.destroy_link(globals()["meida_source"], globals()["meida_sink"])
     # deinit media buffer
     media.buffer_deinit()
 
-def capture_picture():
-    # create image for drawing
-    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
+def draw():
     # create image for osd
     buffer = globals()["buffer"]
-    osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
+    osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.RGB565, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
     osd_img.clear()
     display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD0)
     fps = time.clock()
@@ -74,26 +69,24 @@ def capture_picture():
         fps.tick()
         try:
             os.exit_exception_mask(1)
-            yuv420_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if yuv420_img == -1:
+            rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
+            if rgb888_img == -1:
                 # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
                 raise OSError("camera capture image failed")
             else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                img = rgb888_img.to_rgb565()
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
-                codes = img.find_qrcodes()
-                draw_img.clear()
-                for code in codes:
-                    draw_img.draw_rectangle([v*SCALE for v in code.rect()], color=(255, 0, 0))
-                    print(code)
-                draw_img.copy_to(osd_img)
-                if not codes:
-                    print("FPS %f" % fps.fps())
+                x = img.width() // 2
+                y = img.height() // 2
+                img.flood_fill(x, y, seed_threshold=0.05, floating_thresholds=0.05,
+                               color=(255, 0, 0), invert=False, clear_background=False)
+                img.copy_to(osd_img)
                 del img
                 gc.collect()
+                print(fps.fps())
         except Exception as e:
             print(e)
             break
@@ -106,8 +99,8 @@ def main():
         camera_init()
         camera_is_init = True
         os.exit_exception_mask(0)
-        print("camera capture")
-        capture_picture()
+        print("draw")
+        draw()
     except Exception as e:
         os.exit_exception_mask(1)
         print(e)
