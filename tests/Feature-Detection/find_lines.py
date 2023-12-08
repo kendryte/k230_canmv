@@ -1,17 +1,37 @@
-# Data Matrices Example
+# Find Lines Example
 #
-# This example shows off how easy it is to detect data matrices.
+# This example shows off how to find lines in the image. For each line object
+# found in the image a line object is returned which includes the line's rotation.
+
+# Note: Line detection is done by using the Hough Transform:
+# http://en.wikipedia.org/wiki/Hough_transform
+# Please read about it above for more information on what `theta` and `rho` are.
+
+# find_lines() finds infinite length lines. Use find_line_segments() to find non-infinite lines.
 
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, math, os, gc
+import time, os, gc
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
 SCALE = 4
 DETECT_WIDTH = DISPLAY_WIDTH // SCALE
 DETECT_HEIGHT = DISPLAY_HEIGHT // SCALE
+
+# All line objects have a `theta()` method to get their rotation angle in degrees.
+# You can filter lines based on their rotation angle.
+
+min_degree = 0
+max_degree = 179
+
+# All lines also have `x1()`, `y1()`, `x2()`, and `y2()` methods to get their end-points
+# and a `line()` method to get all the above as one 4 value tuple for `draw_line()`.
+
+# About negative rho values:
+#
+# A [theta+0:-rho] tuple is the same as [theta+180:+rho].
 
 def camera_init():
     # use hdmi for display
@@ -40,7 +60,7 @@ def camera_init():
     display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
     # set chn1 output nv12
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, DETECT_WIDTH, DETECT_HEIGHT)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_RGB_888)
     # media buffer init
     media.buffer_init()
     # request media buffer for osd image
@@ -74,27 +94,37 @@ def capture_picture():
         fps.tick()
         try:
             os.exit_exception_mask(1)
-            yuv420_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if yuv420_img == -1:
+            rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
+            if rgb888_img == -1:
                 # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
                 raise OSError("camera capture image failed")
             else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                img = rgb888_img.to_rgb565()
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
-                matrices = img.find_datamatrices()
                 draw_img.clear()
-                for matrix in matrices:
-                    draw_img.draw_rectangle([v*SCALE for v in matrix.rect()], color=(255, 0, 0))
-                    print_args = (matrix.rows(), matrix.columns(), matrix.payload(), (180 * matrix.rotation()) / math.pi, fps.fps())
-                    print("Matrix [%d:%d], Payload \"%s\", rotation %f (degrees), FPS %f" % print_args)
+                # `threshold` controls how many lines in the image are found. Only lines with
+                # edge difference magnitude sums greater than `threshold` are detected...
+
+                # More about `threshold` - each pixel in the image contributes a magnitude value
+                # to a line. The sum of all contributions is the magintude for that line. Then
+                # when lines are merged their magnitudes are added togheter. Note that `threshold`
+                # filters out lines with low magnitudes before merging. To see the magnitude of
+                # un-merged lines set `theta_margin` and `rho_margin` to 0...
+
+                # `theta_margin` and `rho_margin` control merging similar lines. If two lines
+                # theta and rho value differences are less than the margins then they are merged.
+
+                for l in img.find_lines(threshold = 1000, theta_margin = 25, rho_margin = 25):
+                    if (min_degree <= l.theta()) and (l.theta() <= max_degree):
+                        draw_img.draw_line([v*SCALE for v in l.line()], color = (255, 0, 0))
+                        print(l)
                 draw_img.copy_to(osd_img)
-                if not matrices:
-                    print("FPS %f" % fps.fps())
                 del img
                 gc.collect()
+                print(fps.fps())
         except Exception as e:
             print(e)
             break

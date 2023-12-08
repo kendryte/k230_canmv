@@ -11954,7 +11954,7 @@ void imlib_find_apriltags(list_t *out, image_t *ptr, rectangle_t *roi, apriltag_
     // -> GRAYSCALE Threhsolded Image = w*h*1
     // -> UnionFind = w*h*2 (+w*h*1 for hash table)
     size_t resolution = roi->w * roi->h;
-    size_t fb_alloc_need = resolution * (1 + 1 + 2 + 1); // read above...
+    size_t fb_alloc_need = resolution * (1 + 1 + 2 + 1 + 3); // read above...
     umm_init_x(((fb_avail() - fb_alloc_need) / resolution) * resolution);
     apriltag_detector_t *td = apriltag_detector_create();
 

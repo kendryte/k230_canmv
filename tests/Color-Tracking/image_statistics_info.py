@@ -1,11 +1,15 @@
-# Data Matrices Example
+# Image Statistics Info Example
 #
-# This example shows off how easy it is to detect data matrices.
+# This script computes the statistics of the image and prints it out.
+
+# You can also pass get_statistics() an "roi=" to get just the statistics of that area.
+# get_statistics() allows you to quickly determine the color channel information of
+# any any area in the image.
 
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, math, os, gc
+import time, os, gc
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -40,7 +44,7 @@ def camera_init():
     display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
     # set chn1 output nv12
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, DETECT_WIDTH, DETECT_HEIGHT)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_RGB_888)
     # media buffer init
     media.buffer_init()
     # request media buffer for osd image
@@ -62,39 +66,25 @@ def camera_deinit():
     media.buffer_deinit()
 
 def capture_picture():
-    # create image for drawing
-    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
-    # create image for osd
-    buffer = globals()["buffer"]
-    osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
-    osd_img.clear()
-    display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD0)
     fps = time.clock()
     while True:
         fps.tick()
         try:
             os.exit_exception_mask(1)
-            yuv420_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if yuv420_img == -1:
+            rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
+            if rgb888_img == -1:
                 # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
                 raise OSError("camera capture image failed")
             else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                img = rgb888_img.to_grayscale()
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
-                matrices = img.find_datamatrices()
-                draw_img.clear()
-                for matrix in matrices:
-                    draw_img.draw_rectangle([v*SCALE for v in matrix.rect()], color=(255, 0, 0))
-                    print_args = (matrix.rows(), matrix.columns(), matrix.payload(), (180 * matrix.rotation()) / math.pi, fps.fps())
-                    print("Matrix [%d:%d], Payload \"%s\", rotation %f (degrees), FPS %f" % print_args)
-                draw_img.copy_to(osd_img)
-                if not matrices:
-                    print("FPS %f" % fps.fps())
+                print(img.get_statistics())
                 del img
                 gc.collect()
+                print(fps.fps())
         except Exception as e:
             print(e)
             break

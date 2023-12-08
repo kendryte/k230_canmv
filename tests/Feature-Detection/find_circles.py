@@ -1,11 +1,15 @@
-# Data Matrices Example
+# Find Circles Example
 #
-# This example shows off how easy it is to detect data matrices.
+# This example shows off how to find circles in the image using the Hough
+# Transform. https://en.wikipedia.org/wiki/Circle_Hough_Transform
+#
+# Note that the find_circles() method will only find circles which are completely
+# inside of the image. Circles which go outside of the image/roi are ignored...
 
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, math, os, gc
+import time, os, gc
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -40,7 +44,7 @@ def camera_init():
     display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
     # set chn1 output nv12
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, DETECT_WIDTH, DETECT_HEIGHT)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_RGB_888)
     # media buffer init
     media.buffer_init()
     # request media buffer for osd image
@@ -74,27 +78,38 @@ def capture_picture():
         fps.tick()
         try:
             os.exit_exception_mask(1)
-            yuv420_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if yuv420_img == -1:
+            rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
+            if rgb888_img == -1:
                 # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
                 raise OSError("camera capture image failed")
             else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                img = rgb888_img.to_rgb565()
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
-                matrices = img.find_datamatrices()
                 draw_img.clear()
-                for matrix in matrices:
-                    draw_img.draw_rectangle([v*SCALE for v in matrix.rect()], color=(255, 0, 0))
-                    print_args = (matrix.rows(), matrix.columns(), matrix.payload(), (180 * matrix.rotation()) / math.pi, fps.fps())
-                    print("Matrix [%d:%d], Payload \"%s\", rotation %f (degrees), FPS %f" % print_args)
+                # Circle objects have four values: x, y, r (radius), and magnitude. The
+                # magnitude is the strength of the detection of the circle. Higher is
+                # better...
+
+                # `threshold` controls how many circles are found. Increase its value
+                # to decrease the number of circles detected...
+
+                # `x_margin`, `y_margin`, and `r_margin` control the merging of similar
+                # circles in the x, y, and r (radius) directions.
+
+                # r_min, r_max, and r_step control what radiuses of circles are tested.
+                # Shrinking the number of tested circle radiuses yields a big performance boost.
+
+                for c in img.find_circles(threshold = 2000, x_margin = 10, y_margin = 10, r_margin = 10,
+                                          r_min = 2, r_max = 100, r_step = 2):
+                    draw_img.draw_circle(c.x()*SCALE, c.y()*SCALE, c.r()*SCALE, color = (255, 0, 0))
+                    print(c)
                 draw_img.copy_to(osd_img)
-                if not matrices:
-                    print("FPS %f" % fps.fps())
                 del img
                 gc.collect()
+                print(fps.fps())
         except Exception as e:
             print(e)
             break

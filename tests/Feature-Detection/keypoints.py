@@ -1,11 +1,12 @@
-# Data Matrices Example
-#
-# This example shows off how easy it is to detect data matrices.
+# Object tracking with keypoints example.
+# Show the camera an object and then run the script. A set of keypoints will be extracted
+# once and then tracked in the following frames. If you want a new set of keypoints re-run
+# the script. NOTE: see the docs for arguments to tune find_keypoints and match_keypoints.
 
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, math, os, gc
+import time, os, gc
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -40,7 +41,7 @@ def camera_init():
     display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
     # set chn1 output nv12
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, DETECT_WIDTH, DETECT_HEIGHT)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_RGB_888)
     # media buffer init
     media.buffer_init()
     # request media buffer for osd image
@@ -61,6 +62,19 @@ def camera_deinit():
     # deinit media buffer
     media.buffer_deinit()
 
+def camera_drop(frame):
+    for i in range(frame):
+        os.exit_exception_mask(1)
+        img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
+        if img == -1:
+            # release image for dev and chn
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, img)
+            os.exit_exception_mask(0)
+            raise OSError("camera capture image failed")
+        else:
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, img)
+            os.exit_exception_mask(0)
+
 def capture_picture():
     # create image for drawing
     draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
@@ -69,32 +83,54 @@ def capture_picture():
     osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
     osd_img.clear()
     display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD0)
+    kpts1 = None
+    # NOTE: uncomment to load a keypoints descriptor from file
+    #kpts1 = image.load_descriptor("/desc.orb")
+    camera_drop(60)
     fps = time.clock()
     while True:
         fps.tick()
         try:
             os.exit_exception_mask(1)
-            yuv420_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if yuv420_img == -1:
+            rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
+            if rgb888_img == -1:
                 # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
                 raise OSError("camera capture image failed")
             else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                img = rgb888_img.to_grayscale()
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
-                matrices = img.find_datamatrices()
                 draw_img.clear()
-                for matrix in matrices:
-                    draw_img.draw_rectangle([v*SCALE for v in matrix.rect()], color=(255, 0, 0))
-                    print_args = (matrix.rows(), matrix.columns(), matrix.payload(), (180 * matrix.rotation()) / math.pi, fps.fps())
-                    print("Matrix [%d:%d], Payload \"%s\", rotation %f (degrees), FPS %f" % print_args)
+                if kpts1 == None:
+                    # NOTE: By default find_keypoints returns multi-scale keypoints extracted from an image pyramid.
+                    kpts1 = img.find_keypoints(max_keypoints=150, threshold=10, scale_factor=1.2)
+                    if kpts1:
+                        if SCALE == 1:
+                            draw_img.draw_keypoints(kpts1)
+                            draw_img.copy_to(osd_img)
+                            time.sleep(2)
+                        fps.reset()
+                else:
+                    # NOTE: When extracting keypoints to match the first descriptor, we use normalized=True to extract
+                    # keypoints from the first scale only, which will match one of the scales in the first descriptor.
+                    kpts2 = img.find_keypoints(max_keypoints=150, threshold=10, normalized=True)
+                    if kpts2:
+                        match = image.match_descriptor(kpts1, kpts2, threshold=85)
+                        if (match.count()>10):
+                            # If we have at least n "good matches"
+                            # Draw bounding rectangle and cross.
+                            draw_img.draw_rectangle([v*SCALE for v in match.rect()])
+                            draw_img.draw_cross(match.cx()*SCALE, match.cy()*SCALE, size=10)
+
+                        print(kpts2, "matched:%d dt:%d"%(match.count(), match.theta()))
+                        # NOTE: uncomment if you want to draw the keypoints
+                        #img.draw_keypoints(kpts2, size=KEYPOINTS_SIZE, matched=True)
                 draw_img.copy_to(osd_img)
-                if not matrices:
-                    print("FPS %f" % fps.fps())
                 del img
                 gc.collect()
+                print(fps.fps())
         except Exception as e:
             print(e)
             break

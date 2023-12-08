@@ -1,11 +1,11 @@
-# Data Matrices Example
+# Automatic Grayscale Color Tracking Example
 #
-# This example shows off how easy it is to detect data matrices.
+# This example shows off single color automatic grayscale color tracking using the CanMV Cam.
 
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, math, os, gc
+import time, os, gc, math
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -40,7 +40,7 @@ def camera_init():
     display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
     # set chn1 output nv12
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_1, DETECT_WIDTH, DETECT_HEIGHT)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
+    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_1, PIXEL_FORMAT_RGB_888)
     # media buffer init
     media.buffer_init()
     # request media buffer for osd image
@@ -69,32 +69,61 @@ def capture_picture():
     osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
     osd_img.clear()
     display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD0)
+    # Capture the color thresholds for whatever was in the center of the image.
+    r = [(DETECT_WIDTH//2)-(50//2), (DETECT_HEIGHT//2)-(50//2), 50, 50] # 50x50 center of QVGA.
+    threshold = [128, 128] # Middle grayscale values.
+    frame_count = 0
     fps = time.clock()
     while True:
         fps.tick()
         try:
             os.exit_exception_mask(1)
-            yuv420_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if yuv420_img == -1:
+            rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
+            if rgb888_img == -1:
                 # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
                 raise OSError("camera capture image failed")
             else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+                img = rgb888_img.to_grayscale()
+                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
                 os.exit_exception_mask(0)
-                matrices = img.find_datamatrices()
                 draw_img.clear()
-                for matrix in matrices:
-                    draw_img.draw_rectangle([v*SCALE for v in matrix.rect()], color=(255, 0, 0))
-                    print_args = (matrix.rows(), matrix.columns(), matrix.payload(), (180 * matrix.rotation()) / math.pi, fps.fps())
-                    print("Matrix [%d:%d], Payload \"%s\", rotation %f (degrees), FPS %f" % print_args)
+                if frame_count < 60:
+                    if frame_count == 0:
+                        print("Letting auto algorithms run. Don't put anything in front of the camera!")
+                        print("Auto algorithms done. Hold the object you want to track in front of the camera in the box.")
+                        print("MAKE SURE THE COLOR OF THE OBJECT YOU WANT TO TRACK IS FULLY ENCLOSED BY THE BOX!")
+                    draw_img.draw_rectangle([v*SCALE for v in r])
+                    frame_count = frame_count + 1
+                elif frame_count < 120:
+                    if frame_count == 60:
+                        print("Learning thresholds...")
+                    elif frame_count == 119:
+                        print("Thresholds learned...")
+                        print("Tracking colors...")
+                    hist = img.get_histogram(roi=r)
+                    lo = hist.get_percentile(0.01) # Get the CDF of the histogram at the 1% range (ADJUST AS NECESSARY)!
+                    hi = hist.get_percentile(0.99) # Get the CDF of the histogram at the 99% range (ADJUST AS NECESSARY)!
+                    # Average in percentile values.
+                    threshold[0] = (threshold[0] + lo.value()) // 2
+                    threshold[1] = (threshold[1] + hi.value()) // 2
+                    for blob in img.find_blobs([threshold], pixels_threshold=100, area_threshold=100, merge=True, margin=10):
+                        draw_img.draw_rectangle([v*SCALE for v in blob.rect()])
+                        draw_img.draw_cross(blob.cx()*SCALE, blob.cy()*SCALE)
+                        draw_img.draw_rectangle([v*SCALE for v in r])
+                    frame_count = frame_count + 1
+                    del hist
+                else:
+                    for blob in img.find_blobs([threshold], pixels_threshold=100, area_threshold=100, merge=True, margin=10):
+                        draw_img.draw_rectangle([v*SCALE for v in blob.rect()])
+                        draw_img.draw_cross(blob.cx()*SCALE, blob.cy()*SCALE)
+
                 draw_img.copy_to(osd_img)
-                if not matrices:
-                    print("FPS %f" % fps.fps())
                 del img
                 gc.collect()
+                if frame_count >= 120:
+                    print(fps.fps())
         except Exception as e:
             print(e)
             break

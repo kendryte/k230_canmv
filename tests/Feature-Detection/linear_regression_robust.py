@@ -1,17 +1,31 @@
-# Data Matrices Example
+# Robust Linear Regression Example
 #
-# This example shows off how easy it is to detect data matrices.
+# This example shows off how to use the get_regression() method on your CanMV Cam
+# to get the linear regression of a ROI. Using this method you can easily build
+# a robot which can track lines which all point in the same general direction
+# but are not actually connected. Use find_blobs() on lines that are nicely
+# connected for better filtering options and control.
+#
+# We're using the robust=True argument for get_regression() in this script which
+# computes the linear regression using a much more robust algorithm... but potentially
+# much slower. The robust algorithm runs in O(N^2) time on the image. So, YOU NEED
+# TO LIMIT THE NUMBER OF PIXELS the robust algorithm works on or it can actually
+# take seconds for the algorithm to give you a result... THRESHOLD VERY CAREFULLY!
 
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, math, os, gc
+import time, os, gc
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
 SCALE = 4
 DETECT_WIDTH = DISPLAY_WIDTH // SCALE
 DETECT_HEIGHT = DISPLAY_HEIGHT // SCALE
+
+THRESHOLD = (0, 100) # Grayscale threshold for dark things...
+BINARY_VISIBLE = True # Does binary first so you can see what the linear regression
+                      # is being run on... might lower FPS though.
 
 def camera_init():
     # use hdmi for display
@@ -62,12 +76,11 @@ def camera_deinit():
     media.buffer_deinit()
 
 def capture_picture():
-    # create image for drawing
-    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
     # create image for osd
     buffer = globals()["buffer"]
-    osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
+    osd_img = image.Image(DETECT_WIDTH, DETECT_HEIGHT, image.GRAYSCALE, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
     osd_img.clear()
+    osd_img.draw_string(0, 0, "Please wait...")
     display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD0)
     fps = time.clock()
     while True:
@@ -81,18 +94,21 @@ def capture_picture():
                 os.exit_exception_mask(0)
                 raise OSError("camera capture image failed")
             else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
+                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, data=yuv420_img)
                 camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
                 os.exit_exception_mask(0)
-                matrices = img.find_datamatrices()
-                draw_img.clear()
-                for matrix in matrices:
-                    draw_img.draw_rectangle([v*SCALE for v in matrix.rect()], color=(255, 0, 0))
-                    print_args = (matrix.rows(), matrix.columns(), matrix.payload(), (180 * matrix.rotation()) / math.pi, fps.fps())
-                    print("Matrix [%d:%d], Payload \"%s\", rotation %f (degrees), FPS %f" % print_args)
-                draw_img.copy_to(osd_img)
-                if not matrices:
-                    print("FPS %f" % fps.fps())
+                img = img.binary([THRESHOLD]) if BINARY_VISIBLE else img
+                # Returns a line object similar to line objects returned by find_lines() and
+                # find_line_segments(). You have x1(), y1(), x2(), y2(), length(),
+                # theta() (rotation in degrees), rho(), and magnitude().
+                #
+                # magnitude() represents how well the linear regression worked. It goes from
+                # (0, INF] where 0 is returned for a circle. The more linear the
+                # scene is the higher the magnitude.
+                line = img.get_regression([(255,255) if BINARY_VISIBLE else THRESHOLD], robust = True)
+                if (line): img.draw_line(line.line(), color = 127)
+                print("FPS %f, mag = %s" % (fps.fps(), str(line.magnitude()) if (line) else "N/A"))
+                img.copy_to(osd_img)
                 del img
                 gc.collect()
         except Exception as e:
