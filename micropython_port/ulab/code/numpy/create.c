@@ -838,7 +838,8 @@ mp_obj_t create_frombuffer(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw
                 len = count;
             }
         }
-        ndarray_obj_t *ndarray = m_new_obj(ndarray_obj_t);
+        ndarray_obj_t *ndarray = m_new_obj_with_finaliser(ndarray_obj_t);
+        memset(ndarray, 0, sizeof(ndarray_obj_t));
         ndarray->base.type = &ulab_ndarray_type;
         ndarray->dtype = dtype == NDARRAY_BOOL ? NDARRAY_UINT8 : dtype;
         ndarray->boolean = dtype == NDARRAY_BOOL ? NDARRAY_BOOLEAN : NDARRAY_NUMERIC;
