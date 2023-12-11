@@ -50,6 +50,7 @@ STATIC MP_DEFINE_STR_OBJ(ulab_sha_obj, xstr(ULAB_HASH));
 #endif
 
 STATIC const mp_rom_map_elem_t ulab_ndarray_locals_dict_table[] = {
+    {MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&ndarray_del_obj)},
     #if ULAB_MAX_DIMS > 1
         #if NDARRAY_HAS_RESHAPE
             { MP_ROM_QSTR(MP_QSTR_reshape), MP_ROM_PTR(&ndarray_reshape_obj) },

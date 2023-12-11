@@ -601,9 +601,19 @@ static size_t multiply_size(size_t a, size_t b) {
     return result;
 }
 
+static mp_obj_t ndarray_del(mp_obj_t obj) {
+    ndarray_obj_t *self = MP_OBJ_TO_PTR(obj);
+
+    if (self->ref_obj == 0 && self->origin)
+        free(self->origin);
+    return mp_const_none;
+}
+MP_DEFINE_CONST_FUN_OBJ_1(ndarray_del_obj, ndarray_del);
+
 ndarray_obj_t *ndarray_new_ndarray(uint8_t ndim, size_t *shape, int32_t *strides, uint8_t dtype) {
     // Creates the base ndarray with shape, and initialises the values to straight 0s
-    ndarray_obj_t *ndarray = m_new_obj(ndarray_obj_t);
+    ndarray_obj_t *ndarray = m_new_obj_with_finaliser(ndarray_obj_t);
+    memset(ndarray, 0, sizeof(ndarray_obj_t));
     ndarray->base.type = &ulab_ndarray_type;
     ndarray->dtype = dtype == NDARRAY_BOOL ? NDARRAY_UINT8 : dtype;
     ndarray->boolean = dtype == NDARRAY_BOOL ? NDARRAY_BOOLEAN : NDARRAY_NUMERIC;
@@ -628,7 +638,9 @@ ndarray_obj_t *ndarray_new_ndarray(uint8_t ndim, size_t *shape, int32_t *strides
 
     // if the length is 0, still allocate a single item, so that contractions can be handled
     size_t len = multiply_size(ndarray->itemsize, MAX(1, ndarray->len));
-    uint8_t *array = m_new0(byte, len);
+    uint8_t *array = malloc(len);
+    if (array == NULL)
+        mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("ndarray malloc fail"));
     // this should set all elements to 0, irrespective of the of the dtype (all bits are zero)
     // we could, perhaps, leave this step out, and initialise the array only, when needed
     ndarray->array = array;
@@ -640,7 +652,8 @@ ndarray_obj_t *ndarray_new_ndarray(uint8_t ndim, size_t *shape, int32_t *strides
 
 ndarray_obj_t *ndarray_new_ndarray_by_ref(uint8_t ndim, size_t *shape, int32_t *strides, uint8_t dtype, uint64_t phy_addr, void *virt_addr, mp_obj_t ref_obj) {
     // Creates the base ndarray with shape, and initialises the values to straight 0s
-    ndarray_obj_t *ndarray = m_new_obj(ndarray_obj_t);
+    ndarray_obj_t *ndarray = m_new_obj_with_finaliser(ndarray_obj_t);
+    memset(ndarray, 0, sizeof(ndarray_obj_t));
     ndarray->base.type = &ulab_ndarray_type;
     ndarray->dtype = dtype == NDARRAY_BOOL ? NDARRAY_UINT8 : dtype;
     ndarray->boolean = dtype == NDARRAY_BOOL ? NDARRAY_BOOLEAN : NDARRAY_NUMERIC;
@@ -753,7 +766,8 @@ void ndarray_copy_array(ndarray_obj_t *source, ndarray_obj_t *target, uint8_t sh
 
 ndarray_obj_t *ndarray_new_view(ndarray_obj_t *source, uint8_t ndim, size_t *shape, int32_t *strides, int32_t offset) {
     // creates a new view from the input arguments
-    ndarray_obj_t *ndarray = m_new_obj(ndarray_obj_t);
+    ndarray_obj_t *ndarray = m_new_obj_with_finaliser(ndarray_obj_t);
+    memset(ndarray, 0, sizeof(ndarray_obj_t));
     ndarray->base.type = &ulab_ndarray_type;
     ndarray->boolean = source->boolean;
     ndarray->dtype = source->dtype;
@@ -769,6 +783,7 @@ ndarray_obj_t *ndarray_new_view(ndarray_obj_t *source, uint8_t ndim, size_t *sha
     pointer += offset;
     ndarray->array = pointer;
     ndarray->origin = source->origin;
+    ndarray->ref_obj = source;
     return ndarray;
 }
 
