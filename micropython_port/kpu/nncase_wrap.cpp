@@ -387,10 +387,14 @@ void runtime_tensor_release(runtime_tensor *tensor)
 {
     delete tensor->r_tensor;
     tensor->r_tensor = nullptr;
+    delete tensor;
+    tensor = nullptr;
 }
 
 void ai2d_release(m_builder *p)
 {
     delete p->builder;
     p->builder = nullptr;
+    delete p;
+    p = nullptr;
 }
