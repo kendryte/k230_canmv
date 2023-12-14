@@ -25,7 +25,7 @@ class display:
     plane_array = [0] * 7
 
     @classmethod
-    def init(cls, type):
+    def init(cls, type, wbc=True):
         connector_type = type
         connector_info = k_connector_info()
         kd_mpi_get_connector_info(connector_type, connector_info)
@@ -34,7 +34,8 @@ class display:
         kd_mpi_connector_power_set(connector_fd, 1)
         kd_mpi_connector_init(connector_fd, connector_info)
         print(type)
-        ide_dbg_vo_init(type)
+        if wbc:
+            ide_dbg_vo_init(type)
         cls.plane_array = [0] * 7
 
     @classmethod

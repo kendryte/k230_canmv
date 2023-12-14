@@ -236,7 +236,7 @@ void ide_set_fb(const void* data, uint32_t size, uint32_t width, uint32_t height
 #define ENABLE_VO_WRITEBACK 1
 // for VO writeback
 #if ENABLE_VO_WRITEBACK
-static volatile char vo_wbc_enabled = 0;
+static volatile char vo_wbc_enabled = -1;
 static void* wbc_jpeg_buffer = NULL;
 static size_t wbc_jpeg_buffer_size = 0;
 static uint32_t wbc_jpeg_size = 0;
@@ -245,6 +245,7 @@ static volatile k_connector_type connector_type = 0;
 int ide_dbg_vo_init(k_connector_type _connector_type) {
     #if ENABLE_VO_WRITEBACK
     connector_type = _connector_type;
+    vo_wbc_enabled = 0;
     #endif
     return 0;
 }
@@ -252,6 +253,9 @@ int ide_dbg_vo_init(k_connector_type _connector_type) {
 int ide_dbg_vo_wbc_init(void) {
     #if ENABLE_VO_WRITEBACK
     k_connector_info vo_info;
+    if (vo_wbc_enabled < 0) {
+        return 0;
+    }
     kd_mpi_get_connector_info(connector_type, &vo_info);
     pr("[omv] %s(%d), %ux%u", __func__, connector_type, vo_info.resolution.hdisplay, vo_info.resolution.vdisplay);
     k_vo_wbc_attr attr = {
@@ -574,7 +578,11 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         // try vo writeback
                         if ((fb_from != FB_FROM_USER_SET) && (vo_wbc_enabled > 0)) {
                             if (wbc_jpeg_size == 0) {
-                                unsigned error = kd_mpi_wbc_dump_frame(&frame_info, 100);
+                                unsigned error = kd_mpi_wbc_dump_frame(&frame_info, 50);
+                                if (error == 14) {
+                                    // timeout
+                                    goto skip;
+                                }
                                 if (error) {
                                     pr("[omv] kd_mpi_wbc_dump_frame error: %u", error);
                                     goto skip;
@@ -609,11 +617,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         break;
                     }
                     case USBDBG_FRAME_DUMP: {
-                        // pr("cmd: USBDBG_FRAME_DUMP");
-                        // DO NOT PRINT
-                        #if PRINT_ALL
                         pr("cmd: USBDBG_FRAME_DUMP");
-                        #endif
                         #if TEST_PIC
                         if (state->data_length != index_jpeg[pic_idx + 1] - index_jpeg[pic_idx]) {
                             pr("cmd: USBDBG_FRAME_DUMP, expected size %lu, got %u",
