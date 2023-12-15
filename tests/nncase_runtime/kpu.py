@@ -1,5 +1,6 @@
 import nncase_runtime as nn
 import ulab.numpy as np
+import gc
 
 # We will explain how to use nncase_runtime in this test script for `KPU`,
 # including model reading, printing input and output information of the model,
@@ -32,8 +33,10 @@ kpu.run()
 # get output
 for i in range(kpu.outputs_size()):
     result = kpu.get_output_tensor(i)
-    result = result.to_numpy()
-    print("result: ", i, result.flatten()[-5:])
-    print(result.shape,result.dtype)
+    data = result.to_numpy()
+    print("result: ", i, data.flatten()[-5:])
+    print(data.shape, data.dtype)
+    del result
 
-
+del kpu
+gc.collect()

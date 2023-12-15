@@ -99,8 +99,9 @@ MP_DEFINE_CONST_OBJ_TYPE(
 
 // init
 STATIC mp_obj_t mp_kpu_create() {
-    kpu_obj_t *self = mp_obj_malloc(kpu_obj_t, &kpu_type);
+    kpu_obj_t *self = m_new_obj_with_finaliser(kpu_obj_t);
     self->interp = Kpu_create();
+    self->base.type = &kpu_type;
     return MP_OBJ_FROM_PTR(self);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(kpu_create_obj, mp_kpu_create);
@@ -114,20 +115,22 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(kpu_destroy_obj, mp_kpu_destroy);
 
 // load model
 STATIC mp_obj_t mp_kpu_load_kmodel(mp_obj_t self_in, mp_obj_t filename_in) {
-
+    
     if (!mp_obj_is_str(filename_in)) {
         mp_buffer_info_t bufferinfo;
         mp_get_buffer_raise(filename_in, &bufferinfo, MP_BUFFER_READ);
         kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
         bool flag = Kpu_load_kmodel_buffer(self->interp, (char* )bufferinfo.buf, bufferinfo.len);
-        if(flag)
-            mp_raise_TypeError("invalid kmodel");
+        if(!flag)
+            mp_raise_msg(&mp_type_EOFError, MP_ERROR_TEXT("KPU load model failed from buffer."));
     }
     else{
         kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
         self->base.type = &kpu_type;
         size_t len = 0;
-        Kpu_load_kmodel_path(self->interp, mp_obj_str_get_data(filename_in, &len));
+        bool flag = Kpu_load_kmodel_path(self->interp, mp_obj_str_get_data(filename_in, &len));
+        if(!flag)
+            mp_raise_msg(&mp_type_EOFError, MP_ERROR_TEXT("KPU load model failed from path."));
     }
     
     return mp_const_none;
@@ -138,25 +141,27 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(kpu_load_kmodel_obj, mp_kpu_load_kmodel);
 // kmodel run
 STATIC mp_obj_t mp_kpu_run(mp_obj_t self_in) {
     kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    Kpu_run(self->interp);
+    bool flag = Kpu_run(self->interp);
+    if(!flag)
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("KPU run failed."));
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(kpu_run_obj, mp_kpu_run);
 
 
-// set input tensor : 
-STATIC mp_obj_t mp_kpu_set_input_tensor(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t tensor_in)
-{
+// set input tensor
+STATIC mp_obj_t mp_kpu_set_input_tensor(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t tensor_in) {
     kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
     size_t index = mp_obj_get_int(index_in);
     mp_runtime_tensor_obj_t *tensor = MP_OBJ_TO_PTR(tensor_in);
-    Kpu_set_input_tensor(self->interp, index, tensor->r_tensor);
+    bool flag = Kpu_set_input_tensor(self->interp, index, tensor->r_tensor);
+    if(!flag)
+        mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("KPU set input tensor failed."));
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(kpu_set_input_tensor_obj, mp_kpu_set_input_tensor);
 
-STATIC mp_obj_t mp_kpu_get_input_tensor(mp_obj_t self_in, mp_obj_t index_in)
-{
+STATIC mp_obj_t mp_kpu_get_input_tensor(mp_obj_t self_in, mp_obj_t index_in) {
     kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
     size_t index = mp_obj_get_int(index_in);
     mp_runtime_tensor_obj_t *tensor = m_new_obj_with_finaliser(mp_runtime_tensor_obj_t);
@@ -167,19 +172,19 @@ STATIC mp_obj_t mp_kpu_get_input_tensor(mp_obj_t self_in, mp_obj_t index_in)
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(kpu_get_input_tensor_obj, mp_kpu_get_input_tensor);
 
 // set output tensor
-STATIC mp_obj_t mp_kpu_set_output_tensor(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t tensor_in)
-{
+STATIC mp_obj_t mp_kpu_set_output_tensor(mp_obj_t self_in, mp_obj_t index_in, mp_obj_t tensor_in) {
     kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
     size_t index = mp_obj_get_int(index_in);
     mp_runtime_tensor_obj_t *tensor = MP_OBJ_TO_PTR(tensor_in);
-    Kpu_set_output_tensor(self->interp, index, tensor->r_tensor);
+    bool flag = Kpu_set_output_tensor(self->interp, index, tensor->r_tensor);
+    if(!flag)
+        mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("KPU set output tensor failed."));
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(kpu_set_output_tensor_obj, mp_kpu_set_output_tensor);
 
 // get output tensor
-STATIC mp_obj_t mp_kpu_get_output_tensor(mp_obj_t self_in, mp_obj_t index_in)
-{
+STATIC mp_obj_t mp_kpu_get_output_tensor(mp_obj_t self_in, mp_obj_t index_in) {
     kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
     size_t index = mp_obj_get_int(index_in);
     mp_runtime_tensor_obj_t *tensor = m_new_obj_with_finaliser(mp_runtime_tensor_obj_t);
@@ -190,14 +195,12 @@ STATIC mp_obj_t mp_kpu_get_output_tensor(mp_obj_t self_in, mp_obj_t index_in)
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(kpu_get_output_tensor_obj, mp_kpu_get_output_tensor);
 
 // get input size
-STATIC mp_obj_t mp_kpu_get_input_size(mp_obj_t self_in) 
-{
+STATIC mp_obj_t mp_kpu_get_input_size(mp_obj_t self_in) {
     kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
     size_t input_size = (size_t)Kpu_inputs_size(self->interp);
     return mp_obj_new_int(input_size);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(kpu_get_input_size_obj, mp_kpu_get_input_size);
-
 
 // get output size
 STATIC mp_obj_t mp_kpu_get_output_size(mp_obj_t self_in) {
@@ -208,8 +211,7 @@ STATIC mp_obj_t mp_kpu_get_output_size(mp_obj_t self_in) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(kpu_get_output_size_obj, mp_kpu_get_output_size);
 
 // get input desc
-STATIC mp_obj_t mp_kpu_get_input_desc(mp_obj_t self_in, mp_obj_t index_in) 
-{   
+STATIC mp_obj_t mp_kpu_get_input_desc(mp_obj_t self_in, mp_obj_t index_in) {   
     kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
     size_t index = mp_obj_get_int(index_in);
     
@@ -224,10 +226,11 @@ STATIC mp_obj_t mp_kpu_get_input_desc(mp_obj_t self_in, mp_obj_t index_in)
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(kpu_get_input_desc_obj, mp_kpu_get_input_desc);
 
 // get output desc
-STATIC mp_obj_t mp_kpu_get_output_desc(mp_obj_t self_in, mp_obj_t index_in)
-{
+STATIC mp_obj_t mp_kpu_get_output_desc(mp_obj_t self_in, mp_obj_t index_in) {
+
     kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
     size_t index = mp_obj_get_int(index_in);
+    
     struct tensor_desc data = Kpu_get_output_desc(self->interp, index);
 
     mp_obj_t dict = mp_obj_new_dict(3);
@@ -243,6 +246,7 @@ STATIC const mp_rom_map_elem_t kpu_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_kpu) },
     { MP_ROM_QSTR(MP_QSTR___init__), MP_ROM_PTR(&kpu_create_obj) },
     { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&kpu_destroy_obj) },
+    { MP_ROM_QSTR(MP_QSTR_release), MP_ROM_PTR(&kpu_destroy_obj) },
     { MP_ROM_QSTR(MP_QSTR_load_kmodel), MP_ROM_PTR(&kpu_load_kmodel_obj) },
     { MP_ROM_QSTR(MP_QSTR_run), MP_ROM_PTR(&kpu_run_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_input_tensor), MP_ROM_PTR(&kpu_get_input_tensor_obj) },
@@ -274,16 +278,15 @@ MP_DEFINE_CONST_OBJ_TYPE(
 
 
 
-STATIC mp_obj_t mp_to_numpy(mp_obj_t self_in)
-{   
+STATIC mp_obj_t mp_to_numpy(mp_obj_t self_in) {
+
     mp_runtime_tensor_obj_t *self = MP_OBJ_TO_PTR(self_in);
     rt_to_ndarray_info info;
     to_numpy(self->r_tensor, &info);
     size_t *mp_shape = m_new(size_t, ULAB_MAX_DIMS);
     int32_t *mp_stride = m_new(int32_t, ULAB_MAX_DIMS);
     size_t size_bytes = ulab_binary_get_size(info.dtype_);
-    for(int i=0; i<info.ndim_; i++)
-    {
+    for(int i=0; i<info.ndim_; i++) {
         mp_shape[ULAB_MAX_DIMS - 1-i] = (size_t)info.shape_[info.ndim_ - 1 - i];
         mp_stride[ULAB_MAX_DIMS - 1-i] = (int32_t)info.strides_[info.ndim_ - 1 - i]*size_bytes;
     }
@@ -308,6 +311,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_runtime_tensor_del_obj, mp_runtime_tensor_re
 STATIC const mp_rom_map_elem_t mp_rt_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_runtime_tensor) },
     { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&mp_runtime_tensor_del_obj) },
+    { MP_ROM_QSTR(MP_QSTR_release), MP_ROM_PTR(&mp_runtime_tensor_del_obj) },
     { MP_ROM_QSTR(MP_QSTR_to_numpy), MP_ROM_PTR(&mp_to_numpy_obj) },
 };
 
