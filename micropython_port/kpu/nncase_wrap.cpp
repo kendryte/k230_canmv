@@ -131,17 +131,21 @@ Kpu *Kpu_create()
 
 void Kpu_destroy(Kpu* p) {
     delete p->interp;
+    p->interp = nullptr;
     delete p;
+    p = nullptr;
 }
 
-void Kpu_run(Kpu* p){
-    p->interp->run().expect("kpu run failed.");
+bool Kpu_run(Kpu* p){
+    auto state = p->interp->run();
+    return state.is_ok();
 }
 
-void Kpu_load_kmodel_path(Kpu* p, const char* path)
+bool Kpu_load_kmodel_path(Kpu* p, const char* path)
 {
     std::ifstream ifs(path, std::ios::binary);
-    p->interp->load_model(ifs).expect("kpu load model failed.");
+    auto state = p->interp->load_model(ifs);
+    return state.is_ok();
 }
 
 bool Kpu_load_kmodel_buffer(Kpu* p, char* buffer, size_t size)
@@ -151,9 +155,10 @@ bool Kpu_load_kmodel_buffer(Kpu* p, char* buffer, size_t size)
     return state.is_ok();
 }
 
-void Kpu_set_input_tensor(Kpu* p, size_t index, runtime_tensor *tensor)
+bool Kpu_set_input_tensor(Kpu* p, size_t index, runtime_tensor *tensor)
 {
-    p->interp->input_tensor(index, *tensor->r_tensor).expect("kpu set input tensor failed.");
+    auto state = p->interp->input_tensor(index, *tensor->r_tensor); //.expect("kpu set input tensor failed.");
+    return state.is_ok();
 }
 
 runtime_tensor* Kpu_get_input_tensor(Kpu* p, size_t index)
@@ -164,9 +169,10 @@ runtime_tensor* Kpu_get_input_tensor(Kpu* p, size_t index)
     return tensor;
 }
 
-void Kpu_set_output_tensor(Kpu* p, size_t index, runtime_tensor *tensor)
+bool Kpu_set_output_tensor(Kpu* p, size_t index, runtime_tensor *tensor)
 {
-    p->interp->output_tensor(index, *tensor->r_tensor).expect("kpu set output tensor failed.");
+    auto state = p->interp->output_tensor(index, *tensor->r_tensor); //.expect("kpu set output tensor failed.");
+    return state.is_ok();
 }
 
 runtime_tensor* Kpu_get_output_tensor(Kpu* p, size_t index)
@@ -287,6 +293,7 @@ ai2d* ai2d_create()
 void ai2d_destroy(ai2d *p)
 {   
     delete p;
+    p = nullptr;
 }
 
 m_builder* ai2d_build(ai2d *p, finite_data input_shape, finite_data output_shape)
@@ -322,11 +329,11 @@ m_builder* ai2d_build(ai2d *p, finite_data input_shape, finite_data output_shape
     return mbuilder;
 }
 
-void ai2d_run(m_builder* p, runtime_tensor *in_tensor, runtime_tensor *out_tensor)
+bool ai2d_run(m_builder* p, runtime_tensor *in_tensor, runtime_tensor *out_tensor)
 {
-    p->builder->invoke(*in_tensor->r_tensor, *out_tensor->r_tensor).expect("ai2d run failed.");
+    auto state = p->builder->invoke(*in_tensor->r_tensor, *out_tensor->r_tensor);
+    return state.is_ok();
 }
-
 
 // set ai2d args
 void ai2d_set_dtype(ai2d *p, ai2d_dtype_param dtype_param)
