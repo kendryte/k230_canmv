@@ -91,6 +91,9 @@ typedef long long mp_off_t;
 #define MICROPY_PY_THREAD           (1)
 #define MICROPY_PY_OS_DUPTERM       (1)
 
+#define MICROPY_PY_NETWORK_CANMV (1)
+#define MICROPY_PY_NETWORK_HOSTNAME_DEFAULT "canmv"
+#define MICROPY_PY_SOCKET_CANMV (1)  //socket
 // Ensure builtinimport.c works with -m.
 #define MICROPY_MODULE_OVERRIDE_MAIN_IMPORT (1)
 
