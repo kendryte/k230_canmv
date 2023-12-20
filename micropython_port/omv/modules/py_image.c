@@ -7051,6 +7051,8 @@ void py_image_free(image_t *image)
 {
     uint8_t alloc_type = image->alloc_type;
 
+    if (image->data == 0)
+        return;
     if (alloc_type == ALLOC_MMZ) {
         kd_mpi_sys_mmz_free(image->phy_addr, image->data);
     } else if (alloc_type == ALLOC_VB) {
@@ -7060,6 +7062,7 @@ void py_image_free(image_t *image)
     } else if (alloc_type == ALLOC_MPGC) {
         xfree(image->data);
     }
+    image->data = 0;
 }
 
 mp_obj_t py_image_load_image(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {

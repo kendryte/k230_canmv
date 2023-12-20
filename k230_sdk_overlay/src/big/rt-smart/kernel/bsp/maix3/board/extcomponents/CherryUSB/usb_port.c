@@ -53,7 +53,7 @@ extern uint8_t usb_read_buffer[];
 
 void usbd_cdc_acm_set_dtr(uint8_t intf, bool dtr) {
     // USB_LOG_WRN("set DTR %d\n", dtr);
-    if (last_dtr != dtr) {
+    if (last_dtr != dtr && dtr == true) {
         //USB_LOG_WRN("RTS reset %d %d\n", last_rts, rts);
         g_cdc_mask |= POLLERR;
         rt_wqueue_wakeup(&g_cdc_rt_device.wait_queue, (void*)POLLERR);

@@ -77,7 +77,6 @@ STATIC void sigint_handler_ctrl_c(int signum) {
         nlr_raise(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
         #else
         process_exit = true;
-        extern void mp_thread_set_exception_main(mp_obj_t obj);
         mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
         if (!ide_dbg_attach())
             interrupt_repl();
@@ -85,7 +84,7 @@ STATIC void sigint_handler_ctrl_c(int signum) {
     }
 }
 
-void mp_hal_set_interrupt_char(char c) {
+void mp_hal_set_interrupt_char(int c) {
     if (c == CHAR_CTRL_C) {
         struct sigaction sa;
         sa.sa_flags = 0;

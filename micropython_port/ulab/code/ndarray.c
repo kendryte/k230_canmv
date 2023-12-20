@@ -641,6 +641,7 @@ ndarray_obj_t *ndarray_new_ndarray(uint8_t ndim, size_t *shape, int32_t *strides
     uint8_t *array = malloc(len);
     if (array == NULL)
         mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("ndarray malloc fail"));
+    memset(array, 0, len);
     // this should set all elements to 0, irrespective of the of the dtype (all bits are zero)
     // we could, perhaps, leave this step out, and initialise the array only, when needed
     ndarray->array = array;
