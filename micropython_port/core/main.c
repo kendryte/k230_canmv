@@ -644,6 +644,8 @@ MP_NOINLINE int main_(int argc, char **argv) {
     sys_set_excecutable(argv[0]);
     #endif
 
+    extern void usb_rx_clear(void);
+    usb_rx_clear();
     mp_hal_set_interrupt_char(-1);
 
     const int NOTHING_EXECUTED = -2;
@@ -806,7 +808,6 @@ MP_NOINLINE int main_(int argc, char **argv) {
     fprintf(stderr, "[mpy] exit, reset\n");
 main_thread_exit:
     // exit other thread
-    extern void mp_thread_set_exception_other(mp_obj_t obj);
     mp_thread_set_exception_other(mp_obj_new_exception(&mp_type_SystemExit));
     MP_THREAD_GIL_EXIT();
 
@@ -836,9 +837,7 @@ main_thread_exit:
     mp_thread_deinit();
     #endif
 
-    #if defined(MICROPY_UNIX_COVERAGE)
     gc_sweep_all();
-    #endif
 
     mp_deinit();
 

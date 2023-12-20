@@ -138,16 +138,13 @@ extern const struct _mp_print_t mp_stderr_print;
 #define MICROPY_EVENT_POLL_HOOK \
     do { \
         extern void mp_handle_pending(bool); \
+        mp_thread_exitpoint(EXITPOINT_ENABLE_SLEEP); \
         mp_handle_pending(true); \
+        MP_THREAD_GIL_EXIT(); \
         usleep(500); /* equivalent to mp_hal_delay_us(500) */ \
+        MP_THREAD_GIL_ENTER(); \
     } while (0);
 #endif
-
-#define MICROPY_VM_HOOK_LOOP \
-    do { \
-        extern void mp_thread_get_exception(void); \
-        mp_thread_get_exception(); \
-    } while (0);
 
 // Configure the implementation of machine.idle().
 #include <sched.h>

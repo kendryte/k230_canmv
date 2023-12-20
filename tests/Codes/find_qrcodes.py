@@ -23,7 +23,7 @@ def camera_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
     # meida buffer config
-    ret = media.buffer_config(config)
+    media.buffer_config(config)
     # init default sensor
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
     # set chn0 output size
@@ -53,6 +53,7 @@ def camera_deinit():
     camera.stop_stream(CAM_DEV_ID_0)
     # deinit display
     display.deinit()
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
     time.sleep_ms(100)
     # release media buffer
     media.release_buffer(globals()["buffer"])
@@ -73,49 +74,39 @@ def capture_picture():
     while True:
         fps.tick()
         try:
-            os.exit_exception_mask(1)
+            os.exitpoint()
             yuv420_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if yuv420_img == -1:
-                # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
-                os.exit_exception_mask(0)
-                raise OSError("camera capture image failed")
-            else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
-                os.exit_exception_mask(0)
-                codes = img.find_qrcodes()
-                draw_img.clear()
-                for code in codes:
-                    draw_img.draw_rectangle([v*SCALE for v in code.rect()], color=(255, 0, 0))
-                    print(code)
-                draw_img.copy_to(osd_img)
-                if not codes:
-                    print("FPS %f" % fps.fps())
-                del img
-                gc.collect()
+            img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+            codes = img.find_qrcodes()
+            draw_img.clear()
+            for code in codes:
+                draw_img.draw_rectangle([v*SCALE for v in code.rect()], color=(255, 0, 0))
+                print(code)
+            draw_img.copy_to(osd_img)
+            if not codes:
+                print("FPS %f" % fps.fps())
+            del img
+            gc.collect()
         except Exception as e:
             print(e)
             break
 
 def main():
+    os.exitpoint(os.EXITPOINT_ENABLE)
     camera_is_init = False
     try:
-        os.exit_exception_mask(1)
         print("camera init")
         camera_init()
         camera_is_init = True
-        os.exit_exception_mask(0)
         print("camera capture")
         capture_picture()
     except Exception as e:
-        os.exit_exception_mask(1)
         print(e)
     finally:
         if camera_is_init:
             print("camera deinit")
             camera_deinit()
-        os.exit_exception_mask(0)
 
 if __name__ == "__main__":
     main()
