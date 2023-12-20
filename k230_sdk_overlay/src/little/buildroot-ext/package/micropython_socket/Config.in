@@ -1,0 +1,7 @@
+config BR2_PACKAGE_MICROPYTHON_SOCKET
+	bool "micropython socket server"
+	help
+	  micropython socket server
+
+
+

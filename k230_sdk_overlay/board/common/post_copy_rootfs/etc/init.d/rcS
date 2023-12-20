@@ -39,6 +39,6 @@ mkdir /sharefs -p
 #elif `grep mmcblk1p3 /proc/cmdline >/dev/null` ; then
 #	mount /dev/mmcblk1p4 /sharefs
 #fi
-
+micropython_socket_server &
 #./sharefs &
 cd -

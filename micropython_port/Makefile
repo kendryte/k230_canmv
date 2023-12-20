@@ -43,6 +43,7 @@ INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/comm
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/ioctl
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/api
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/common/cdk/user/component/ipcmsg/include/
 INC += -I$(K230_CANMV_ROOT)/micropython_port/ulab
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/include
@@ -80,13 +81,15 @@ LDFLAGS_ARCH = -Wl,-Map=$@.map,--cref -Wl,--gc-sections
 LDFLAGS += -T core/link.lds --static
 LDFLAGS += $(LDFLAGS_MOD) $(LDFLAGS_ARCH) -lm -lpthread $(LDFLAGS_EXTRA)
 
-MPP_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/lib
-MPP_LIBS = $(addprefix -l, $(subst lib, ,$(basename $(notdir $(foreach dir, $(MPP_LIB_PATH), $(wildcard $(dir)/*))))))
+MPP_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/lib  
+CDK_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/common/cdk/user/component/ipcmsg/host/lib/
+
+MPP_LIBS = $(addprefix -l, $(subst lib, ,$(basename $(notdir $(foreach dir, $(MPP_LIB_PATH) $(CDK_LIB_PATH), $(wildcard $(dir)/*))))))
 
 LIBPATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/lib/risc-v/rv64
 MPP_LIBS += -lrtthread
 
-LDFLAGS_MPP = -L$(MPP_LIB_PATH) -L$(LIBPATH) -Wl,--start-group $(MPP_LIBS) -Wl,--end-group
+LDFLAGS_MPP = -L$(MPP_LIB_PATH) -L$(CDK_LIB_PATH)  -L$(LIBPATH) -Wl,--start-group $(MPP_LIBS) -Wl,--end-group
 
 LDFLAGS += $(LDFLAGS_MPP)
 LDFLAGS += -L${K230_CANMV_ROOT}/k230_sdk/src/big/nncase/riscv64/nncase/lib -lNncase.Runtime.Native -lnncase.rt_modules.k230 -lfunctional_k230 -lstdc++
@@ -103,8 +106,8 @@ LDFLAGS += -L$(OPENCV_LIB_PATH) -L$(OPENCV_DEP_LIB_PATH) -Wl,--start-group $(OPE
 ifeq ($(MICROPY_PY_TERMIOS),1)
 CFLAGS += -DMICROPY_PY_TERMIOS=1
 endif
-ifeq ($(MICROPY_PY_SOCKET),1)
-CFLAGS += -DMICROPY_PY_SOCKET=1 
+ifeq ($(MICROPY_PY_SOCKET_CANMV),1)
+CFLAGS += -DMICROPY_PY_SOCKET_CANMV=1 -g
 endif
 CFLAGS += -DHAVE_CCONFIG_H 
 # source files
@@ -123,6 +126,7 @@ KPU_SRC_C = $(wildcard kpu/*.c)
 OMV_SRC_C = $(wildcard omv/*.c)
 AICUBE_SRC_C = $(wildcard ai_cube/*.c)
 AIDEMO_SRC_C = $(wildcard ai_demo/*.c)
+SOCKET_SRC_C = $(wildcard socket_network/*.c)
 
 OMV_SRC_C += $(wildcard omv/*/*.c)
 INC += -Iomv/alloc -Iomv/boards/canmv -Iomv/common -Iomv/imlib -Iomv/modules
@@ -131,7 +135,7 @@ SRC_C += \
 	${MACHINE_SRC_C} \
 	${MAIX_SRC_C} \
 	${MPP_SRC_C} \
-	${KPU_SRC_C} \
+	${KPU_SRC_C}  ${SOCKET_SRC_C} \
 	${OMV_SRC_C} \
 	${AICUBE_SRC_C} \
 	${AIDEMO_SRC_C}

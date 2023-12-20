@@ -15,8 +15,12 @@ a.help(60)
 
 a.set_function(60,set_sl=1,set_ie=0,set_oe=0,set_pd=1,set_pu=0,set_ds=6,set_st=0,set_di=1)
 a.help(60)
+try :
+    print(a.set_function(60,set_msc=0))
 
-a.set_function(60,set_msc=0)
+except Exception as e:
+        print("set error ", e)
+
 a.help(60)
 
 
