@@ -4,7 +4,7 @@ import aidemo                            #aidemo模块，封装ai demo相关后�
 import image                             #图像模块，主要用于读取、图像绘制元素（框、点等）等操作
 import time                              #时间统计
 import gc                                #垃圾回收模块
-import os                                #操作系统接口模块
+import os, sys                           #操作系统接口模块
 import math                              #数学模块
 
 #********************for config.py********************
@@ -462,7 +462,10 @@ def face_registration_inference():
                     print('No person detected')
 
                 gc.collect()
-    except Exception as e:
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+    except BaseException as e:
+        sys.print_exception(e)
         print(f"An error occurred during buffer used: {e}")
     finally:
         # 释放kpu资源
@@ -470,10 +473,9 @@ def face_registration_inference():
         fr_kpu_deinit(kpu_face_reg)
         # 垃圾回收
         gc.collect()
-        time.sleep(1)
 
     print("face_registration_test end")
-    return 0
 
 if __name__ == '__main__':
+    os.exitpoint(os.EXITPOINT_ENABLE)
     face_registration_inference()

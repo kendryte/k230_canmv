@@ -5,6 +5,7 @@
 # You can load local files to play. The current version only supports MP4 format, video supports 264/265, and audio supports g711a/g711u.
 
 from media.player import * #导入播放器模块，用于播放mp4文件
+import os
 
 start_play = False #播放结束flag
 def player_event(event,data):
@@ -21,10 +22,18 @@ def play_mp4_test(filename):
     start_play = True
 
     #等待播放结束
-    while(start_play):
-        time.sleep(0.1)
+    try:
+        while(start_play):
+            time.sleep(0.1)
+            os.exitpoint()
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+    except BaseException as e:
+        sys.print_exception(e)
 
     player.stop() #停止播放
     print("play over")
 
-play_mp4_test("/sdcard/app/tests/test.mp4")#播放mp4文件
+if __name__ == "__main__":
+    os.exitpoint(os.EXITPOINT_ENABLE)
+    play_mp4_test("/sdcard/app/tests/test.mp4")#播放mp4文件

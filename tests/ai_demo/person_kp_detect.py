@@ -7,6 +7,7 @@ import image                        #图像模块，主要用于读取、图像�
 import time                         #时间统计
 import gc                           #垃圾回收模块
 import aidemo                       #aidemo模块，封装ai demo相关后处理、画图操作
+import os, sys                      #操作系统接口模块
 
 ##config.py
 #display分辨率
@@ -271,7 +272,7 @@ def media_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
 
-    ret = media.buffer_config(config)
+    media.buffer_config(config)
 
     global media_source, media_sink
     media_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
@@ -279,26 +280,24 @@ def media_init():
     media.create_link(media_source, media_sink)
 
     # 初始化多媒体buffer
-    ret = media.buffer_init()
-    if ret:
-        return ret
+    media.buffer_init()
     global buffer, draw_img, osd_img
     buffer = media.request_buffer(4 * DISPLAY_WIDTH * DISPLAY_HEIGHT)
     # 图层1，用于画框
-    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_MPGC)
+    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
     # 图层2，用于拷贝画框结果，防止画框过程中发生buffer搬运
     osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, poolid=buffer.pool_id, alloc=image.ALLOC_VB,
                           phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr)
-    return ret
 
 # media 释放内存
 def media_deinit():
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
+    time.sleep_ms(100)
     global buffer,media_source, media_sink
     media.release_buffer(buffer)
     media.destroy_link(media_source, media_sink)
 
-    ret = media.buffer_deinit()
-    return ret
+    media.buffer_deinit()
 
 
 #**********for person_kp_detect.py**********
@@ -308,51 +307,34 @@ def person_kp_detect_inference():
     camera_init(CAM_DEV_ID_0)                                       # 初始化 camera
     display_init()                                                  # 初始化 display
 
-    rgb888p_img = None
     try:
-        ret = media_init()
-        if ret:
-            print("person_kp_detect, buffer init failed")
-            return ret
-
+        media_init()
         camera_start(CAM_DEV_ID_0)
-        time.sleep(5)
         while True:
+            os.exitpoint()
             with ScopedTiming("total",1):
                 rgb888p_img = camera_read(CAM_DEV_ID_0)             # 读取一帧图片
-                if rgb888p_img == -1:
-                    print("person_kp_detect, capture_image failed")
-                    camera_release_image(CAM_DEV_ID_0,rgb888p_img)
-                    rgb888p_img = None
-                    continue
-
                 # for rgb888planar
                 if rgb888p_img.format() == image.RGBP888:
                     person_kp_detect_res = kpu_run(kpu_person_kp_detect,rgb888p_img)            # 执行人体关键点检测 kpu 运行 以及 后处理过程
                     display_draw(person_kp_detect_res)                                          # 将得到的人体关键点结果 绘制到 display
 
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)      # camera 释放图像
-                rgb888p_img = None
-                #gc.collect()
-    except Exception as e:
+                gc.collect()
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+    except BaseException as e:
+        sys.print_exception(e)
         print(f"An error occurred during buffer used: {e}")
     finally:
-        if rgb888p_img is not None:
-            #先release掉申请的内存再stop
-            camera_release_image(CAM_DEV_ID_0,rgb888p_img)
-
         camera_stop(CAM_DEV_ID_0)                                   # 停止 camera
         display_deinit()                                            # 释放 display
         kpu_deinit(kpu_person_kp_detect)                            # 释放 kpu
         gc.collect()
-        time.sleep(1)
-        ret = media_deinit()                                        # 释放 整个media
-        if ret:
-            print("person_kp_detect, buffer_deinit failed")
-            return ret
+        media_deinit()                                              # 释放 整个media
 
     print("person_kp_detect end")
-    return 0
 
 if __name__ == '__main__':
+    os.exitpoint(os.EXITPOINT_ENABLE)
     person_kp_detect_inference()

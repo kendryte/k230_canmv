@@ -8,7 +8,7 @@
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, os, gc
+import time, os, gc, sys
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -54,7 +54,7 @@ def camera_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
     # meida buffer config
-    ret = media.buffer_config(config)
+    media.buffer_config(config)
     # init default sensor
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
     # # set chn0 output size
@@ -84,6 +84,7 @@ def camera_deinit():
     camera.stop_stream(CAM_DEV_ID_0)
     # deinit display
     display.deinit()
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
     time.sleep_ms(100)
     # release media buffer
     media.release_buffer(globals()["buffer"])
@@ -108,54 +109,47 @@ def draw():
     while True:
         fps.tick()
         try:
-            os.exit_exception_mask(1)
+            os.exitpoint()
             rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if rgb888_img == -1:
-                # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                raise OSError("camera capture image failed")
-            else:
-                img = rgb888_img.to_rgb565()
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                img.draw_image(big_img, x_bounce, y_bounce, rgb_channel=-1, alpha=alpha_value//alpha_div)
+            img = rgb888_img.to_rgb565()
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
+            img.draw_image(big_img, x_bounce, y_bounce, rgb_channel=-1, alpha=alpha_value//alpha_div)
 
-                x_bounce += x_bounce_toggle
-                if abs(x_bounce-(img.width()//2)) >= (img.width()//2): x_bounce_toggle = -x_bounce_toggle
+            x_bounce += x_bounce_toggle
+            if abs(x_bounce-(img.width()//2)) >= (img.width()//2): x_bounce_toggle = -x_bounce_toggle
 
-                y_bounce += y_bounce_toggle
-                if abs(y_bounce-(img.height()//2)) >= (img.height()//2): y_bounce_toggle = -y_bounce_toggle
+            y_bounce += y_bounce_toggle
+            if abs(y_bounce-(img.height()//2)) >= (img.height()//2): y_bounce_toggle = -y_bounce_toggle
 
-                alpha_value += alpha_step
-                if not alpha_value or alpha_value//alpha_div == 256: alpha_step = -alpha_step
+            alpha_value += alpha_step
+            if not alpha_value or alpha_value//alpha_div == 256: alpha_step = -alpha_step
 
-                img.copy_to(osd_img)
-                del img
-                gc.collect()
-                print(fps.fps())
-        except Exception as e:
-            print(e)
+            img.copy_to(osd_img)
+            del img
+            gc.collect()
+            print(fps.fps())
+        except KeyboardInterrupt as e:
+            print("user stop: ", e)
+            break
+        except BaseException as e:
+            sys.print_exception(e)
             break
 
 def main():
+    os.exitpoint(os.EXITPOINT_ENABLE)
     camera_is_init = False
     try:
-        os.exit_exception_mask(1)
         print("camera init")
         camera_init()
         camera_is_init = True
-        os.exit_exception_mask(0)
         print("draw")
         draw()
     except Exception as e:
-        os.exit_exception_mask(1)
-        print(e)
+        sys.print_exception(e)
     finally:
         if camera_is_init:
             print("camera deinit")
             camera_deinit()
-        os.exit_exception_mask(0)
 
 if __name__ == "__main__":
     main()

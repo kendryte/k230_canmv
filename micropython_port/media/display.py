@@ -39,7 +39,7 @@ class display:
         cls.plane_array = [0] * 7
 
     @classmethod
-    def set_osd_plane(cls, x, y, width, height, pixelformat, chn):
+    def set_osd_plane(cls, x, y, width, height, pixelformat, chn, alpha=255):
         offset = k_vo_point()
         offset.x = x
         offset.y = y
@@ -49,13 +49,13 @@ class display:
         img_size.height = height
 
         osd_attr = k_vo_video_osd_attr()
-        osd_attr.global_alptha = 0xff
+        osd_attr.global_alptha = alpha
         osd_attr.pixel_format = pixelformat
-        if (pixelformat == PIXEL_FORMAT_ARGB_8888):
+        if (pixelformat == PIXEL_FORMAT_ARGB_8888 or pixelformat == PIXEL_FORMAT_ABGR_8888):
             osd_attr.stride = (width * 4) // 8
-        elif (pixelformat == PIXEL_FORMAT_BGR_888):
+        elif (pixelformat == PIXEL_FORMAT_RGB_888 or pixelformat == PIXEL_FORMAT_BGR_888):
             osd_attr.stride = (width * 3) // 8
-        elif (pixelformat == PIXEL_FORMAT_RGB_565):
+        elif (pixelformat == PIXEL_FORMAT_RGB_565 or pixelformat == PIXEL_FORMAT_BGR_565):
             osd_attr.stride = (width * 2) // 8
         elif (pixelformat == PIXEL_FORMAT_RGB_MONOCHROME_8BPP):
             osd_attr.stride = (width) // 8
@@ -117,7 +117,7 @@ class display:
         if img.format() == image.ARGB8888:
             pixelformat = PIXEL_FORMAT_ARGB_8888
         elif img.format() == image.RGB888:
-            pixelformat = PIXEL_FORMAT_BGR_888
+            pixelformat = PIXEL_FORMAT_RGB_888
         elif img.format() == image.RGB565:
             pixelformat = PIXEL_FORMAT_RGB_565
         elif img.format() == image.GRAYSCALE:

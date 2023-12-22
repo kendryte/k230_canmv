@@ -7,7 +7,7 @@ import aidemo                                   # aidemo模块，封装ai demo�
 import time                                     # 时间统计
 import struct                                   # 字节字符转换模块
 import gc                                       # 垃圾回收模块
-import os                                       # 操作系统接口模块
+import os, sys                                  # 操作系统接口模块
 
 # key word spotting任务
 # 检测阈值
@@ -55,9 +55,7 @@ def init_kws():
         # 初始化音频流
         p = PyAudio()
         p.initialize(CHUNK)
-        ret = media.buffer_init()
-        if ret:
-            print("record_audio, buffer_init failed")
+        media.buffer_init()
         # 用于采集实时音频数据
         input_stream = p.open(
                         format=FORMAT,
@@ -142,6 +140,7 @@ def kws_inference():
     pcm_data_list = []
     try:
         while True:
+            os.exitpoint()
             with ScopedTiming("total", 1):
                 pcm_data_list.clear()
                 # 对实时音频流进行推理
@@ -154,6 +153,7 @@ def kws_inference():
                     pcm_data_list.append(float_pcm_data)
                 # kpu运行和后处理
                 kpu_run_kws(kpu_kws,pcm_data_list)
+            gc.collect()
     finally:
         input_stream.stop_stream()
         output_stream.stop_stream()
@@ -162,7 +162,7 @@ def kws_inference():
         p.terminate()
         media.buffer_deinit()
         aidemo.kws_fp_destroy(fp)
-        #gc.collect()
 
 if __name__=="__main__":
+    os.exitpoint(os.EXITPOINT_ENABLE)
     kws_inference()

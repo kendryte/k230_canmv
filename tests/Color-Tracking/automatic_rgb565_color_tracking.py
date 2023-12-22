@@ -5,7 +5,7 @@
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, os, gc, math
+import time, os, gc, sys, math
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -23,7 +23,7 @@ def camera_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
     # meida buffer config
-    ret = media.buffer_config(config)
+    media.buffer_config(config)
     # init default sensor
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
     # set chn0 output size
@@ -53,6 +53,7 @@ def camera_deinit():
     camera.stop_stream(CAM_DEV_ID_0)
     # deinit display
     display.deinit()
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
     time.sleep_ms(100)
     # release media buffer
     media.release_buffer(globals()["buffer"])
@@ -77,79 +78,72 @@ def capture_picture():
     while True:
         fps.tick()
         try:
-            os.exit_exception_mask(1)
+            os.exitpoint()
             rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if rgb888_img == -1:
-                # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                raise OSError("camera capture image failed")
-            else:
-                img = rgb888_img.to_rgb565()
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                draw_img.clear()
-                if frame_count < 60:
-                    if frame_count == 0:
-                        print("Letting auto algorithms run. Don't put anything in front of the camera!")
-                        print("Auto algorithms done. Hold the object you want to track in front of the camera in the box.")
-                        print("MAKE SURE THE COLOR OF THE OBJECT YOU WANT TO TRACK IS FULLY ENCLOSED BY THE BOX!")
+            img = rgb888_img.to_rgb565()
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
+            draw_img.clear()
+            if frame_count < 60:
+                if frame_count == 0:
+                    print("Letting auto algorithms run. Don't put anything in front of the camera!")
+                    print("Auto algorithms done. Hold the object you want to track in front of the camera in the box.")
+                    print("MAKE SURE THE COLOR OF THE OBJECT YOU WANT TO TRACK IS FULLY ENCLOSED BY THE BOX!")
+                draw_img.draw_rectangle([v*SCALE for v in r])
+                frame_count = frame_count + 1
+            elif frame_count < 120:
+                if frame_count == 60:
+                    print("Learning thresholds...")
+                elif frame_count == 119:
+                    print("Thresholds learned...")
+                    print("Tracking colors...")
+                hist = img.get_histogram(roi=r)
+                lo = hist.get_percentile(0.01) # Get the CDF of the histogram at the 1% range (ADJUST AS NECESSARY)!
+                hi = hist.get_percentile(0.99) # Get the CDF of the histogram at the 99% range (ADJUST AS NECESSARY)!
+                # Average in percentile values.
+                threshold[0] = (threshold[0] + lo.l_value()) // 2
+                threshold[1] = (threshold[1] + hi.l_value()) // 2
+                threshold[2] = (threshold[2] + lo.a_value()) // 2
+                threshold[3] = (threshold[3] + hi.a_value()) // 2
+                threshold[4] = (threshold[4] + lo.b_value()) // 2
+                threshold[5] = (threshold[5] + hi.b_value()) // 2
+                for blob in img.find_blobs([threshold], pixels_threshold=100, area_threshold=100, merge=True, margin=10):
+                    draw_img.draw_rectangle([v*SCALE for v in blob.rect()])
+                    draw_img.draw_cross(blob.cx()*SCALE, blob.cy()*SCALE)
                     draw_img.draw_rectangle([v*SCALE for v in r])
-                    frame_count = frame_count + 1
-                elif frame_count < 120:
-                    if frame_count == 60:
-                        print("Learning thresholds...")
-                    elif frame_count == 119:
-                        print("Thresholds learned...")
-                        print("Tracking colors...")
-                    hist = img.get_histogram(roi=r)
-                    lo = hist.get_percentile(0.01) # Get the CDF of the histogram at the 1% range (ADJUST AS NECESSARY)!
-                    hi = hist.get_percentile(0.99) # Get the CDF of the histogram at the 99% range (ADJUST AS NECESSARY)!
-                    # Average in percentile values.
-                    threshold[0] = (threshold[0] + lo.l_value()) // 2
-                    threshold[1] = (threshold[1] + hi.l_value()) // 2
-                    threshold[2] = (threshold[2] + lo.a_value()) // 2
-                    threshold[3] = (threshold[3] + hi.a_value()) // 2
-                    threshold[4] = (threshold[4] + lo.b_value()) // 2
-                    threshold[5] = (threshold[5] + hi.b_value()) // 2
-                    for blob in img.find_blobs([threshold], pixels_threshold=100, area_threshold=100, merge=True, margin=10):
-                        draw_img.draw_rectangle([v*SCALE for v in blob.rect()])
-                        draw_img.draw_cross(blob.cx()*SCALE, blob.cy()*SCALE)
-                        draw_img.draw_rectangle([v*SCALE for v in r])
-                    frame_count = frame_count + 1
-                    del hist
-                else:
-                    for blob in img.find_blobs([threshold], pixels_threshold=100, area_threshold=100, merge=True, margin=10):
-                        draw_img.draw_rectangle([v*SCALE for v in blob.rect()])
-                        draw_img.draw_cross(blob.cx()*SCALE, blob.cy()*SCALE)
+                frame_count = frame_count + 1
+                del hist
+            else:
+                for blob in img.find_blobs([threshold], pixels_threshold=100, area_threshold=100, merge=True, margin=10):
+                    draw_img.draw_rectangle([v*SCALE for v in blob.rect()])
+                    draw_img.draw_cross(blob.cx()*SCALE, blob.cy()*SCALE)
 
-                draw_img.copy_to(osd_img)
-                del img
-                gc.collect()
-                if frame_count >= 120:
-                    print(fps.fps())
-        except Exception as e:
-            print(e)
+            draw_img.copy_to(osd_img)
+            del img
+            gc.collect()
+            if frame_count >= 120:
+                print(fps.fps())
+        except KeyboardInterrupt as e:
+            print("user stop: ", e)
+            break
+        except BaseException as e:
+            sys.print_exception(e)
             break
 
 def main():
+    os.exitpoint(os.EXITPOINT_ENABLE)
     camera_is_init = False
     try:
-        os.exit_exception_mask(1)
         print("camera init")
         camera_init()
         camera_is_init = True
-        os.exit_exception_mask(0)
         print("camera capture")
         capture_picture()
     except Exception as e:
-        os.exit_exception_mask(1)
-        print(e)
+        sys.print_exception(e)
     finally:
         if camera_is_init:
             print("camera deinit")
             camera_deinit()
-        os.exit_exception_mask(0)
 
 if __name__ == "__main__":
     main()

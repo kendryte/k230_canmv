@@ -7,16 +7,12 @@
 from media.camera import *
 from media.display import *
 from media.media import *
-from time import *
-
 import nncase_runtime as nn
 import ulab.numpy as np
-
 import time
 import image
-
 import random
-import gc, os
+import gc, os, sys
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -279,8 +275,8 @@ def face_detect():
     osd_img.clear()
     display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD0)
 
-    while True:
-        try:
+    try:
+        while True:
             # capture image from dev and chn
             rgb888p_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_2)
             ai2d_input = rgb888p_img.to_numpy_ref()
@@ -319,11 +315,12 @@ def face_detect():
                     draw_img.draw_rectangle(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH, y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH, w, h, color=(255,255,0,255))
             draw_img.copy_to(osd_img)
             os.exitpoint()
-        except Exception as e:
-            del kpu
-            del ai2d
-            print(e)
-            break
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+    except BaseException as e:
+        sys.print_exception(e)
+    del kpu
+    del ai2d
 
 
 def main():
@@ -336,7 +333,7 @@ def main():
         print("face_detect")
         face_detect()
     except Exception as e:
-        print(e)
+        sys.print_exception(e)
     finally:
         if camera_is_init:
             print("camera deinit")

@@ -5,6 +5,7 @@ from mpp.vdec_struct import *
 from media.media import *
 import uctypes
 import time
+import os
 
 MAX_WIDTH = 1088
 MAX_HEIGHT = 1920
@@ -16,7 +17,7 @@ OUTPUT_BUF_CNT = 6
 def _vdec_vb_buffer_init():
     config = k_vb_config()
     config.max_pool_cnt = 2
-    return media.buffer_config(config)
+    media.buffer_config(config)
 
 class Decoder:
     #vb init flag
@@ -77,13 +78,12 @@ class Decoder:
     def create(self):
         chn_index = Decoder.get_free_chn_index()
         if (chn_index == -1):
-            raise ValueError("Decoder has no free chn")
+            raise OSError("Decoder has no free chn")
         else:
             Decoder.chns_enable[chn_index] = 1
 
         self.chn = chn_index
         Decoder.vb_create_pool(chn_index)
-        return 0
 
     def start(self):
         attr = k_vdec_chn_attr()
@@ -97,12 +97,11 @@ class Decoder:
 
         ret = kd_mpi_vdec_create_chn(self.chn, attr)
         if (ret != 0):
-            raise ValueError("kd_mpi_vdec_create_chn failed,channel:",self.chn)
+            raise OSError("kd_mpi_vdec_create_chn failed,channel:",self.chn)
 
         ret = kd_mpi_vdec_start_chn(self.chn)
         if (ret != 0):
-            raise ValueError("kd_mpi_vdec_start_chn failed,channel:",self.chn)
-        return 0
+            raise OSError("kd_mpi_vdec_start_chn failed,channel:",self.chn)
 
     def stop(self):
         stream_data = b'\x00\x00\x00\x01\x64'
@@ -132,27 +131,25 @@ class Decoder:
 
         ret = kd_mpi_vdec_send_stream(self.chn, stream, -1)
         if (ret != 0):
-            raise ValueError("kd_mpi_vdec_send_stream failed,channel:",self.chn)
-            return -1
+            raise OSError("kd_mpi_vdec_send_stream failed,channel:",self.chn)
 
-        print("")
         status = k_vdec_chn_status()
+        os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
         while(1):
-            ret = kd_mpi_vdec_query_status(self.chn, status)
+            kd_mpi_vdec_query_status(self.chn, status)
             if (status.end_of_stream == True):
                 #print("kd_mpi_vdec_query_status end")
                 break
             else:
                 time.sleep(0.01)
+        os.exitpoint(os.EXITPOINT_ENABLE)
 
         ret = kd_mpi_vdec_stop_chn(self.chn)
         if (ret != 0):
-            raise ValueError("kd_mpi_vdec_stop_chn failed,channel:",self.chn)
+            raise OSError("kd_mpi_vdec_stop_chn failed,channel:",self.chn)
         ret = kd_mpi_vdec_destroy_chn(self.chn)
         if (ret != 0):
-            raise ValueError("kd_mpi_vdec_destroy_chn failed,channel:",self.chn)
-
-        return 0
+            raise OSError("kd_mpi_vdec_destroy_chn failed,channel:",self.chn)
 
     def decode(self,stream_data):
         stream = k_vdec_stream()
@@ -178,18 +175,13 @@ class Decoder:
 
         ret = kd_mpi_vdec_send_stream(self.chn, stream, -1)
         if (ret != 0):
-            raise ValueError("kd_mpi_vdec_send_stream failed,channel:",self.chn)
-            return -1
+            raise OSError("kd_mpi_vdec_send_stream failed,channel:",self.chn)
 
         kd_mpi_vb_release_block(handle)
-
-        return 0
 
     def destroy(self):
         Decoder.chns_enable[self.chn] = 0
         Decoder.vb_destory_pool(self.chn)
-
-        return 0
 
     def get_vdec_channel(self):
         return self.chn

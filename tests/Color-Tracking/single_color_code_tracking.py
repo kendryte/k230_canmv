@@ -8,7 +8,7 @@
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, os, gc, math
+import time, os, gc, sys, math
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -36,7 +36,7 @@ def camera_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
     # meida buffer config
-    ret = media.buffer_config(config)
+    media.buffer_config(config)
     # init default sensor
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
     # set chn0 output size
@@ -66,6 +66,7 @@ def camera_deinit():
     camera.stop_stream(CAM_DEV_ID_0)
     # deinit display
     display.deinit()
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
     time.sleep_ms(100)
     # release media buffer
     media.release_buffer(globals()["buffer"])
@@ -86,56 +87,49 @@ def capture_picture():
     while True:
         fps.tick()
         try:
-            os.exit_exception_mask(1)
+            os.exitpoint()
             rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if rgb888_img == -1:
-                # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                raise OSError("camera capture image failed")
-            else:
-                img = rgb888_img.to_rgb565()
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                draw_img.clear()
-                for blob in img.find_blobs(thresholds, pixels_threshold=100, area_threshold=100, merge=True):
-                    if blob.code() == 3: # r/g code == (1 << 1) | (1 << 0)
-                        # These values depend on the blob not being circular - otherwise they will be shaky.
-                        # if blob.elongation() > 0.5:
-                        #     img.draw_edges(blob.min_corners(), color=(255,0,0))
-                        #     img.draw_line(blob.major_axis_line(), color=(0,255,0))
-                        #     img.draw_line(blob.minor_axis_line(), color=(0,0,255))
-                        # These values are stable all the time.
-                        draw_img.draw_rectangle([v*SCALE for v in blob.rect()])
-                        draw_img.draw_cross(blob.cx()*SCALE, blob.cy()*SCALE)
-                        # Note - the blob rotation is unique to 0-180 only.
-                        draw_img.draw_keypoints([(blob.cx()*SCALE, blob.cy()*SCALE, int(math.degrees(blob.rotation())))], size=20)
-                draw_img.copy_to(osd_img)
-                del img
-                gc.collect()
-                print(fps.fps())
-        except Exception as e:
-            print(e)
+            img = rgb888_img.to_rgb565()
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
+            draw_img.clear()
+            for blob in img.find_blobs(thresholds, pixels_threshold=100, area_threshold=100, merge=True):
+                if blob.code() == 3: # r/g code == (1 << 1) | (1 << 0)
+                    # These values depend on the blob not being circular - otherwise they will be shaky.
+                    # if blob.elongation() > 0.5:
+                    #     img.draw_edges(blob.min_corners(), color=(255,0,0))
+                    #     img.draw_line(blob.major_axis_line(), color=(0,255,0))
+                    #     img.draw_line(blob.minor_axis_line(), color=(0,0,255))
+                    # These values are stable all the time.
+                    draw_img.draw_rectangle([v*SCALE for v in blob.rect()])
+                    draw_img.draw_cross(blob.cx()*SCALE, blob.cy()*SCALE)
+                    # Note - the blob rotation is unique to 0-180 only.
+                    draw_img.draw_keypoints([(blob.cx()*SCALE, blob.cy()*SCALE, int(math.degrees(blob.rotation())))], size=20)
+            draw_img.copy_to(osd_img)
+            del img
+            gc.collect()
+            print(fps.fps())
+        except KeyboardInterrupt as e:
+            print("user stop: ", e)
+            break
+        except BaseException as e:
+            sys.print_exception(e)
             break
 
 def main():
+    os.exitpoint(os.EXITPOINT_ENABLE)
     camera_is_init = False
     try:
-        os.exit_exception_mask(1)
         print("camera init")
         camera_init()
         camera_is_init = True
-        os.exit_exception_mask(0)
         print("camera capture")
         capture_picture()
     except Exception as e:
-        os.exit_exception_mask(1)
-        print(e)
+        sys.print_exception(e)
     finally:
         if camera_is_init:
             print("camera deinit")
             camera_deinit()
-        os.exit_exception_mask(0)
 
 if __name__ == "__main__":
     main()

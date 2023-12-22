@@ -9,6 +9,7 @@ from media.display import *
 import uctypes
 import time
 import _thread
+import os
 
 K_PLAYER_EVENT_EOF = 0
 K_PLAYER_EVENT_PROGRESS = 1
@@ -48,9 +49,7 @@ class Player:
                 self.pyaudio = PyAudio()
                 self.pyaudio.initialize(48000//25)
 
-        ret = media.buffer_init()
-        if ret:
-            raise ValueError("player buffer_init failed")
+        media.buffer_init()
 
         if (self.audio_track):
             self.adec.create()
@@ -62,7 +61,6 @@ class Player:
                 display.set_plane(0, 0, self.video_info.width, self.video_info.height, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
             else:
                 display.set_plane(400, 200, self.video_info.width, self.video_info.height, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
-        return 0
 
     def _deinit_media_buffer(self):
         if (self.video_track):
@@ -73,14 +71,14 @@ class Player:
             self.adec.destroy()
 
         if (self.video_track):
+            os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
             time.sleep(1)
+            os.exitpoint(os.EXITPOINT_ENABLE)
             display.deinit()
 
         self.video_track = False
         self.audio_track = False
         media.buffer_deinit()
-        return 0
-
 
     def _do_file_data(self):
         frame_data =  k_mp4_frame_data_s()
@@ -89,11 +87,10 @@ class Player:
                 time.sleep(0.1)
             else:
                 ret = kd_mp4_get_frame(self.mp4_handle.value, frame_data)
-                if (ret < 0 ):
-                    raise ValueError("get frame data failed")
+                if (ret < 0):
+                    raise OSError("get frame data failed")
 
                 if (frame_data.eof):
-                    print("demuxer finished.")
                     break
 
                 if (frame_data.codec_id == K_MP4_CODEC_ID_H264 or frame_data.codec_id == K_MP4_CODEC_ID_H265):
@@ -124,8 +121,7 @@ class Player:
         self.mp4_cfg.muxer_config.fmp4_flag = 0
         ret = kd_mp4_create(self.mp4_handle, self.mp4_cfg)
         if ret:
-            print("kd_mp4_create failed:",filename)
-            return -1
+            raise OSError("kd_mp4_create failed:",filename)
 
         file_info = k_mp4_file_info_s()
         kd_mp4_get_file_info(self.mp4_handle.value, file_info)
@@ -161,12 +157,9 @@ class Player:
                     print("audio not support codecid:",track_info.audio_info.codec_id)
 
         self.debug_codec_info()
-        return 0
 
     def start(self):
-        if (0 != self._init_media_buffer()):
-            raise ValueError("_init_media_buffer failed")
-            return -1
+        self._init_media_buffer()
 
         if (self.video_track):
             self.vdec.start()
@@ -185,7 +178,6 @@ class Player:
         #self._do_file_data()
         _thread.start_new_thread(self._do_file_data,())
 
-
     def stop(self):
         self.play_status = PLAY_STOP
         if (self.video_track):
@@ -194,7 +186,7 @@ class Player:
 
         ret = kd_mp4_destroy(self.mp4_handle.value)
         if (ret < 0):
-            print("destroy mp4 failed.")
+            raise OSError("destroy mp4 failed.")
 
         if (self.audio_track):
             self.audio_out_stream.stop_stream()
@@ -211,10 +203,7 @@ class Player:
     def set_event_callback(self,callback):
         self.callback = callback
 
-
     def destroy_mp4(self):
         ret = kd_mp4_destroy(self.mp4_handle.value)
         if (ret < 0):
-            print("destroy mp4 failed.")
-        else:
-            print("destroy mp4 ok.")
+            raise OSError("destroy mp4 failed.")

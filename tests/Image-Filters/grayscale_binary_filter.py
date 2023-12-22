@@ -6,7 +6,7 @@
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, os, gc
+import time, os, gc, sys
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -27,7 +27,7 @@ def camera_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
     # meida buffer config
-    ret = media.buffer_config(config)
+    media.buffer_config(config)
     # init default sensor
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
     # set chn0 output size
@@ -57,6 +57,7 @@ def camera_deinit():
     camera.stop_stream(CAM_DEV_ID_0)
     # deinit display
     display.deinit()
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
     time.sleep_ms(100)
     # release media buffer
     media.release_buffer(globals()["buffer"])
@@ -76,58 +77,51 @@ def capture_picture():
     while True:
         fps.tick()
         try:
-            os.exit_exception_mask(1)
+            os.exitpoint()
             rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if rgb888_img == -1:
-                # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                raise OSError("camera capture image failed")
+            img = rgb888_img.to_grayscale()
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
+            # Test low threshold
+            if frame_count < 100:
+                img.binary([low_threshold])
+            # Test high threshold
+            elif frame_count < 200:
+                img.binary([high_threshold])
+            # Test not low threshold
+            elif frame_count < 300:
+                img.binary([low_threshold], invert = 1)
+            # Test not high threshold
+            elif frame_count < 400:
+                img.binary([high_threshold], invert = 1)
             else:
-                img = rgb888_img.to_grayscale()
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                # Test low threshold
-                if frame_count < 100:
-                    img.binary([low_threshold])
-                # Test high threshold
-                elif frame_count < 200:
-                    img.binary([high_threshold])
-                # Test not low threshold
-                elif frame_count < 300:
-                    img.binary([low_threshold], invert = 1)
-                # Test not high threshold
-                elif frame_count < 400:
-                    img.binary([high_threshold], invert = 1)
-                else:
-                    frame_count = 0
-                frame_count = frame_count + 1
-                img.copy_to(osd_img)
-                del img
-                gc.collect()
-                print(fps.fps())
-        except Exception as e:
-            print(e)
+                frame_count = 0
+            frame_count = frame_count + 1
+            img.copy_to(osd_img)
+            del img
+            gc.collect()
+            print(fps.fps())
+        except KeyboardInterrupt as e:
+            print("user stop: ", e)
+            break
+        except BaseException as e:
+            sys.print_exception(e)
             break
 
 def main():
+    os.exitpoint(os.EXITPOINT_ENABLE)
     camera_is_init = False
     try:
-        os.exit_exception_mask(1)
         print("camera init")
         camera_init()
         camera_is_init = True
-        os.exit_exception_mask(0)
         print("camera capture")
         capture_picture()
     except Exception as e:
-        os.exit_exception_mask(1)
-        print(e)
+        sys.print_exception(e)
     finally:
         if camera_is_init:
             print("camera deinit")
             camera_deinit()
-        os.exit_exception_mask(0)
 
 if __name__ == "__main__":
     main()

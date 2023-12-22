@@ -11,7 +11,7 @@
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, os, gc
+import time, os, gc, sys
 from image import SEARCH_EX, SEARCH_DS
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
@@ -30,7 +30,7 @@ def camera_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
     # meida buffer config
-    ret = media.buffer_config(config)
+    media.buffer_config(config)
     # init default sensor
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
     # set chn0 output size
@@ -60,6 +60,7 @@ def camera_deinit():
     camera.stop_stream(CAM_DEV_ID_0)
     # deinit display
     display.deinit()
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
     time.sleep_ms(100)
     # release media buffer
     media.release_buffer(globals()["buffer"])
@@ -87,54 +88,47 @@ def capture_picture():
     while True:
         fps.tick()
         try:
-            os.exit_exception_mask(1)
+            os.exitpoint()
             yuv420_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if yuv420_img == -1:
-                # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
-                os.exit_exception_mask(0)
-                raise OSError("camera capture image failed")
-            else:
-                img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, data=yuv420_img)
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
-                os.exit_exception_mask(0)
-                draw_img.clear()
-                # find_template(template, threshold, [roi, step, search])
-                # ROI: The region of interest tuple (x, y, w, h).
-                # Step: The loop step used (y+=step, x+=step) use a bigger step to make it faster.
-                # Search is either image.SEARCH_EX for exhaustive search or image.SEARCH_DS for diamond search
-                #
-                # Note1: ROI has to be smaller than the image and bigger than the template.
-                # Note2: In diamond search, step and ROI are both ignored.
-                r = img.find_template(template, 0.50, step=4, search=SEARCH_EX) #, roi=(10, 0, 60, 60))
-                if r:
-                    draw_img.draw_rectangle([v*SCALE for v in r],color=(255,0,0))
-                draw_img.copy_to(osd_img)
-                del img
-                gc.collect()
-                print(fps.fps())
-        except Exception as e:
-            print(e)
+            img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, data=yuv420_img)
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, yuv420_img)
+            draw_img.clear()
+            # find_template(template, threshold, [roi, step, search])
+            # ROI: The region of interest tuple (x, y, w, h).
+            # Step: The loop step used (y+=step, x+=step) use a bigger step to make it faster.
+            # Search is either image.SEARCH_EX for exhaustive search or image.SEARCH_DS for diamond search
+            #
+            # Note1: ROI has to be smaller than the image and bigger than the template.
+            # Note2: In diamond search, step and ROI are both ignored.
+            r = img.find_template(template, 0.50, step=4, search=SEARCH_EX) #, roi=(10, 0, 60, 60))
+            if r:
+                draw_img.draw_rectangle([v*SCALE for v in r],color=(255,0,0))
+            draw_img.copy_to(osd_img)
+            del img
+            gc.collect()
+            print(fps.fps())
+        except KeyboardInterrupt as e:
+            print("user stop: ", e)
+            break
+        except BaseException as e:
+            sys.print_exception(e)
             break
 
 def main():
+    os.exitpoint(os.EXITPOINT_ENABLE)
     camera_is_init = False
     try:
-        os.exit_exception_mask(1)
         print("camera init")
         camera_init()
         camera_is_init = True
-        os.exit_exception_mask(0)
         print("camera capture")
         capture_picture()
     except Exception as e:
-        os.exit_exception_mask(1)
-        print(e)
+        sys.print_exception(e)
     finally:
         if camera_is_init:
             print("camera deinit")
             camera_deinit()
-        os.exit_exception_mask(0)
 
 if __name__ == "__main__":
     main()
