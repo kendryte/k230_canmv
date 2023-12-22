@@ -9,6 +9,15 @@ from media.pyaudio import * #导入pyaudio模块，用于采集和播放音频
 from media.media import * #导入media模块，用于初始化vb buffer
 import media.g711 as g711 #导入g711模块，用于g711编解码
 from mpp.payload_struct import * #导入payload模块，用于获取音视频编解码类型
+import os
+
+def exit_check():
+    try:
+        os.exitpoint()
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+        return True
+    return False
 
 def encode_audio(filename, duration):
     CHUNK = int(44100/25) #设置音频chunk值
@@ -19,9 +28,7 @@ def encode_audio(filename, duration):
     p = PyAudio()
     p.initialize(CHUNK) #初始化PyAudio对象
     enc = g711.Encoder(K_PT_G711A,CHUNK) #创建g711编码器对象
-    ret = media.buffer_init() #vb buffer初始化
-    if ret:
-        print("record_audio, buffer_init failed")
+    media.buffer_init() #vb buffer初始化
 
     enc.create() #创建编码器
     #创建音频输入流
@@ -37,6 +44,8 @@ def encode_audio(filename, duration):
         frame_data = stream.read() #从音频输入流中读取音频数据
         data = enc.encode(frame_data) #编码音频数据为g711
         frames.append(data)  #将g711编码数据保存到列表中
+        if exit_check():
+            break
 
     stream.stop_stream() #停止音频输入流
     stream.close() #关闭音频输入流
@@ -59,9 +68,7 @@ def decode_audio(filename):
     p = PyAudio()
     p.initialize(CHUNK) #初始化PyAudio对象
     dec = g711.Decoder(K_PT_G711A,CHUNK) #创建g711解码器对象
-    ret = media.buffer_init() #vb buffer初始化
-    if ret:
-        print("play_audio, buffer_init failed")
+    media.buffer_init() #vb buffer初始化
 
     dec.create() #创建解码器
 
@@ -80,6 +87,8 @@ def decode_audio(filename):
         frame_data = dec.decode(stream_data) #解码g711文件
         stream.write(frame_data) #播放raw数据
         stream_data = wf.read(stream_len) #从g711文件中读取数据
+        if exit_check():
+            break
 
     stream.stop_stream() #停止音频输入流
     stream.close() #关闭音频输入流
@@ -99,9 +108,7 @@ def loop_codec(duration):
     p.initialize(CHUNK) #初始化PyAudio对象
     dec = g711.Decoder(K_PT_G711A,CHUNK) #创建g711解码器对象
     enc = g711.Encoder(K_PT_G711A,CHUNK) #创建g711编码器对象
-    ret = media.buffer_init() #vb buffer初始化
-    if ret:
-        print("loop_audio, buffer_init failed")
+    media.buffer_init() #vb buffer初始化
 
     dec.create() #创建g711解码器
     enc.create() #创建g711编码器
@@ -126,7 +133,8 @@ def loop_codec(duration):
         stream_data = enc.encode(frame_data) #编码音频数据为g711
         frame_data = dec.decode(stream_data) #解码g711数据为raw数据
         output_stream.write(frame_data) #播放raw数据
-
+        if exit_check():
+            break
 
     input_stream.stop_stream() #停止音频输入流
     output_stream.stop_stream() #停止音频输出流
@@ -138,7 +146,10 @@ def loop_codec(duration):
 
     media.buffer_deinit() #释放vb buffer
 
-#encode_audio('/sdcard/app/test.g711a', 15) #采集并编码g711文件
-#decode_audio('/sdcard/app/test.g711a') #解码g711文件并输出
-loop_codec(15) #采集音频数据->编码g711->解码g711->播放音频
-print("audio codec sample done")
+if __name__ == "__main__":
+    os.exitpoint(os.EXITPOINT_ENABLE)
+    print("audio codec sample start")
+    #encode_audio('/sdcard/app/test.g711a', 15) #采集并编码g711文件
+    #decode_audio('/sdcard/app/test.g711a') #解码g711文件并输出
+    loop_codec(15) #采集音频数据->编码g711->解码g711->播放音频
+    print("audio codec sample done")

@@ -7,6 +7,15 @@
 from media.pyaudio import * #导入pyaudio模块，用于采集和播放音频
 import media.wave as wave   #导入wav模块，用于保存和加载wav音频文件
 from media.media import *   #导入media模块，用于初始化vb buffer
+import os
+
+def exit_check():
+    try:
+        os.exitpoint()
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+        return True
+    return False
 
 def record_audio(filename, duration):
     CHUNK = int(44100/25)  #设置音频chunk值
@@ -16,9 +25,7 @@ def record_audio(filename, duration):
 
     p = PyAudio()
     p.initialize(CHUNK)    #初始化PyAudio对象
-    ret = media.buffer_init() #vb buffer初始化
-    if ret:
-        print("record_audio, buffer_init failed")
+    media.buffer_init() #vb buffer初始化
 
     #创建音频输入流
     stream = p.open(format=FORMAT,
@@ -32,7 +39,8 @@ def record_audio(filename, duration):
     for i in range(0, int(RATE / CHUNK * duration)):
         data = stream.read()
         frames.append(data)
-
+        if exit_check():
+            break
 
     stream.stop_stream() #停止采集音频数据
     stream.close()#关闭音频输入流
@@ -55,9 +63,7 @@ def play_audio(filename):
 
     p = PyAudio()
     p.initialize(CHUNK) #初始化PyAudio对象
-    ret = media.buffer_init()#vb buffer初始化
-    if ret:
-        print("play_audio, buffer_init failed")
+    media.buffer_init()#vb buffer初始化
 
     #创建音频输出流，设置的音频参数均为wave中获取到的参数
     stream = p.open(format=p.get_format_from_width(wf.get_sampwidth()),
@@ -70,6 +76,8 @@ def play_audio(filename):
     while data:
         stream.write(data)  #将帧数据写入到音频输出流中
         data = wf.read_frames(CHUNK) #从wav文件中读取数一帧数据
+        if exit_check():
+            break
 
     stream.stop_stream() #停止音频输出流
     stream.close()#关闭音频输出流
@@ -87,9 +95,7 @@ def loop_audio(duration):
 
     p = PyAudio()
     p.initialize(CHUNK)#初始化PyAudio对象
-    ret = media.buffer_init() #初始化vb buffer
-    if ret:
-        print("loop_audio, buffer_init failed")
+    media.buffer_init() #初始化vb buffer
 
     #创建音频输入流
     input_stream = p.open(format=FORMAT,
@@ -107,7 +113,8 @@ def loop_audio(duration):
     #从音频输入流中获取数据写入到音频输出流中
     for i in range(0, int(RATE / CHUNK * duration)):
         output_stream.write(input_stream.read())
-
+        if exit_check():
+            break
 
     input_stream.stop_stream()#停止音频输入流
     output_stream.stop_stream()#停止音频输出流
@@ -117,7 +124,10 @@ def loop_audio(duration):
 
     media.buffer_deinit() #释放vb buffer
 
-#play_audio('/sdcard/app/input.wav') #播放wav文件
-#record_audio('/sdcard/app/output.wav', 15)  #录制wav文件
-loop_audio(15) #采集音频并输出
-print("audio sample done")
+if __name__ == "__main__":
+    os.exitpoint(os.EXITPOINT_ENABLE)
+    print("audio sample start")
+    #play_audio('/sdcard/app/input.wav') #播放wav文件
+    #record_audio('/sdcard/app/output.wav', 15)  #录制wav文件
+    loop_audio(15) #采集音频并输出
+    print("audio sample done")
