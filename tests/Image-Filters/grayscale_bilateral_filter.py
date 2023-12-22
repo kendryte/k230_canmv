@@ -5,7 +5,7 @@
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, os, gc
+import time, os, gc, sys
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -23,7 +23,7 @@ def camera_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
     # meida buffer config
-    ret = media.buffer_config(config)
+    media.buffer_config(config)
     # init default sensor
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
     # set chn0 output size
@@ -53,6 +53,7 @@ def camera_deinit():
     camera.stop_stream(CAM_DEV_ID_0)
     # deinit display
     display.deinit()
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
     time.sleep_ms(100)
     # release media buffer
     media.release_buffer(globals()["buffer"])
@@ -71,58 +72,51 @@ def capture_picture():
     while True:
         fps.tick()
         try:
-            os.exit_exception_mask(1)
+            os.exitpoint()
             rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if rgb888_img == -1:
-                # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                raise OSError("camera capture image failed")
-            else:
-                img = rgb888_img.to_grayscale()
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                # color_sigma controls how close color wise pixels have to be to each other to be
-                # blured togheter. A smaller value means they have to be closer.
-                # A larger value is less strict.
+            img = rgb888_img.to_grayscale()
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
+            # color_sigma controls how close color wise pixels have to be to each other to be
+            # blured togheter. A smaller value means they have to be closer.
+            # A larger value is less strict.
 
-                # space_sigma controls how close space wise pixels have to be to each other to be
-                # blured togheter. A smaller value means they have to be closer.
-                # A larger value is less strict.
+            # space_sigma controls how close space wise pixels have to be to each other to be
+            # blured togheter. A smaller value means they have to be closer.
+            # A larger value is less strict.
 
-                # Run the kernel on every pixel of the image.
-                img.bilateral(3, color_sigma=0.1, space_sigma=1)
+            # Run the kernel on every pixel of the image.
+            img.bilateral(3, color_sigma=0.1, space_sigma=1)
 
-                # Note that the bilateral filter can introduce image defects if you set
-                # color_sigma/space_sigma to aggresively. Increase the sigma values until
-                # the defects go away if you see them.
+            # Note that the bilateral filter can introduce image defects if you set
+            # color_sigma/space_sigma to aggresively. Increase the sigma values until
+            # the defects go away if you see them.
 
-                img.copy_to(osd_img)
-                del img
-                gc.collect()
-                print(fps.fps())
-        except Exception as e:
-            print(e)
+            img.copy_to(osd_img)
+            del img
+            gc.collect()
+            print(fps.fps())
+        except KeyboardInterrupt as e:
+            print("user stop: ", e)
+            break
+        except BaseException as e:
+            sys.print_exception(e)
             break
 
 def main():
+    os.exitpoint(os.EXITPOINT_ENABLE)
     camera_is_init = False
     try:
-        os.exit_exception_mask(1)
         print("camera init")
         camera_init()
         camera_is_init = True
-        os.exit_exception_mask(0)
         print("camera capture")
         capture_picture()
     except Exception as e:
-        os.exit_exception_mask(1)
-        print(e)
+        sys.print_exception(e)
     finally:
         if camera_is_init:
             print("camera deinit")
             camera_deinit()
-        os.exit_exception_mask(0)
 
 if __name__ == "__main__":
     main()

@@ -5,7 +5,7 @@
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, os, gc
+import time, os, gc, sys
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -51,7 +51,7 @@ def camera_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
     # meida buffer config
-    ret = media.buffer_config(config)
+    media.buffer_config(config)
     # init default sensor
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
     # # set chn0 output size
@@ -81,6 +81,7 @@ def camera_deinit():
     camera.stop_stream(CAM_DEV_ID_0)
     # deinit display
     display.deinit()
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
     time.sleep_ms(100)
     # release media buffer
     media.release_buffer(globals()["buffer"])
@@ -108,82 +109,75 @@ def draw():
         status = ""
         value_mixer = value_mixer + 1
         try:
-            os.exit_exception_mask(1)
+            os.exitpoint()
             rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if rgb888_img == -1:
-                # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                raise OSError("camera capture image failed")
+            img = rgb888_img.to_rgb565()
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
+            small_img = img.mean_pooled(SMALL_IMAGE_SCALE, SMALL_IMAGE_SCALE)
+            status = 'rgb565 '
+            if CYCLE_FORMATS:
+                image_format = (value_mixer >> 8) & 3
+                # To test combining different formats
+                if (image_format==1): small_img = small_img.to_bitmap(); status = 'bitmap '
+                if (image_format==2): small_img = small_img.to_grayscale(); status = 'grayscale '
+                if (image_format==3): small_img = small_img.to_rgb565(); status = 'rgb565 '
+
+            # update small image location
+            if BOUNCE:
+                x = x + xd
+                if (x<xmin or x>xmax):
+                    xd = -xd
+
+                y = y + yd
+                if (y<ymin or y>ymax):
+                    yd = -yd
+
+            # Update small image scale
+            if RESCALE:
+                rescale = rescale + rd
+                if (rescale<min_rescale or rescale>max_rescale):
+                    rd = -rd
+
+            # Find the center of the image
+            scaled_width = int(small_img.width() * abs(rescale))
+            scaled_height= int(small_img.height() * abs(rescale))
+
+            apply_mask = CYCLE_MASK and ((value_mixer >> 9) & 1)
+            if apply_mask:
+                img.draw_image(small_img, int(x), int(y), mask=small_img.to_bitmap(), x_scale=rescale, y_scale=rescale, alpha=240)
+                status += 'alpha:240 '
+                status += '+mask '
             else:
-                img = rgb888_img.to_rgb565()
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                small_img = img.mean_pooled(SMALL_IMAGE_SCALE, SMALL_IMAGE_SCALE)
-                status = 'rgb565 '
-                if CYCLE_FORMATS:
-                    image_format = (value_mixer >> 8) & 3
-                    # To test combining different formats
-                    if (image_format==1): small_img = small_img.to_bitmap(); status = 'bitmap '
-                    if (image_format==2): small_img = small_img.to_grayscale(); status = 'grayscale '
-                    if (image_format==3): small_img = small_img.to_rgb565(); status = 'rgb565 '
+                img.draw_image(small_img, int(x), int(y), x_scale=rescale, y_scale=rescale, alpha=128)
+                status += 'alpha:128 '
 
-                # update small image location
-                if BOUNCE:
-                    x = x + xd
-                    if (x<xmin or x>xmax):
-                        xd = -xd
-
-                    y = y + yd
-                    if (y<ymin or y>ymax):
-                        yd = -yd
-
-                # Update small image scale
-                if RESCALE:
-                    rescale = rescale + rd
-                    if (rescale<min_rescale or rescale>max_rescale):
-                        rd = -rd
-
-                # Find the center of the image
-                scaled_width = int(small_img.width() * abs(rescale))
-                scaled_height= int(small_img.height() * abs(rescale))
-
-                apply_mask = CYCLE_MASK and ((value_mixer >> 9) & 1)
-                if apply_mask:
-                    img.draw_image(small_img, int(x), int(y), mask=small_img.to_bitmap(), x_scale=rescale, y_scale=rescale, alpha=240)
-                    status += 'alpha:240 '
-                    status += '+mask '
-                else:
-                    img.draw_image(small_img, int(x), int(y), x_scale=rescale, y_scale=rescale, alpha=128)
-                    status += 'alpha:128 '
-
-                img.draw_string(8, 0, status, mono_space = False)
-                img.copy_to(osd_img)
-                del img, small_img
-                gc.collect()
-                print(fps.fps())
-        except Exception as e:
-            print(e)
+            img.draw_string(8, 0, status, mono_space = False)
+            img.copy_to(osd_img)
+            del img, small_img
+            gc.collect()
+            print(fps.fps())
+        except KeyboardInterrupt as e:
+            print("user stop: ", e)
+            break
+        except BaseException as e:
+            sys.print_exception(e)
             break
 
 def main():
+    os.exitpoint(os.EXITPOINT_ENABLE)
     camera_is_init = False
     try:
-        os.exit_exception_mask(1)
         print("camera init")
         camera_init()
         camera_is_init = True
-        os.exit_exception_mask(0)
         print("draw")
         draw()
     except Exception as e:
-        os.exit_exception_mask(1)
-        print(e)
+        sys.print_exception(e)
     finally:
         if camera_is_init:
             print("camera deinit")
             camera_deinit()
-        os.exit_exception_mask(0)
 
 if __name__ == "__main__":
     main()

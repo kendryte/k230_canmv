@@ -5,7 +5,7 @@
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, os, gc
+import time, os, gc, sys
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -88,8 +88,11 @@ def capture_picture():
                 print("FPS %f" % fps.fps())
             del img
             gc.collect()
-        except Exception as e:
-            print(e)
+        except KeyboardInterrupt as e:
+            print("user stop: ", e)
+            break
+        except BaseException as e:
+            sys.print_exception(e)
             break
 
 def main():
@@ -102,7 +105,7 @@ def main():
         print("camera capture")
         capture_picture()
     except Exception as e:
-        print(e)
+        sys.print_exception(e)
     finally:
         if camera_is_init:
             print("camera deinit")

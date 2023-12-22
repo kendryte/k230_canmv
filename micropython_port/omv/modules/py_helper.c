@@ -321,6 +321,7 @@ int py_helper_keyword_color(image_t *img, uint n_args, const mp_obj_t *args, uin
             p &= 0x00ffffff;
             break;
         case PIXFORMAT_ARGB8888:
+            p = __builtin_bswap32(p);
             break;
         case PIXFORMAT_YUV420: {
             uint8_t r = (uint8_t)(p >> 16);

@@ -1,53 +1,67 @@
 from media.camera import *
 from media.display import *
 from media.media import *
-from time import *
-import time
+import time, os, urandom, sys
 
+DISPLAY_WIDTH = ALIGN_UP(1920, 16)
+DISPLAY_HEIGHT = 1080
 
-def camera_display_test():
-    CAM_OUTPUT_BUF_NUM = 6
-    CAM_INPUT_BUF_NUM = 4
-
-    out_width = 1080
-    out_height = 720
-    out_width = ALIGN_UP(out_width, 16)
-
+def display_test():
+    print("display test")
+    # use hdmi for display
     display.init(LT9611_1920X1080_30FPS)
-    camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
+    # config vb for osd layer
+    config = k_vb_config()
+    config.max_pool_cnt = 1
+    config.comm_pool[0].blk_size = 4*DISPLAY_WIDTH*DISPLAY_HEIGHT
+    config.comm_pool[0].blk_cnt = 1
+    config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
+    # meida buffer config
+    media.buffer_config(config)
+    # media buffer init
+    media.buffer_init()
+    # request media buffer for osd image
+    globals()["buffer"] = media.request_buffer(4 * DISPLAY_WIDTH * DISPLAY_HEIGHT)
 
-    # set chn0
-    camera.set_outbufs(CAM_DEV_ID_0, CAM_CHN_ID_0, CAM_OUTPUT_BUF_NUM)
-    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, out_width, out_height)
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
+    # create image for drawing
+    img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
+    # create image for osd
+    buffer = globals()["buffer"]
+    osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
+    osd_img.clear()
+    display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD0)
+    try:
+        while True:
+            img.clear()
+            for i in range(10):
+                x = (urandom.getrandbits(11) % img.width())
+                y = (urandom.getrandbits(11) % img.height())
+                r = (urandom.getrandbits(8))
+                g = (urandom.getrandbits(8))
+                b = (urandom.getrandbits(8))
+                # If the first argument is a scaler then this method expects
+                # to see x, y, and text. Otherwise, it expects a (x,y,text) tuple.
+                # Character and string rotation can be done at 0, 90, 180, 270, and etc. degrees.
+                img.draw_string(x, y, "Hello World!", color = (r, g, b), scale = 2, mono_space = False,
+                                char_rotation = 0, char_hmirror = False, char_vflip = False,
+                                string_rotation = 0, string_hmirror = False, string_vflip = False)
+            img.copy_to(osd_img)
+            time.sleep(1)
+            os.exitpoint()
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+    except BaseException as e:
+        sys.print_exception(e)
 
-    meida_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
-    meida_sink = media_device(DISPLAY_MOD_ID, DISPLAY_DEV_ID, DISPLAY_CHN_VIDEO1)
-    media.create_link(meida_source, meida_sink)
-
-    display.set_plane(400, 200, out_width, out_height, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
-
-    ret = media.buffer_init()
-    if ret:
-        print("camera_display_test, buffer init failed")
-        return ret
-
-    camera.start_stream(CAM_DEV_ID_0)
-    count = 0
-    while count < 600:
-        time.sleep(1)
-        count += 1
-
-    camera.stop_stream(CAM_DEV_ID_0)
-    media.destroy_link(meida_source, meida_sink)
-    time.sleep(1)
+    # deinit display
     display.deinit()
-    ret = media.buffer_deinit()
-    if ret:
-        print("camera_display_test, media_buffer_deinit failed")
-    return ret
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
+    time.sleep_ms(100)
+    # release media buffer
+    media.release_buffer(globals()["buffer"])
+    # deinit media buffer
+    media.buffer_deinit()
 
-    print("camera_display_test exit")
-    return 0
-
-camera_display_test()
+if __name__ == "__main__":
+    os.exitpoint(os.EXITPOINT_ENABLE)
+    display_test()

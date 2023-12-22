@@ -36,13 +36,10 @@ def _vb_pool_init(frames_per_buffer=1024):
     if (ret != 0):
         raise ValueError(("kd_mpi_vb_int failed:%d")%(ret))
 
-    return 0
-
 def _vb_pool_deinit():
     ret = kd_mpi_vb_exit()
     if (ret != 0):
         raise ValueError(("kd_mpi_vb_exit failed:%d")%(ret))
-    return 0
 
 def _vb_buffer_init(frames_per_buffer=1024):
     config = k_vb_config()
@@ -55,9 +52,7 @@ def _vb_buffer_init(frames_per_buffer=1024):
     config.comm_pool[1].blk_size =  int(frames_per_buffer * 2 * 2 * 4)
     config.comm_pool[1].mode = VB_REMAP_MODE_NOCACHE
 
-    return media.buffer_config(config)
-
-
+    media.buffer_config(config)
 
 class Stream:
     def __init__(self,
@@ -156,7 +151,6 @@ class Write_stream(Stream):
             self._audio_frame.pool_id = kd_mpi_vb_handle_to_pool_id(self._audio_handle)
             self._audio_frame.phys_addr = kd_mpi_vb_handle_to_phyaddr(self._audio_handle)
             self._audio_frame.virt_addr = kd_mpi_sys_mmap(self._audio_frame.phys_addr, frame_size)
-            return 0
 
     def _deinit_audio_frame(self):
         if (self._audio_handle != -1):
@@ -195,8 +189,6 @@ class Write_stream(Stream):
 
             self._start_stream = True
 
-        return 0
-
     def stop_stream(self):
         if (self._start_stream):
             ret = kd_mpi_ao_disable_chn(self._ao_dev, self._ao_chn)
@@ -212,8 +204,6 @@ class Write_stream(Stream):
             self._deinit_audio_frame()
             Write_stream.dev_chn_enable[self._ao_chn] = False
             self._start_stream = False
-
-        return 0
 
     def write(self,data):
         if (self._start_stream):
@@ -287,8 +277,6 @@ class Read_stream(Stream):
 
             self._start_stream = True
 
-        return 0
-
     def stop_stream(self):
         if (self._start_stream):
             ret = kd_mpi_ai_disable_chn(self._ai_dev, self._ai_chn)
@@ -303,8 +291,6 @@ class Read_stream(Stream):
 
             self._start_stream = False
             Read_stream.dev_chn_enable[self._ai_chn] = False
-
-        return 0
 
     def read(self):
         if (self._start_stream):
@@ -331,18 +317,12 @@ class PyAudio:
     def initialize(self,frames_per_buffer=1024):
         if USE_EXTERN_BUFFER_CONFIG:
             if (False == PyAudio._vb_init):
-                if (0 == _vb_buffer_init(frames_per_buffer)):
-                    PyAudio._vb_init = True
-                    return 0
-                else:
-                    raise ValueError("PyAudio:media.buffer_config failed")
+                _vb_buffer_init(frames_per_buffer)
+                PyAudio._vb_init = True
         else:
             if (False == PyAudio._vb_init):
-                if (0 == _vb_pool_init(frames_per_buffer)):
-                    PyAudio._vb_init = True
-                    return 0
-                else:
-                    return -1
+                _vb_pool_init(frames_per_buffer)
+                PyAudio._vb_init = True
 
     def terminate(self):
         """
@@ -360,9 +340,8 @@ class PyAudio:
             PyAudio._vb_init = False
         else:
             if(PyAudio._vb_init):
-                if (0 == _vb_pool_deinit()):
-                    PyAudio._vb_init = False
-                    return 0
+                _vb_pool_deinit()
+                PyAudio._vb_init = False
 
     def open(self, *args, **kwargs):
         """
@@ -416,6 +395,3 @@ class PyAudio:
             return paInt32
         else:
             return -1
-
-
-

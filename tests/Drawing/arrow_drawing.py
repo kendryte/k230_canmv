@@ -5,7 +5,7 @@
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, os, gc, urandom
+import time, os, gc, sys, urandom
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -82,7 +82,6 @@ def draw():
         img.copy_to(osd_img)
         time.sleep(1)
         os.exitpoint()
-        print(fps.fps())
 
 def main():
     os.exitpoint(os.EXITPOINT_ENABLE)
@@ -93,8 +92,10 @@ def main():
         camera_is_init = True
         print("draw")
         draw()
-    except Exception as e:
-        print(e)
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+    except BaseException as e:
+        sys.print_exception(e)
     finally:
         if camera_is_init:
             print("camera deinit")

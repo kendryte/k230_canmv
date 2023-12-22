@@ -812,7 +812,7 @@ void ide_dbg_init(void) {
     ide_exception_str_tuple->base.type = &mp_type_tuple;
     ide_exception_str_tuple->len = 1;
     ide_exception_str_tuple->items[0] = MP_OBJ_FROM_PTR(&ide_exception_str);
-    ide_exception.base.type = &mp_type_Exception;
+    ide_exception.base.type = &mp_type_KeyboardInterrupt;
     ide_exception.traceback_alloc = 0;
     ide_exception.traceback_len = 0;
     ide_exception.traceback_data = NULL;

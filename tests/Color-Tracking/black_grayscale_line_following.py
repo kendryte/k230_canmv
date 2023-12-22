@@ -13,7 +13,7 @@
 from media.camera import *
 from media.display import *
 from media.media import *
-import time, os, gc, math
+import time, os, gc, sys, math
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
@@ -48,7 +48,7 @@ def camera_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
     # meida buffer config
-    ret = media.buffer_config(config)
+    media.buffer_config(config)
     # init default sensor
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
     # set chn0 output size
@@ -78,6 +78,7 @@ def camera_deinit():
     camera.stop_stream(CAM_DEV_ID_0)
     # deinit display
     display.deinit()
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
     time.sleep_ms(100)
     # release media buffer
     media.release_buffer(globals()["buffer"])
@@ -98,80 +99,73 @@ def capture_picture():
     while True:
         fps.tick()
         try:
-            os.exit_exception_mask(1)
+            os.exitpoint()
             rgb888_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_1)
-            if rgb888_img == -1:
-                # release image for dev and chn
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                raise OSError("camera capture image failed")
-            else:
-                img = rgb888_img.to_grayscale()
-                camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
-                os.exit_exception_mask(0)
-                draw_img.clear()
-                centroid_sum = 0
-                for r in ROIS:
-                    blobs = img.find_blobs(GRAYSCALE_THRESHOLD, roi=r[0:4], merge=True) # r[0:4] is roi tuple.
+            img = rgb888_img.to_grayscale()
+            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_1, rgb888_img)
+            draw_img.clear()
+            centroid_sum = 0
+            for r in ROIS:
+                blobs = img.find_blobs(GRAYSCALE_THRESHOLD, roi=r[0:4], merge=True) # r[0:4] is roi tuple.
 
-                    if blobs:
-                        # Find the blob with the most pixels.
-                        largest_blob = max(blobs, key=lambda b: b.pixels())
+                if blobs:
+                    # Find the blob with the most pixels.
+                    largest_blob = max(blobs, key=lambda b: b.pixels())
 
-                        # Draw a rect around the blob.
-                        draw_img.draw_rectangle([v*SCALE for v in largest_blob.rect()])
-                        draw_img.draw_cross(largest_blob.cx()*SCALE, largest_blob.cy()*SCALE)
+                    # Draw a rect around the blob.
+                    draw_img.draw_rectangle([v*SCALE for v in largest_blob.rect()])
+                    draw_img.draw_cross(largest_blob.cx()*SCALE, largest_blob.cy()*SCALE)
 
-                        centroid_sum += largest_blob.cx() * r[4] # r[4] is the roi weight.
+                    centroid_sum += largest_blob.cx() * r[4] # r[4] is the roi weight.
 
-                center_pos = (centroid_sum / weight_sum) # Determine center of line.
+            center_pos = (centroid_sum / weight_sum) # Determine center of line.
 
-                # Convert the center_pos to a deflection angle. We're using a non-linear
-                # operation so that the response gets stronger the farther off the line we
-                # are. Non-linear operations are good to use on the output of algorithms
-                # like this to cause a response "trigger".
-                deflection_angle = 0
+            # Convert the center_pos to a deflection angle. We're using a non-linear
+            # operation so that the response gets stronger the farther off the line we
+            # are. Non-linear operations are good to use on the output of algorithms
+            # like this to cause a response "trigger".
+            deflection_angle = 0
 
-                # The 80 is from half the X res, the 60 is from half the Y res. The
-                # equation below is just computing the angle of a triangle where the
-                # opposite side of the triangle is the deviation of the center position
-                # from the center and the adjacent side is half the Y res. This limits
-                # the angle output to around -45 to 45. (It's not quite -45 and 45).
-                deflection_angle = -math.atan((center_pos-80)/60)
+            # The 80 is from half the X res, the 60 is from half the Y res. The
+            # equation below is just computing the angle of a triangle where the
+            # opposite side of the triangle is the deviation of the center position
+            # from the center and the adjacent side is half the Y res. This limits
+            # the angle output to around -45 to 45. (It's not quite -45 and 45).
+            deflection_angle = -math.atan((center_pos-80)/60)
 
-                # Convert angle in radians to degrees.
-                deflection_angle = math.degrees(deflection_angle)
+            # Convert angle in radians to degrees.
+            deflection_angle = math.degrees(deflection_angle)
 
-                # Now you have an angle telling you how much to turn the robot by which
-                # incorporates the part of the line nearest to the robot and parts of
-                # the line farther away from the robot for a better prediction.
-                print("Turn Angle: %f" % deflection_angle)
-                draw_img.copy_to(osd_img)
-                del img
-                gc.collect()
-                print(fps.fps())
-        except Exception as e:
-            print(e)
+            # Now you have an angle telling you how much to turn the robot by which
+            # incorporates the part of the line nearest to the robot and parts of
+            # the line farther away from the robot for a better prediction.
+            print("Turn Angle: %f" % deflection_angle)
+            draw_img.copy_to(osd_img)
+            del img
+            gc.collect()
+            print(fps.fps())
+        except KeyboardInterrupt as e:
+            print("user stop: ", e)
+            break
+        except BaseException as e:
+            sys.print_exception(e)
             break
 
 def main():
+    os.exitpoint(os.EXITPOINT_ENABLE)
     camera_is_init = False
     try:
-        os.exit_exception_mask(1)
         print("camera init")
         camera_init()
         camera_is_init = True
-        os.exit_exception_mask(0)
         print("camera capture")
         capture_picture()
     except Exception as e:
-        os.exit_exception_mask(1)
-        print(e)
+        sys.print_exception(e)
     finally:
         if camera_is_init:
             print("camera deinit")
             camera_deinit()
-        os.exit_exception_mask(0)
 
 if __name__ == "__main__":
     main()
