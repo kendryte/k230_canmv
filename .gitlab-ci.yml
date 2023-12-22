@@ -407,6 +407,11 @@ tag_sync:
         power_reset="./bin/ailab power --type=cycle ${available}"
         load_cmd="./bin/aiload --pr_id ${CI_MERGE_REQUEST_IID} --job_id ${CI_PIPELINE_ID} --md5_sysimage ${sysimage_md5} ${available}"
         for i in {1..4}; do
+          if [ $i -eq 4 ]
+          then
+            echo "ERROR: Max retries reached with load image"
+            exit 1
+          fi
           starttime=$(date +'%Y-%m-%d %H:%M:%S')
           echo "---loop $i start time: $starttime"
           echo "---start to load image in loop $i---"
@@ -426,11 +431,6 @@ tag_sync:
           echo "---loop $i end time: $endtime"
           echo "---loop $i total cost time：$((end_seconds - start_seconds)) s"
         done
-        if [ $i -eq 4 ]
-        then
-          echo "ERROR: Max retries reached with load image"
-          exit 1
-        fi
         etime=$(date +'%Y-%m-%d %H:%M:%S')
         s_seconds=$(date -d "$stime" +%s)
         e_seconds=$(date -d "$etime" +%s)
@@ -564,7 +564,12 @@ tag_sync:
         stime=$(date +'%Y-%m-%d %H:%M:%S')
         echo "---run smoke test start time: $stime"
         test_cmd="./bin/airobot -m gitlab -V k230.yml -i smoke k230.robot"
-        for i in {1..2}; do
+        for i in {1..3}; do
+          if [ $i -eq 3 ]
+          then
+            echo "ERROR: Max retries reached with run smoke test"
+            exit 1
+          fi
           starttime=$(date +'%Y-%m-%d %H:%M:%S')
           echo "---loop $i start time: $starttime"
           echo "---start to run smoke test in loop $i---"
@@ -583,11 +588,6 @@ tag_sync:
           echo "---loop $i end time: $endtime"
           echo "---loop $i total cost time：$((end_seconds - start_seconds)) s"
         done
-        if [ $i -eq 2 ]
-        then
-          echo "ERROR: Max retries reached with run smoke test"
-          exit 1
-        fi
         etime=$(date +'%Y-%m-%d %H:%M:%S')
         s_seconds=$(date -d "$stime" +%s)
         e_seconds=$(date -d "$etime" +%s)
@@ -607,7 +607,12 @@ tag_sync:
         stime=$(date +'%Y-%m-%d %H:%M:%S')
         echo "---run k230 smoke test start time: $stime"
         test_cmd="./k230_smoke_test.sh"
-        for i in {1..2}; do
+        for i in {1..3}; do
+          if [ $i -eq 3 ]
+          then
+            echo "ERROR: Max retries reached with run k230 smoke test"
+            exit 1
+          fi
           starttime=$(date +'%Y-%m-%d %H:%M:%S')
           echo "---loop $i start time: $starttime"
           echo "---start to run k230 smoke test in loop $i---"
@@ -626,11 +631,6 @@ tag_sync:
           echo "---loop $i end time: $endtime"
           echo "---loop $i total cost time：$((end_seconds - start_seconds)) s"
         done
-        if [ $i -eq 2 ]
-        then
-          echo "ERROR: Max retries reached with run k230 smoke test"
-          exit 1
-        fi
         etime=$(date +'%Y-%m-%d %H:%M:%S')
         s_seconds=$(date -d "$stime" +%s)
         e_seconds=$(date -d "$etime" +%s)
