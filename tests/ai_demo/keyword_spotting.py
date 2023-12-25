@@ -154,6 +154,11 @@ def kws_inference():
                 # kpu运行和后处理
                 kpu_run_kws(kpu_kws,pcm_data_list)
             gc.collect()
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+    except BaseException as e:
+        sys.print_exception(e)
+        print(f"An error occurred during buffer used: {e}")
     finally:
         input_stream.stop_stream()
         output_stream.stop_stream()
