@@ -200,7 +200,7 @@ int ipcm_socket_server_init(void)
     k_ipcmsg_connect_t stConnectAttr;
     stConnectAttr.u32RemoteId = 0;
     stConnectAttr.u32Port = 400;
-    stConnectAttr.u32Priority = 0;
+    stConnectAttr.u32Priority = 1;
 
     if(g_ipcm_socket_clinet_s32Id)
        return 0;

@@ -613,7 +613,7 @@ int main(int argc, char** argv)
     pthread_t threadid1;
     int ret = 0;
     //k_char cmd[64];
-    k_ipcmsg_connect_t stConnectAttr={1,400,0};
+    k_ipcmsg_connect_t stConnectAttr={1,400,1};
 
   
     ret = kd_ipcmsg_add_service(MIC_SOCK_SERVR_NAME, &stConnectAttr);
