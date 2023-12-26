@@ -56,7 +56,7 @@ class Player:
 
         if (self.video_track):
             self.vdec.create()
-            display.init(LT9611_1920X1080_30FPS)
+            display.init(LT9611_1920X1080_30FPS, wbc=False)
             if (self.video_info.width >= 1920):
                 display.set_plane(0, 0, self.video_info.width, self.video_info.height, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
             else:

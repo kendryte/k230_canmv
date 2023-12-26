@@ -164,9 +164,7 @@ class Mp4Container:
 
         for pack_idx in range(0, self.stream_data.pack_cnt):
             if self.get_idr == 0:
-                print(self.idr_size)
                 self.save_idr[self.idr_size:self.idr_size+self.stream_data.data_size[pack_idx]] = uctypes.bytearray_at(self.stream_data.data[pack_idx], self.stream_data.data_size[pack_idx])
-                print(type(self.save_idr))
                 self.idr_size += self.stream_data.data_size[pack_idx]
                 self.idr_pts = self.stream_data.pts[pack_idx]
             elif self.get_idr == 1:
@@ -185,6 +183,7 @@ class Mp4Container:
                 self.get_idr = 1
             else:
                 self.venc.ReleaseStream(VENC_CHN_ID_0, self.stream_data)
+                return
 
         ret = kd_mp4_write_frame(self.mp4_handle, self.mp4_video_track_handle, frame_data)
         if ret:
@@ -192,15 +191,15 @@ class Mp4Container:
 
         self.venc.ReleaseStream(VENC_CHN_ID_0, self.stream_data)
 
-        enc_data = self.aenc.encode(self.audio_stream.read())
-        frame_data.codec_id = self.audio_payload_type
-        frame_data.data = uctypes.addressof(enc_data)
-        frame_data.data_length = len(enc_data)
-        self.audio_timestamp += 40*1000
-        frame_data.time_stamp = self.audio_timestamp
-        ret = kd_mp4_write_frame(self.mp4_handle, self.mp4_audio_track_handle, frame_data)
-        if ret:
-            raise OSError("Mp4Container, write audio stream failed.")
+        # enc_data = self.aenc.encode(self.audio_stream.read())
+        # frame_data.codec_id = self.audio_payload_type
+        # frame_data.data = uctypes.addressof(enc_data)
+        # frame_data.data_length = len(enc_data)
+        # self.audio_timestamp += 40*1000
+        # frame_data.time_stamp = self.audio_timestamp
+        # ret = kd_mp4_write_frame(self.mp4_handle, self.mp4_audio_track_handle, frame_data)
+        # if ret:
+        #     raise OSError("Mp4Container, write audio stream failed.")
 
     def Stop(self):
         camera.stop_stream(CAM_DEV_ID_0)
@@ -224,7 +223,5 @@ class Mp4Container:
             raise OSError("Mp4Container, kd_mp4_destroy failed.")
 
         self.venc.Destroy(VENC_CHN_ID_0)
-
         kd_mpi_aenc_destroy_chn(0)
-
         media.buffer_deinit()

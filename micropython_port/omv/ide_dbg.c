@@ -701,13 +701,19 @@ static void* ide_dbg_task(void* args) {
         if (FD_ISSET(usb_cdc_fd, &efds)) {
             // RTS
             pr("[usb] RTS");
-            if (ide_dbg_attach()) {
-                if (ide_script_running) {
-                    ide_disconnect = true;
-                    mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&ide_exception));
-                } else {
-                    interrupt_ide();
+            static struct timeval tval_last = {};
+            struct timeval tval;
+            gettimeofday(&tval, NULL);
+            if (tval.tv_sec > tval_last.tv_sec + 2) {
+                if (ide_dbg_attach()) {
+                    if (ide_script_running) {
+                        ide_disconnect = true;
+                        mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&ide_exception));
+                    } else {
+                        interrupt_ide();
+                    }
                 }
+                tval_last = tval;
             }
         }
         if (!FD_ISSET(usb_cdc_fd, &rfds)) {

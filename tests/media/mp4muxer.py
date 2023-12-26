@@ -30,7 +30,7 @@ def mp4_muxer_test():
             mp4_muxer.Process()
             frame_count += 1
             print("frame_coutn = ", frame_count)
-            if frame_count >= 100:
+            if frame_count >= 200:
                 break
     except BaseException as e:
         print(e)
