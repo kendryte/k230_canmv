@@ -1,0 +1,91 @@
+name: K230 CanMV Release
+
+on:
+  release:
+    types: [released]
+  push:
+    branches:
+      - dev
+      - main
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build_image:
+    name: Build
+    runs-on: [ubuntu-latest]
+    timeout-minutes: 120
+    container:
+      image: ghcr.io/kendryte/k230_sdk:latest
+      env:
+        CONF: k230_${{ matrix.cfg }}_defconfig
+      options: --hostname release --user root
+    strategy:
+      matrix:
+        cfg: ["canmv"]
+    steps:
+      - name: Check for dockerenv
+        run: (ls /.dockerenv && echo Found dockerenv) || (echo No dockerenv)
+     
+      - name: Install nvm/node for actions checkout env
+        run: |
+          pwd
+          ls -alht
+          export NVM_DIR="$HOME/.nvm" && (
+            git clone https://github.com/nvm-sh/nvm.git "$NVM_DIR"
+            cd "$NVM_DIR"
+            git checkout `git describe --abbrev=0 --tags --match "v[0-9]*" $(git rev-list --tags --max-count=1)`
+          ) && \. "$NVM_DIR/nvm.sh"
+          nvm install node || exit 1
+          node --version || exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          clean: true
+          submodules: true
+
+      - name: Download toolchain and build env
+        run: |
+          ls -alht micropython
+          ls -alht k230_sdk
+          pwd
+          echo "manual update micropython submodules directly from github and skip local mirror download"
+          cd micropython || exit 1
+          git submodule update --recursive --init || exit 1
+          cd ../ || exit 1
+          echo "add safe dir for prepare_sourcecode use git command with permission error"
+          git config --global --add safe.directory $PWD
+          git config --global --add safe.directory $PWD/k230_sdk
+          git config --global --add safe.directory $PWD/micropython
+          git config --global --list
+          ls -alht
+          echo "download toolchain and build env"
+          time make prepare_sourcecode FAST_DL=0 || exit 1
+          ls -alht
+          mkdir -p /opt/ || exit 1
+          rm -rf /opt/toolchain/
+          echo "show PWD toolchain"
+          ls -alht $PWD/k230_sdk/toolchain/ || exit 1
+          echo "link ./k230_sdk/toolchain to /opt/toolchain"
+          ln -s $PWD/k230_sdk/toolchain /opt/ || exit 1
+          echo "show /opt/toolchain/"
+          ls -alht /opt/toolchain/ || exit 1
+          ls -alht /opt/toolchain/Xuantie-900-gcc-linux* || exit 1
+          ls -alht /opt/toolchain/riscv64-linux* || exit 1
+
+      - name: Build image
+        run: |
+          pwd
+          ls -alht
+          echo "start to build k230 canmv image"
+          time make CONF=$CONF || exit 1
+          echo "---show output---"
+          ls -alht output/${CONF}/images || exit 1
+
+      - name: Save image
+        run: |
+          pwd
+          echo "upload image to release[TO BE done]"
