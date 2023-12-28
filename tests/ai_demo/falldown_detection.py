@@ -21,21 +21,23 @@ OUT_RGB888P_WIDTH = ALIGN_UP(1920, 16)
 OUT_RGB888P_HEIGHT = 1080
 
 #kmodel输入shape
-kmodel_input_shape = (1,3,512,512)                  # kmodel输入分辨率
+kmodel_input_shape = (1,3,640,640)                  # kmodel输入分辨率
 
 #kmodel相关参数设置
-confidence_threshold = 0.2                          # 手掌检测阈值，用于过滤roi
-nms_threshold = 0.5                                 # 手掌检测框阈值，用于过滤重复roi
-kmodel_frame_size = [512,512]                       # 手掌检测输入图片尺寸
+confidence_threshold = 0.3                          # 摔倒检测阈值，用于过滤roi
+nms_threshold = 0.45                                # 摔倒检测框阈值，用于过滤重复roi
+kmodel_frame_size = [640,640]                       # 摔倒检测输入图片尺寸
 frame_size = [OUT_RGB888P_WIDTH,OUT_RGB888P_HEIGHT] # 直接输入图片尺寸
 strides = [8,16,32]                                 # 输出特征图的尺寸与输入图片尺寸的比
-num_classes = 1                                     # 模型输出类别数
+num_classes = 2                                     # 模型输出类别数
 nms_option = False                                  # 是否所有检测框一起做NMS，False则按照不同的类分别应用NMS
-labels = ["hand"]                                   # 模型输出类别名称
+labels = ["Fall","NoFall"]                          # 模型输出类别名称
 
 root_dir = '/sdcard/app/tests/'
-kmodel_file = root_dir + 'kmodel/hand_det.kmodel'   # kmodel文件的路径
-anchors = [26,27, 53,52, 75,71, 80,99, 106,82, 99,134, 140,113, 161,172, 245,276]   #anchor设置
+kmodel_file = root_dir + 'kmodel/yolov5n-falldown.kmodel'                         # kmodel文件的路径
+anchors = [10,13, 16,30, 33,23, 30,61, 62,45, 50,119, 116,90, 156,198, 373,326]   # anchor设置
+
+colors = [(255,0, 0, 255), (255,0, 255, 0), (255,255,0, 0), (255,255,0, 255)]     # 颜色设置
 
 debug_mode = 0                                      # debug模式 大于0（调试）、 反之 （不调试）
 
@@ -99,7 +101,7 @@ def ai2d_init():
 # ai2d 运行
 def ai2d_run(rgb888p_img):
     with ScopedTiming("ai2d_run",debug_mode > 0):
-        global ai2d_input_tensor, ai2d_output_tensor, ai2d_builder
+        global ai2d_input_tensor,ai2d_output_tensor, ai2d_builder
         ai2d_input = rgb888p_img.to_numpy_ref()
         ai2d_input_tensor = nn.from_numpy(ai2d_input)
         ai2d_builder.run(ai2d_input_tensor, ai2d_output_tensor)
@@ -149,16 +151,16 @@ def kpu_run(kpu_obj,rgb888p_img):
     current_kmodel_obj = kpu_obj
     # (1)原图预处理，并设置模型输入
     kpu_pre_process(rgb888p_img)
-    # (2)手掌检测 kpu 运行
+    # (2)摔倒检测 kpu 运行
     with ScopedTiming("kpu_run",debug_mode > 0):
         current_kmodel_obj.run()
-    # (3)释放手掌检测 ai2d 资源
+    # (3)释放摔倒检测 ai2d 资源
     ai2d_release()
-    # (4)获取手掌检测 kpu 输出
+    # (4)获取摔倒检测 kpu 输出
     results = kpu_get_output()
-    # (5)手掌检测 kpu 结果后处理
+    # (5)摔倒检测 kpu 结果后处理
     dets = aicube.anchorbasedet_post_process( results[0], results[1], results[2], kmodel_frame_size, frame_size, strides, num_classes, confidence_threshold, nms_threshold, anchors, nms_option)
-    # (6)返回手掌检测结果
+    # (6)返回摔倒检测结果
     return dets
 
 # kpu 释放内存
@@ -183,7 +185,7 @@ def display_init():
 def display_deinit():
     display.deinit()
 
-# display 作图过程 框出所有检测到的手以及标出得分
+# display 作图过程 框出所有检测到的行人以及标出是否摔倒的结果
 def display_draw(dets):
     with ScopedTiming("display_draw",debug_mode >0):
         global draw_img,osd_img
@@ -200,14 +202,8 @@ def display_draw(dets):
                 x2 = int(x2 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH)
                 y2 = int(y2 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT)
 
-                if (h<(0.1*DISPLAY_HEIGHT)):
-                    continue
-                if (w<(0.25*DISPLAY_WIDTH) and ((x1<(0.03*DISPLAY_WIDTH)) or (x2>(0.97*DISPLAY_WIDTH)))):
-                    continue
-                if (w<(0.15*DISPLAY_WIDTH) and ((x1<(0.01*DISPLAY_WIDTH)) or (x2>(0.99*DISPLAY_WIDTH)))):
-                    continue
-                draw_img.draw_rectangle(x1 , y1 , int(w) , int(h), color=(255, 0, 255, 0), thickness = 2)
-                draw_img.draw_string( x1 , y1-50, " " + labels[det_box[0]] + " " + str(round(det_box[1],2)), color=(255,0, 255, 0), scale=4)
+                draw_img.draw_rectangle(x1 , y1 , int(w) , int(h) , color=colors[det_box[0]], thickness = 2)
+                draw_img.draw_string( x1 , y1-20, " " + labels[det_box[0]] + " " + str(round(det_box[1],2)) , color=colors[det_box[0]+2], scale=4)
             draw_img.copy_to(osd_img)
             display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
         else:
@@ -283,10 +279,10 @@ def media_deinit():
     ret = media.buffer_deinit()
     return ret
 
-#**********for hand_detect.py**********
-def hand_detect_inference():
-    print("hand_detect_test start")
-    kpu_hand_detect = kpu_init(kmodel_file)                             # 创建手掌检测的 kpu 对象
+#**********for falldown_detect.py**********
+def falldown_detect_inference():
+    print("falldown_detect_test start")
+    kpu_falldown_detect = kpu_init(kmodel_file)                         # 创建摔倒检测的 kpu 对象
     camera_init(CAM_DEV_ID_0)                                           # 初始化 camera
     display_init()                                                      # 初始化 display
 
@@ -294,7 +290,7 @@ def hand_detect_inference():
     try:
         ret = media_init()
         if ret:
-            print("hand_detect_test, buffer init failed")
+            print("falldown_detect_test, buffer init failed")
             return ret
 
         camera_start(CAM_DEV_ID_0)
@@ -303,14 +299,14 @@ def hand_detect_inference():
             with ScopedTiming("total",1):
                 rgb888p_img = camera_read(CAM_DEV_ID_0)                 # 读取一帧图片
                 if rgb888p_img == -1:
-                    print("hand_detect_test, capture_image failed")
+                    print("falldown_detect_test, capture_image failed")
                     camera_release_image(CAM_DEV_ID_0,rgb888p_img)
                     rgb888p_img = None
                     continue
 
                 # for rgb888planar
                 if rgb888p_img.format() == image.RGBP888:
-                    dets = kpu_run(kpu_hand_detect,rgb888p_img)         # 执行手掌检测 kpu 运行 以及 后处理过程
+                    dets = kpu_run(kpu_falldown_detect,rgb888p_img)     # 执行摔倒检测 kpu 运行 以及 后处理过程
                     display_draw(dets)                                  # 将得到的检测结果 绘制到 display
 
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)          # camera 释放图像
@@ -333,16 +329,16 @@ def hand_detect_inference():
         kpu_deinit()                                                    # 释放 kpu
         global current_kmodel_obj
         del current_kmodel_obj
-        del kpu_hand_detect
+        del kpu_falldown_detect
         gc.collect()
         ret = media_deinit()                                            # 释放 整个media
         if ret:
-            print("hand_detect_test, buffer_deinit failed")
+            print("falldown_detect_test, buffer_deinit failed")
             return ret
 
-    print("hand_detect_test end")
+    print("falldown_detect_test end")
     return 0
 
 if __name__ == '__main__':
-    hand_detect_inference()
+    falldown_detect_inference()
 

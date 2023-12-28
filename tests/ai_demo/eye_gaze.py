@@ -23,9 +23,8 @@ OUT_RGB888P_HEIGH = 1080
 # kmodel参数设置
 # 人脸检测kmodel输入shape
 fd_kmodel_input_shape = (1,3,320,320)
-# 人脸mesh kmodel输入shape
-fm_kmodel_input_shape = (1,3,120,120)
-fmpost_kmodel_input_shapes = [(3,3),(3,1),(40,1),(10,1)]
+# 注视估计kmodel输入shape
+feg_kmodel_input_shape = (1,3,448,448)
 # ai原图padding
 rgb_mean = [104,117,123]
 
@@ -45,16 +44,10 @@ keypoint_dim = 10
 # 人脸检测kmodel
 root_dir = '/sdcard/app/tests/'
 fd_kmodel_file = root_dir + 'kmodel/face_detection_320.kmodel'
-# 人脸mesh kmodel
-fm_kmodel_file = root_dir + 'kmodel/face_alignment.kmodel'
-# 人脸mesh后处理kmodel
-fmpost_kmodel_file = root_dir + 'kmodel/face_alignment_post.kmodel'
+# 注视估计kmodel
+fr_kmodel_file = root_dir + 'kmodel/eye_gaze.kmodel'
 # anchor文件
 anchors_path = root_dir + 'utils/prior_data_320.bin'
-# 人脸mesh参数均值
-param_mean = np.array([0.0003492636315058917,2.52790130161884e-07,-6.875197868794203e-07,60.1679573059082,-6.295513230725192e-07,0.0005757200415246189,-5.085391239845194e-05,74.2781982421875,5.400917189035681e-07,6.574138387804851e-05,0.0003442012530285865,-66.67157745361328,-346603.6875,-67468.234375,46822.265625,-15262.046875,4350.5888671875,-54261.453125,-18328.033203125,-1584.328857421875,-84566.34375,3835.960693359375,-20811.361328125,38094.9296875,-19967.85546875,-9241.3701171875,-19600.71484375,13168.08984375,-5259.14404296875,1848.6478271484375,-13030.662109375,-2435.55615234375,-2254.20654296875,-14396.5615234375,-6176.3291015625,-25621.919921875,226.39447021484375,-6326.12353515625,-10867.2509765625,868.465087890625,-5831.14794921875,2705.123779296875,-3629.417724609375,2043.9901123046875,-2446.6162109375,3658.697021484375,-7645.98974609375,-6674.45263671875,116.38838958740234,7185.59716796875,-1429.48681640625,2617.366455078125,-1.2070955038070679,0.6690792441368103,-0.17760828137397766,0.056725528091192245,0.03967815637588501,-0.13586315512657166,-0.09223993122577667,-0.1726071834564209,-0.015804484486579895,-0.1416848599910736],dtype=np.float)
-# 人脸mesh参数方差
-param_std = np.array([0.00017632152594160289,6.737943476764485e-05,0.00044708489440381527,26.55023193359375,0.0001231376954820007,4.493021697271615e-05,7.923670636955649e-05,6.982563018798828,0.0004350444069132209,0.00012314890045672655,0.00017400001524947584,20.80303955078125,575421.125,277649.0625,258336.84375,255163.125,150994.375,160086.109375,111277.3046875,97311.78125,117198.453125,89317.3671875,88493.5546875,72229.9296875,71080.2109375,50013.953125,55968.58203125,47525.50390625,49515.06640625,38161.48046875,44872.05859375,46273.23828125,38116.76953125,28191.162109375,32191.4375,36006.171875,32559.892578125,25551.1171875,24267.509765625,27521.3984375,23166.53125,21101.576171875,19412.32421875,19452.203125,17454.984375,22537.623046875,16174.28125,14671.640625,15115.6884765625,13870.0732421875,13746.3125,12663.1337890625,1.5870834589004517,1.5077009201049805,0.5881357789039612,0.5889744758605957,0.21327851712703705,0.2630201280117035,0.2796429395675659,0.38030216097831726,0.16162841022014618,0.2559692859649658],dtype=np.float)
 # 调试模型，0：不调试，>0：打印对应级别调试信息
 debug_mode = 0
 
@@ -82,13 +75,12 @@ global current_kmodel_obj #当前kpu对象
 # fd_ai2d_output_tensor： 人脸检测ai2d输入
 # fd_ai2d_builder：       根据人脸检测ai2d参数，构建的人脸检测ai2d_builder对象
 global fd_ai2d,fd_ai2d_input_tensor,fd_ai2d_output_tensor,fd_ai2d_builder
-# fm_ai2d：              人脸mesh ai2d实例
-# fm_ai2d_input_tensor： 人脸mesh ai2d输入
-# fm_ai2d_output_tensor：人脸mesh ai2d输入
-# fm_ai2d_builder：      根据人脸mesh ai2d参数，构建的人脸mesh ai2d_builder对象
-global fm_ai2d,fm_ai2d_input_tensor,fm_ai2d_output_tensor,fm_ai2d_builder
-global roi               #人脸区域
-global vertices          #3D关键点
+# feg_ai2d：              注视估计ai2d实例
+# feg_ai2d_input_tensor： 注视估计ai2d输入
+# feg_ai2d_output_tensor：注视估计ai2d输入
+# feg_ai2d_builder：      根据注视估计ai2d参数，构建的注视估计ai2d_builder对象
+global feg_ai2d,feg_ai2d_input_tensor,feg_ai2d_output_tensor,feg_ai2d_builder
+global matrix_dst         #人脸仿射变换矩阵
 
 #读取anchor文件，为人脸检测后处理做准备
 print('anchors_path:',anchors_path)
@@ -161,6 +153,7 @@ def fd_ai2d_release():
         global fd_ai2d_input_tensor
         del fd_ai2d_input_tensor
 
+
 def fd_kpu_init(kmodel_file):
     # 初始化人脸检测kpu对象，并加载kmodel
     with ScopedTiming("fd_kpu_init",debug_mode > 0):
@@ -224,203 +217,110 @@ def fd_kpu_deinit():
         del fd_ai2d_output_tensor #删除人脸检测ai2d_output_tensor变量，释放对它所引用对象的内存引用
 
 ###############for face recognition###############
-def parse_roi_box_from_bbox(bbox):
-    # 获取人脸roi
-    x1, y1, w, h = map(lambda x: int(round(x, 0)), bbox[:4])
-    old_size = (w + h) / 2
-    center_x = x1 + w / 2
-    center_y = y1 + h / 2 + old_size * 0.14
-    size = int(old_size * 1.58)
+def feg_ai2d_init():
+    # 注视估计ai2d初始化
+    with ScopedTiming("feg_ai2d_init",debug_mode > 0):
+        # （1）创建注视估计ai2d对象
+        global feg_ai2d
+        feg_ai2d = nn.ai2d()
 
-    x0 = center_x - float(size) / 2
-    y0 = center_y - float(size) / 2
-    x1 = x0 + size
-    y1 = y0 + size
+        # （2）创建注视估计ai2d_output_tensor对象，用于存放ai2d输出
+        global feg_ai2d_output_tensor
+        data = np.ones(feg_kmodel_input_shape, dtype=np.uint8)
+        feg_ai2d_output_tensor = nn.from_numpy(data)
 
-    x0 = max(0, min(x0, OUT_RGB888P_WIDTH))
-    y0 = max(0, min(y0, OUT_RGB888P_HEIGH))
-    x1 = max(0, min(x1, OUT_RGB888P_WIDTH))
-    y1 = max(0, min(y1, OUT_RGB888P_HEIGH))
-
-    roi = (x0, y0, x1 - x0, y1 - y0)
-    return roi
-
-def fm_ai2d_init():
-    # 人脸mesh ai2d初始化
-    with ScopedTiming("fm_ai2d_init",debug_mode > 0):
-        # （1）创建人脸mesh ai2d对象
-        global fm_ai2d
-        fm_ai2d = nn.ai2d()
-
-        # （2）创建人脸mesh ai2d_output_tensor对象，用于存放ai2d输出
-        global fm_ai2d_output_tensor
-        data = np.ones(fm_kmodel_input_shape, dtype=np.uint8)
-        fm_ai2d_output_tensor = nn.from_numpy(data)
-
-def fm_ai2d_run(rgb888p_img,det):
-    # 人脸mesh ai2d推理
-    with ScopedTiming("fm_ai2d_run",debug_mode > 0):
-        global fm_ai2d,fm_ai2d_input_tensor,fm_ai2d_output_tensor
+def feg_ai2d_run(rgb888p_img,det):
+    # 注视估计ai2d推理
+    with ScopedTiming("feg_ai2d_run",debug_mode > 0):
+        global feg_ai2d,feg_ai2d_input_tensor,feg_ai2d_output_tensor
         #（1）根据原图ai2d_input_tensor对象
         ai2d_input = rgb888p_img.to_numpy_ref()
-        fm_ai2d_input_tensor = nn.from_numpy(ai2d_input)
+        feg_ai2d_input_tensor = nn.from_numpy(ai2d_input)
 
-        # （2）根据新的det设置新的人脸mesh ai2d参数
-        fm_ai2d.set_dtype(nn.ai2d_format.NCHW_FMT,
+        # （2）根据新的det设置新的注视估计ai2d参数
+        feg_ai2d.set_dtype(nn.ai2d_format.NCHW_FMT,
                                        nn.ai2d_format.NCHW_FMT,
                                        np.uint8, np.uint8)
-        global roi
-        roi = parse_roi_box_from_bbox(det)
-        fm_ai2d.set_crop_param(True,int(roi[0]),int(roi[1]),int(roi[2]),int(roi[3]))
-        fm_ai2d.set_resize_param(True, nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-        # （3）根据新的人脸mesh ai2d参数，构建人脸mesh ai2d_builder
-        global fm_ai2d_builder
-        fm_ai2d_builder = fm_ai2d.build([1,3,OUT_RGB888P_HEIGH,OUT_RGB888P_WIDTH], fm_kmodel_input_shape)
-        # （4）推理人脸mesh ai2d，将预处理的结果保存到fm_ai2d_output_tensor
-        fm_ai2d_builder.run(fm_ai2d_input_tensor, fm_ai2d_output_tensor)
 
-def fm_ai2d_release():
-    # 释放人脸mesh ai2d_input_tensor、ai2d_builder
-    with ScopedTiming("fm_ai2d_release",debug_mode > 0):
-        global fm_ai2d_input_tensor,fm_ai2d_builder
-        del fm_ai2d_input_tensor
-        del fm_ai2d_builder
+        x, y, w, h = map(lambda x: int(round(x, 0)), det[:4])
+        feg_ai2d.set_crop_param(True,x,y,w,h)
+        feg_ai2d.set_resize_param(True, nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
 
-def fm_kpu_init(kmodel_file):
-    # 人脸mesh kpu初始化
-    with ScopedTiming("fm_kpu_init",debug_mode > 0):
-        # 初始化人脸mesh kpu对象
+        # （3）根据新的注视估计ai2d参数，构建注视估计ai2d_builder
+        global feg_ai2d_builder
+        feg_ai2d_builder = feg_ai2d.build([1,3,OUT_RGB888P_HEIGH,OUT_RGB888P_WIDTH], feg_kmodel_input_shape)
+        # （4）推理注视估计ai2d，将预处理的结果保存到feg_ai2d_output_tensor
+        feg_ai2d_builder.run(feg_ai2d_input_tensor, feg_ai2d_output_tensor)
+
+def feg_ai2d_release():
+    # 释放注视估计ai2d_input_tensor、ai2d_builder
+    with ScopedTiming("feg_ai2d_release",debug_mode > 0):
+        global feg_ai2d_input_tensor,feg_ai2d_builder
+        del feg_ai2d_input_tensor
+        del feg_ai2d_builder
+
+def feg_kpu_init(kmodel_file):
+    # 注视估计kpu初始化
+    with ScopedTiming("feg_kpu_init",debug_mode > 0):
+        # 初始化注视估计kpu对象
         kpu_obj = nn.kpu()
-        # 加载人脸mesh kmodel
+        # 加载注视估计kmodel
         kpu_obj.load_kmodel(kmodel_file)
-        # 初始化人脸mesh ai2d
-        fm_ai2d_init()
+        # 初始化注视估计ai2d
+        feg_ai2d_init()
         return kpu_obj
 
-def fm_kpu_pre_process(rgb888p_img,det):
-    # 人脸mesh kpu预处理
-    # 人脸mesh ai2d推理，根据det对原图进行预处理
-    fm_ai2d_run(rgb888p_img,det)
-    with ScopedTiming("fm_kpu_pre_process",debug_mode > 0):
-        global current_kmodel_obj,fm_ai2d_output_tensor
-        # 将人脸mesh ai2d输出设置为人脸mesh kpu输入
-        current_kmodel_obj.set_input_tensor(0, fm_ai2d_output_tensor)
+def feg_kpu_pre_process(rgb888p_img,det):
+    # 注视估计kpu预处理
+    # 注视估计ai2d推理，根据det对原图进行预处理
+    feg_ai2d_run(rgb888p_img,det)
+    with ScopedTiming("feg_kpu_pre_process",debug_mode > 0):
+        global current_kmodel_obj,feg_ai2d_output_tensor
+        # 将注视估计ai2d输出设置为注视估计kpu输入
+        current_kmodel_obj.set_input_tensor(0, feg_ai2d_output_tensor)
 
-def fm_kpu_get_output():
-    with ScopedTiming("fm_kpu_get_output",debug_mode > 0):
+def feg_kpu_get_output():
+    with ScopedTiming("feg_kpu_get_output",debug_mode > 0):
         global current_kmodel_obj
-        # 获取人脸mesh kpu输出
-        data = current_kmodel_obj.get_output_tensor(0)
-        result = data.to_numpy()
-        del data
-        return result
+        # 获取注视估计kpu输出
+        results = []
+        for i in range(current_kmodel_obj.outputs_size()):
+            data = current_kmodel_obj.get_output_tensor(i)
+            result = data.to_numpy()
+            del data
+            results.append(result)
+        return results
 
-def fm_kpu_post_process(param):
-    # 人脸mesh kpu结果后处理，反标准化
-    with ScopedTiming("fm_kpu_post_process",debug_mode > 0):
-        param = param * param_std + param_mean
-    return param
+def feg_kpu_post_process(results):
+    # 注视估计kpu推理结果后处理
+    with ScopedTiming("feg_kpu_post_process",debug_mode > 0):
+        post_ret = aidemo.eye_gaze_post_process(results)
+    return post_ret[0],post_ret[1]
 
-def fm_kpu_run(kpu_obj,rgb888p_img,det):
-    # 人脸mesh kpu推理
+def feg_kpu_run(kpu_obj,rgb888p_img,det):
+    # 注视估计kpu推理
     global current_kmodel_obj
     current_kmodel_obj = kpu_obj
-    # （1）人脸mesh kpu预处理，设置kpu输入
-    fm_kpu_pre_process(rgb888p_img,det)
-    # （2）人脸mesh kpu推理
-    with ScopedTiming("fm_kpu_run",debug_mode > 0):
+    # （1）注视估计kpu预处理，设置kpu输入
+    feg_kpu_pre_process(rgb888p_img,det)
+    # （2）注视估计kpu推理
+    with ScopedTiming("feg_kpu_run",debug_mode > 0):
         kpu_obj.run()
-    # （3）释放人脸mesh ai2d
-    fm_ai2d_release()
-    # （4）获取人脸mesh kpu输出
-    param = fm_kpu_get_output()
-    # （5）人脸mesh 后处理
-    param = fm_kpu_post_process(param)
-    return param
+    # （3）释放注视估计ai2d
+    feg_ai2d_release()
+    # （4）获取注视估计kpu输出
+    results = feg_kpu_get_output()
+    # （5）注视估计后处理
+    pitch,yaw = feg_kpu_post_process(results)
+    return pitch,yaw
 
-def fm_kpu_deinit():
-    # 人脸mesh kpu释放
-    with ScopedTiming("fm_kpu_deinit",debug_mode > 0):
-        global fm_ai2d,fm_ai2d_output_tensor
-        del fm_ai2d               # 删除fm_ai2d变量，释放对它所引用对象的内存引用
-        del fm_ai2d_output_tensor # 删除fm_ai2d_output_tensor变量，释放对它所引用对象的内存引用
+def feg_kpu_deinit():
+    # 注视估计kpu释放
+    with ScopedTiming("feg_kpu_deinit",debug_mode > 0):
+        global feg_ai2d,feg_ai2d_output_tensor
+        del feg_ai2d               # 删除feg_ai2d变量，释放对它所引用对象的内存引用
+        del feg_ai2d_output_tensor # 删除feg_ai2d_output_tensor变量，释放对它所引用对象的内存引用
 
-def fmpost_kpu_init(kmodel_file):
-    # face mesh post模型初始化
-    with ScopedTiming("fmpost_kpu_init",debug_mode > 0):
-        # 初始化人脸mesh kpu post对象
-        kpu_obj = nn.kpu()
-        # 加载人脸mesh后处理kmodel
-        kpu_obj.load_kmodel(kmodel_file)
-        return kpu_obj
-
-def fmpost_kpu_pre_process(param):
-    # face mesh post模型预处理，param解析
-    with ScopedTiming("fmpost_kpu_pre_process",debug_mode > 0):
-        param = param[0]
-        trans_dim, shape_dim, exp_dim = 12, 40, 10
-
-        # reshape前务必进行copy，否则会导致模型输入错误
-        R_ = param[:trans_dim].copy().reshape((3, -1))
-        R = R_[:, :3].copy()
-        offset = R_[:, 3].copy()
-        offset = offset.reshape((3, 1))
-        alpha_shp = param[trans_dim:trans_dim + shape_dim].copy().reshape((-1, 1))
-        alpha_exp = param[trans_dim + shape_dim:].copy().reshape((-1, 1))
-
-        R_tensor = nn.from_numpy(R)
-        current_kmodel_obj.set_input_tensor(0, R_tensor)
-        del R_tensor
-
-        offset_tensor = nn.from_numpy(offset)
-        current_kmodel_obj.set_input_tensor(1, offset_tensor)
-        del offset_tensor
-
-        alpha_shp_tensor = nn.from_numpy(alpha_shp)
-        current_kmodel_obj.set_input_tensor(2, alpha_shp_tensor)
-        del alpha_shp_tensor
-
-        alpha_exp_tensor = nn.from_numpy(alpha_exp)
-        current_kmodel_obj.set_input_tensor(3, alpha_exp_tensor)
-        del alpha_exp_tensor
-
-    return
-
-def fmpost_kpu_get_output():
-    # 获取face mesh post模型输出
-    with ScopedTiming("fmpost_kpu_get_output",debug_mode > 0):
-        global current_kmodel_obj
-        # 获取人脸mesh kpu输出
-        data = current_kmodel_obj.get_output_tensor(0)
-        result = data.to_numpy()
-        del data
-        return result
-
-def fmpost_kpu_post_process(roi):
-    # face mesh post模型推理结果后处理
-    with ScopedTiming("fmpost_kpu_post_process",debug_mode > 0):
-        x, y, w, h = map(lambda x: int(round(x, 0)), roi[:4])
-        x = x * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
-        y = y * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
-        w = w * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
-        h = h * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
-        roi_array = np.array([x,y,w,h],dtype=np.float)
-        global vertices
-        aidemo.face_mesh_post_process(roi_array,vertices)
-    return
-
-def fmpost_kpu_run(kpu_obj,param):
-    # face mesh post模型推理
-    global current_kmodel_obj
-    current_kmodel_obj = kpu_obj
-    fmpost_kpu_pre_process(param)
-    with ScopedTiming("fmpost_kpu_run",debug_mode > 0):
-        kpu_obj.run()
-    global vertices
-    vertices = fmpost_kpu_get_output()
-    global roi
-    fmpost_kpu_post_process(roi)
-    return
 #********************for media_utils.py********************
 global draw_img_ulab,draw_img,osd_img                       #for display
 global buffer,media_source,media_sink                       #for media
@@ -435,14 +335,29 @@ def display_deinit():
     # 释放显示资源
     display.deinit()
 
-def display_draw(dets,vertices_list):
+def display_draw(dets,gaze_results):
     # 在显示器画人脸轮廓
     with ScopedTiming("display_draw",debug_mode >0):
         global draw_img_ulab,draw_img,osd_img
         if dets:
             draw_img.clear()
-            for vertices in vertices_list:
-                aidemo.face_draw_mesh(draw_img_ulab, vertices)
+            for det,gaze_ret in zip(dets,gaze_results):
+                pitch , yaw = gaze_ret
+                length = DISPLAY_WIDTH / 2
+                x, y, w, h = map(lambda x: int(round(x, 0)), det[:4])
+                x = x * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
+                y = y * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
+                w = w * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
+                h = h * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
+                center_x = (x + w / 2.0)
+                center_y = (y + h / 2.0)
+                dx = -length * math.sin(pitch) * math.cos(yaw)
+                target_x = int(center_x + dx)
+                dy = -length * math.sin(yaw)
+                target_y = int(center_y + dy)
+
+                draw_img.draw_arrow(int(center_x), int(center_y), target_x, target_y, color = (255,255,0,0), size = 30, thickness = 2)
+
             # （4）将轮廓结果拷贝到osd
             draw_img.copy_to(osd_img)
             # （5）将osd显示到屏幕
@@ -527,13 +442,12 @@ def media_deinit():
     return ret
 
 #********************for face_detect.py********************
-def face_mesh_inference():
+def eye_gaze_inference():
+    print("eye_gaze_test start")
     # 人脸检测kpu初始化
     kpu_face_detect = fd_kpu_init(fd_kmodel_file)
-    # 人脸mesh kpu初始化
-    kpu_face_mesh = fm_kpu_init(fm_kmodel_file)
-    # face_mesh_post kpu初始化
-    kpu_face_mesh_post = fmpost_kpu_init(fmpost_kmodel_file)
+    # 注视估计kpu初始化
+    kpu_eye_gaze = feg_kpu_init(fr_kmodel_file)
     # camera初始化
     camera_init(CAM_DEV_ID_0)
     # 显示初始化
@@ -551,7 +465,6 @@ def face_mesh_inference():
         # 启动camera
         camera_start(CAM_DEV_ID_0)
         time.sleep(5)
-        gc_count = 0
         while True:
             with ScopedTiming("total",1):
                 # （1）读取一帧图像
@@ -566,24 +479,20 @@ def face_mesh_inference():
                 if rgb888p_img.format() == image.RGBP888:
                     # （3.1）推理当前图像，并获取人脸检测结果
                     dets = fd_kpu_run(kpu_face_detect,rgb888p_img)
-                    ## （3.2）针对每个人脸框，推理得到对应人脸mesh
-                    mesh_result = []
+                    # （3.2）针对每个人脸框，推理得到对应注视估计
+                    gaze_results = []
                     for det in dets:
-                        param = fm_kpu_run(kpu_face_mesh,rgb888p_img,det)
-                        fmpost_kpu_run(kpu_face_mesh_post,param)
-                        global vertices
-                        mesh_result.append(vertices)
-                    ## （3.3）将人脸mesh 画到屏幕上
-                    display_draw(dets,mesh_result)
+                        pitch ,yaw = feg_kpu_run(kpu_eye_gaze,rgb888p_img,det)
+                        gaze_results.append([pitch ,yaw])
+                    # （3.3）将注视估计画到屏幕上
+                    display_draw(dets,gaze_results)
 
                 # （4）释放当前帧
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)
                 rgb888p_img = None
-                if gc_count > 5:
+                with ScopedTiming("gc collect", debug_mode > 0):
                     gc.collect()
-                    gc_count = 0
-                else:
-                    gc_count += 1
+
     except Exception as e:
         # 捕捉运行运行中异常，并打印错误
         print(f"An error occurred during buffer used: {e}")
@@ -599,23 +508,22 @@ def face_mesh_inference():
         display_deinit()
         # 释放kpu资源
         fd_kpu_deinit()
-        fm_kpu_deinit()
+        feg_kpu_deinit()
         global current_kmodel_obj
         del current_kmodel_obj
         del kpu_face_detect
-        del kpu_face_mesh
-        del kpu_face_mesh_post
+        del kpu_eye_gaze
         # 垃圾回收
         gc.collect()
         time.sleep(1)
         # 释放媒体资源
         ret = media_deinit()
         if ret:
-            print("face_mesh_test, buffer_deinit failed")
+            print("eye_gaze_test, buffer_deinit failed")
             return ret
 
-    #print("face_mesh_test end")
+    print("eye_gaze_test end")
     return 0
 
 if __name__ == '__main__':
-    face_mesh_inference()
+    eye_gaze_inference()

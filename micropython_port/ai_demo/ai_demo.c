@@ -689,6 +689,86 @@ STATIC mp_obj_t kws_preprocess(mp_obj_t fp,mp_obj_t wav_obj) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(aidemo_kws_preprocess_obj, kws_preprocess);
 
+STATIC mp_obj_t aidemo_eye_gaze_post_process(mp_obj_t outputs) 
+{
+    mp_obj_list_t *mp_outputs = MP_OBJ_TO_PTR(outputs);
+    float* p_outputs[2];
+    for(int i=0;i<2;++i)
+    {
+        ndarray_obj_t *array_i = MP_ROM_PTR(mp_outputs->items[i]);
+        p_outputs[i] =  (float*)(array_i->array);
+    }
+
+    float pitch = 0,yaw = 0;
+    eye_gaze_post_process(p_outputs,&pitch,&yaw);
+
+    mp_obj_list_t *reuslts_mp_list = mp_obj_new_list(0, NULL);
+    mp_obj_list_append(reuslts_mp_list, mp_obj_new_float(pitch));
+    mp_obj_list_append(reuslts_mp_list, mp_obj_new_float(yaw));
+
+    return MP_OBJ_FROM_PTR(reuslts_mp_list);
+};
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(aidemo_eye_gaze_post_process_obj, aidemo_eye_gaze_post_process);
+
+//*****************************for nanotracker*****************************
+STATIC mp_obj_t aidemo_nanotracker_postprocess(size_t n_args, const mp_obj_t *args) {
+
+    ndarray_obj_t *p_outputs_ndarray_0 = MP_ROM_PTR(args[0]);
+    float *data_0 = p_outputs_ndarray_0->array;
+
+    ndarray_obj_t *p_outputs_ndarray_1 = MP_ROM_PTR(args[1]);
+    float *data_1 = p_outputs_ndarray_1->array;
+    
+
+    FrameSize sensor_size;
+    mp_obj_list_t *sensor_size_list = MP_OBJ_TO_PTR(args[2]);
+    sensor_size.height = mp_obj_get_int(sensor_size_list->items[0]);
+    sensor_size.width = mp_obj_get_int(sensor_size_list->items[1]);
+
+    float obj_thresh;
+    obj_thresh = mp_obj_get_float(args[3]);
+
+    float center_xy_wh[4];
+    mp_obj_list_t *center_xy_wh_list = MP_OBJ_TO_PTR(args[4]);
+    center_xy_wh[0] = mp_obj_get_float(center_xy_wh_list->items[0]);
+    center_xy_wh[1] = mp_obj_get_float(center_xy_wh_list->items[1]);
+    center_xy_wh[2] = mp_obj_get_float(center_xy_wh_list->items[2]);
+    center_xy_wh[3] = mp_obj_get_float(center_xy_wh_list->items[3]);
+
+    int crop_size;
+    crop_size = mp_obj_get_int(args[5]);
+
+    float CONTEXT_AMOUNT;
+    CONTEXT_AMOUNT = mp_obj_get_float(args[6]);
+
+    Tracker_box_center tracker_box_center = nanotracker_post_process(data_0, data_1, sensor_size, obj_thresh, center_xy_wh, crop_size, CONTEXT_AMOUNT);
+
+    mp_obj_list_t *results_mp_list = mp_obj_new_list(0, NULL);
+    mp_obj_list_t *results_mp_list_box = mp_obj_new_list(0, NULL);
+    mp_obj_list_t *results_mp_list_center = mp_obj_new_list(0, NULL);
+
+    if (tracker_box_center.exist)
+    {
+        mp_obj_list_append(results_mp_list_box, mp_obj_new_int(tracker_box_center.tracker_box.x));
+        mp_obj_list_append(results_mp_list_box, mp_obj_new_int(tracker_box_center.tracker_box.y));
+        mp_obj_list_append(results_mp_list_box, mp_obj_new_int(tracker_box_center.tracker_box.w));
+        mp_obj_list_append(results_mp_list_box, mp_obj_new_int(tracker_box_center.tracker_box.h));
+        mp_obj_list_append(results_mp_list_box, mp_obj_new_float(tracker_box_center.tracker_box.score));
+
+        mp_obj_list_append(results_mp_list_center, mp_obj_new_float(tracker_box_center.center_xy_wh[0]));
+        mp_obj_list_append(results_mp_list_center, mp_obj_new_float(tracker_box_center.center_xy_wh[1]));
+        mp_obj_list_append(results_mp_list_center, mp_obj_new_float(tracker_box_center.center_xy_wh[2]));
+        mp_obj_list_append(results_mp_list_center, mp_obj_new_float(tracker_box_center.center_xy_wh[3]));
+    }
+    mp_obj_list_append(results_mp_list, results_mp_list_box);
+    mp_obj_list_append(results_mp_list, results_mp_list_center);
+
+    return MP_OBJ_FROM_PTR(results_mp_list);
+};
+
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(aidemo_nanotracker_postprocess_obj, 7, 7, aidemo_nanotracker_postprocess);
+
+
 STATIC const mp_rom_map_elem_t aidemo_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_aidemo) },
     { MP_ROM_QSTR(MP_QSTR_invert_affine_transform), MP_ROM_PTR(&aidemo_invert_affine_transform_obj) },
@@ -705,7 +785,10 @@ STATIC const mp_rom_map_elem_t aidemo_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_person_kp_postprocess), MP_ROM_PTR(&aidemo_person_kp_postprocess_obj) },
     { MP_ROM_QSTR(MP_QSTR_kws_fp_create), MP_ROM_PTR(&aidemo_kws_feature_pipeline_create_obj) },
     { MP_ROM_QSTR(MP_QSTR_kws_fp_destroy), MP_ROM_PTR(&aidemo_kws_feature_pipeline_destroy_obj) },
-    { MP_ROM_QSTR(MP_QSTR_kws_preprocess), MP_ROM_PTR(&aidemo_kws_preprocess_obj) }
+    { MP_ROM_QSTR(MP_QSTR_kws_preprocess), MP_ROM_PTR(&aidemo_kws_preprocess_obj) },
+    { MP_ROM_QSTR(MP_QSTR_eye_gaze_post_process), MP_ROM_PTR(&aidemo_eye_gaze_post_process_obj) },
+    { MP_ROM_QSTR(MP_QSTR_nanotracker_postprocess), MP_ROM_PTR(&aidemo_nanotracker_postprocess_obj) }
+
 };
 
 STATIC MP_DEFINE_CONST_DICT(aidemo_globals, aidemo_globals_table);

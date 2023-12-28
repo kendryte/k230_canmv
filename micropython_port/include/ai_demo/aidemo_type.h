@@ -109,4 +109,21 @@ struct PersonKPOutput {
 	int box[4];       //矩形框  x1 y1 x2 y2
     float kps[17][3];     //关键点 向量
 };
+
+//*****************************for nanotracker**********************
+struct Tracker_box
+{
+    int x;
+    int y;
+    int w;
+    int h; 
+    float score;
+};
+
+struct Tracker_box_center
+{
+    Tracker_box tracker_box;
+    float center_xy_wh[4];
+    bool exist;
+};
 #endif // _AIDEMO_TYPE_H_
