@@ -7,7 +7,6 @@ import image                        #图像模块，主要用于读取、图像�
 import time                         #时间统计
 import gc                           #垃圾回收模块
 import aidemo                       #aidemo模块，封装ai demo相关后处理、画图操作
-import os, sys                      #操作系统接口模块
 
 ##config.py
 #display分辨率
@@ -34,6 +33,29 @@ debug_mode = 0                                                  # debug模式 �
 
 #标签 多目标分割的所有可识别类别
 labels = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]
+
+#颜色板 用于作图
+color_four = [(255, 220, 20, 60), (255, 119, 11, 32), (255, 0, 0, 142), (255, 0, 0, 230),
+        (255, 106, 0, 228), (255, 0, 60, 100), (255, 0, 80, 100), (255, 0, 0, 70),
+        (255, 0, 0, 192), (255, 250, 170, 30), (255, 100, 170, 30), (255, 220, 220, 0),
+        (255, 175, 116, 175), (255, 250, 0, 30), (255, 165, 42, 42), (255, 255, 77, 255),
+        (255, 0, 226, 252), (255, 182, 182, 255), (255, 0, 82, 0), (255, 120, 166, 157),
+        (255, 110, 76, 0), (255, 174, 57, 255), (255, 199, 100, 0), (255, 72, 0, 118),
+        (255, 255, 179, 240), (255, 0, 125, 92), (255, 209, 0, 151), (255, 188, 208, 182),
+        (255, 0, 220, 176), (255, 255, 99, 164), (255, 92, 0, 73), (255, 133, 129, 255),
+        (255, 78, 180, 255), (255, 0, 228, 0), (255, 174, 255, 243), (255, 45, 89, 255),
+        (255, 134, 134, 103), (255, 145, 148, 174), (255, 255, 208, 186),
+        (255, 197, 226, 255), (255, 171, 134, 1), (255, 109, 63, 54), (255, 207, 138, 255),
+        (255, 151, 0, 95), (255, 9, 80, 61), (255, 84, 105, 51), (255, 74, 65, 105),
+        (255, 166, 196, 102), (255, 208, 195, 210), (255, 255, 109, 65), (255, 0, 143, 149),
+        (255, 179, 0, 194), (255, 209, 99, 106), (255, 5, 121, 0), (255, 227, 255, 205),
+        (255, 147, 186, 208), (255, 153, 69, 1), (255, 3, 95, 161), (255, 163, 255, 0),
+        (255, 119, 0, 170), (255, 0, 182, 199), (255, 0, 165, 120), (255, 183, 130, 88),
+        (255, 95, 32, 0), (255, 130, 114, 135), (255, 110, 129, 133), (255, 166, 74, 118),
+        (255, 219, 142, 185), (255, 79, 210, 114), (255, 178, 90, 62), (255, 65, 70, 15),
+        (255, 127, 167, 115), (255, 59, 105, 106), (255, 142, 108, 45), (255, 196, 172, 0),
+        (255, 95, 54, 80), (255, 128, 76, 255), (255, 201, 57, 1), (255, 246, 0, 122),
+        (255, 191, 162, 208)]
 
 #scoped_timing.py 用于debug模式输出程序块运行时间
 class ScopedTiming:
@@ -108,7 +130,7 @@ def ai2d_init():
 # ai2d 运行
 def ai2d_run(rgb888p_img):
     with ScopedTiming("ai2d_run",debug_mode > 0):
-        global ai2d_input_tensor,ai2d_out_tensor
+        global ai2d_input_tensor,ai2d_out_tensor,ai2d_builder
         ai2d_input = rgb888p_img.to_numpy_ref()
         ai2d_input_tensor = nn.from_numpy(ai2d_input)
 
@@ -174,11 +196,11 @@ def kpu_run(kpu_obj,rgb888p_img):
     return seg_res
 
 # kpu 释放内存
-def kpu_deinit(kpu_obj):
+def kpu_deinit():
     with ScopedTiming("kpu_deinit",debug_mode > 0):
-        global ai2d,ai2d_out_tensor
-        del kpu_obj
+        global ai2d,ai2d_out_tensor,ai2d_builder
         del ai2d
+        del ai2d_builder
         del ai2d_out_tensor
 
 #media_utils.py
@@ -206,7 +228,7 @@ def display_draw(seg_res):
 
             for i, det in enumerate(dets):
                 x1, y1, w, h = map(lambda x: int(round(x, 0)), det)
-                draw_img.draw_string( int(x1) , int(y1)-50, " " + labels[int(ids[i])] + " " + str(round(scores[i],2)) , color=(255,0,0,0), scale=4)
+                draw_img.draw_string( int(x1) , int(y1)-50, " " + labels[int(ids[i])] + " " + str(round(scores[i],2)) , color=color_four[int(ids[i])], scale=4)
             draw_img.copy_to(osd_img)
             display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
         else:
@@ -253,7 +275,7 @@ def media_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
 
-    media.buffer_config(config)
+    ret = media.buffer_config(config)
 
     global media_source, media_sink
     media_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
@@ -261,7 +283,9 @@ def media_init():
     media.create_link(media_source, media_sink)
 
     # 初始化多媒体buffer
-    media.buffer_init()
+    ret = media.buffer_init()
+    if ret:
+        return ret
     global buffer, draw_img, osd_img, masks
     buffer = media.request_buffer(4 * DISPLAY_WIDTH * DISPLAY_HEIGHT)
     # 图层1，用于画框
@@ -270,16 +294,16 @@ def media_init():
     # 图层2，用于拷贝画框结果，防止画框过程中发生buffer搬运
     osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, poolid=buffer.pool_id, alloc=image.ALLOC_VB,
                           phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr)
+    return ret
 
 # media 释放内存
 def media_deinit():
-    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
-    time.sleep_ms(100)
     global buffer,media_source, media_sink
     media.release_buffer(buffer)
     media.destroy_link(media_source, media_sink)
 
-    media.buffer_deinit()
+    ret = media.buffer_deinit()
+    return ret
 
 
 #**********for seg.py**********
@@ -289,34 +313,62 @@ def seg_inference():
     camera_init(CAM_DEV_ID_0)                                       # 初始化 camera
     display_init()                                                  # 初始化 display
 
+    rgb888p_img = None
     try:
-        media_init()
+        ret = media_init()
+        if ret:
+            print("seg, buffer init failed")
+            return ret
+
         camera_start(CAM_DEV_ID_0)
+        time.sleep(5)
+
+        count = 0
         while True:
-            os.exitpoint()
             with ScopedTiming("total",1):
                 rgb888p_img = camera_read(CAM_DEV_ID_0)             # 读取一帧图片
+                if rgb888p_img == -1:
+                    print("seg, capture_image failed")
+                    camera_release_image(CAM_DEV_ID_0,rgb888p_img)
+                    rgb888p_img = None
+                    continue
+
                 # for rgb888planar
                 if rgb888p_img.format() == image.RGBP888:
                     seg_res = kpu_run(kpu_seg,rgb888p_img)          # 执行多目标分割 kpu 运行 以及 后处理过程
                     display_draw(seg_res)                           # 将得到的分割结果 绘制到 display
 
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)      # camera 释放图像
-                gc.collect()
-    except KeyboardInterrupt as e:
-        print("user stop: ", e)
-    except BaseException as e:
-        sys.print_exception(e)
+                rgb888p_img = None
+
+                if (count > 5):
+                    gc.collect()
+                    count = 0
+                else:
+                    count += 1
+    except Exception as e:
         print(f"An error occurred during buffer used: {e}")
     finally:
+        if rgb888p_img is not None:
+            #先release掉申请的内存再stop
+            camera_release_image(CAM_DEV_ID_0,rgb888p_img)
+
         camera_stop(CAM_DEV_ID_0)                                   # 停止 camera
         display_deinit()                                            # 释放 display
-        kpu_deinit(kpu_seg)                                         # 释放 kpu
+        kpu_deinit()                                         # 释放 kpu
+        global current_kmodel_obj
+        del current_kmodel_obj
+        del kpu_seg
+
         gc.collect()
-        media_deinit()                                              # 释放 整个media
+        time.sleep(1)
+        ret = media_deinit()                                        # 释放 整个media
+        if ret:
+            print("seg, buffer_deinit failed")
+            return ret
 
     print("seg end")
+    return 0
 
 if __name__ == '__main__':
-    os.exitpoint(os.EXITPOINT_ENABLE)
     seg_inference()

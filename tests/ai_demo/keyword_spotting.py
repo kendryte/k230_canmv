@@ -7,7 +7,7 @@ import aidemo                                   # aidemo模块，封装ai demo�
 import time                                     # 时间统计
 import struct                                   # 字节字符转换模块
 import gc                                       # 垃圾回收模块
-import os, sys                                  # 操作系统接口模块
+import os                                       # 操作系统接口模块
 
 # key word spotting任务
 # 检测阈值
@@ -55,7 +55,9 @@ def init_kws():
         # 初始化音频流
         p = PyAudio()
         p.initialize(CHUNK)
-        media.buffer_init()
+        ret = media.buffer_init()
+        if ret:
+            print("record_audio, buffer_init failed")
         # 用于采集实时音频数据
         input_stream = p.open(
                         format=FORMAT,
@@ -81,6 +83,15 @@ def kpu_init_kws():
         kpu = nn.kpu()
         kpu.load_kmodel(kmodel_file_kws)
         return kpu
+
+# kws 释放kpu
+def kpu_deinit():
+    # kpu释放
+    with ScopedTiming("kpu_deinit",debug_mode > 0):
+        global current_kmodel_obj,audio_input_tensor,cache_input_tensor
+        del current_kmodel_obj
+        del audio_input_tensor
+        del cache_input_tensor
 
 # kws音频预处理
 def kpu_pre_process_kws(pcm_data_list):
@@ -140,7 +151,6 @@ def kws_inference():
     pcm_data_list = []
     try:
         while True:
-            os.exitpoint()
             with ScopedTiming("total", 1):
                 pcm_data_list.clear()
                 # 对实时音频流进行推理
@@ -153,12 +163,6 @@ def kws_inference():
                     pcm_data_list.append(float_pcm_data)
                 # kpu运行和后处理
                 kpu_run_kws(kpu_kws,pcm_data_list)
-            gc.collect()
-    except KeyboardInterrupt as e:
-        print("user stop: ", e)
-    except BaseException as e:
-        sys.print_exception(e)
-        print(f"An error occurred during buffer used: {e}")
     finally:
         input_stream.stop_stream()
         output_stream.stop_stream()
@@ -167,7 +171,8 @@ def kws_inference():
         p.terminate()
         media.buffer_deinit()
         aidemo.kws_fp_destroy(fp)
+        kpu_deinit()
+        del kpu_kws
 
 if __name__=="__main__":
-    os.exitpoint(os.EXITPOINT_ENABLE)
     kws_inference()

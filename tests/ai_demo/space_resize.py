@@ -28,13 +28,13 @@ hd_kmodel_input_shape = (1,3,512,512)                           # 手掌检测km
 confidence_threshold = 0.2                                      # 手掌检测阈值，用于过滤roi
 nms_threshold = 0.5                                             # 手掌检测框阈值，用于过滤重复roi
 hd_kmodel_frame_size = [512,512]                                # 手掌检测输入图片尺寸
-hd_frame_size = [OUT_RGB888P_WIDTH,OUT_RGB888P_HEIGHT]          # 手掌检测直接输入图片尺寸
+hd_frame_size = [OUT_RGB888P_WIDTH,OUT_RGB888P_HEIGHT]           # 手掌检测直接输入图片尺寸
 strides = [8,16,32]                                             # 输出特征图的尺寸与输入图片尺寸的比
 num_classes = 1                                                 # 手掌检测模型输出类别数
 nms_option = False                                              # 是否所有检测框一起做NMS，False则按照不同的类分别应用NMS
 
 root_dir = '/sdcard/app/tests/'
-hd_kmodel_file = root_dir + "kmodel/hand_det.kmodel"            # 手掌检测kmodel文件的路径
+hd_kmodel_file = root_dir + "kmodel/hand_det.kmodel"      # 手掌检测kmodel文件的路径
 anchors = [26,27, 53,52, 75,71, 80,99, 106,82, 99,134, 140,113, 161,172, 245,276]   #anchor设置
 
 #--------for hand keypoint detection----------
@@ -43,7 +43,7 @@ hk_kmodel_input_shape = (1,3,256,256)                           # 手掌关键�
 
 #kmodel相关参数设置
 hk_kmodel_frame_size = [256,256]                                # 手掌关键点检测输入图片尺寸
-hk_kmodel_file = root_dir + 'kmodel/handkp_det.kmodel'          # 手掌关键点检测kmodel文件的路径
+hk_kmodel_file = root_dir + 'kmodel/handkp_det.kmodel'    # 手掌关键点检测kmodel文件的路径
 
 debug_mode = 0                                                  # debug模式 大于0（调试）、 反之 （不调试）
 
@@ -67,6 +67,8 @@ class ScopedTiming:
 global current_kmodel_obj                                                   # 定义全局的 kpu 对象
 global hd_ai2d,hd_ai2d_input_tensor,hd_ai2d_output_tensor,hd_ai2d_builder   # 定义手掌检测全局 ai2d 对象，并且定义 ai2d 的输入、输出 以及 builder
 global hk_ai2d,hk_ai2d_input_tensor,hk_ai2d_output_tensor,hk_ai2d_builder   # 定义手掌关键点检测全局 ai2d 对象，并且定义 ai2d 的输入、输出 以及 builder
+global space_ai2d,space_ai2d_input_tensor,space_ai2d_output_tensor,space_ai2d_builder,space_draw_ai2d_release    # 定义缩放剪切图像全局 ai2d 对象，并且定义 ai2d 的输入、输出 以及 builder
+space_draw_ai2d_release = False
 
 #-------hand detect--------:
 # 手掌检测ai2d 初始化
@@ -95,6 +97,7 @@ def hd_ai2d_init():
         left = int(round(dw - 0.1))
         right = int(round(dw - 0.1))
 
+        # init kpu and load kmodel
         hd_ai2d = nn.ai2d()
         hd_ai2d.set_dtype(nn.ai2d_format.NCHW_FMT,
                                        nn.ai2d_format.NCHW_FMT,
@@ -108,7 +111,7 @@ def hd_ai2d_init():
 # 手掌检测 ai2d 运行
 def hd_ai2d_run(rgb888p_img):
     with ScopedTiming("hd_ai2d_run",debug_mode > 0):
-        global hd_ai2d_input_tensor, hd_ai2d_output_tensor, hd_ai2d_builder
+        global hd_ai2d_input_tensor,hd_ai2d_output_tensor,hd_ai2d_builder
         hd_ai2d_input = rgb888p_img.to_numpy_ref()
         hd_ai2d_input_tensor = nn.from_numpy(hd_ai2d_input)
 
@@ -158,7 +161,7 @@ def hd_kpu_run(kpu_obj,rgb888p_img):
     current_kmodel_obj = kpu_obj
     # (1)原图预处理，并设置模型输入
     hd_kpu_pre_process(rgb888p_img)
-    # (2)手掌检测 kpu 运行
+     # (2)手掌检测 kpu 运行
     with ScopedTiming("hd_kpu_run",debug_mode > 0):
         current_kmodel_obj.run()
     # (3)释放手掌检测 ai2d 资源
@@ -173,10 +176,10 @@ def hd_kpu_run(kpu_obj,rgb888p_img):
 # 手掌检测 kpu 释放内存
 def hd_kpu_deinit():
     with ScopedTiming("hd_kpu_deinit",debug_mode > 0):
-        global hd_ai2d, hd_ai2d_output_tensor, hd_ai2d_builder
+        global hd_ai2d, hd_ai2d_output_tensor,hd_ai2d_builder
         del hd_ai2d
-        del hd_ai2d_output_tensor
         del hd_ai2d_builder
+        del hd_ai2d_output_tensor
 
 #-------hand keypoint detection------:
 # 手掌关键点检测 ai2d 初始化
@@ -207,7 +210,7 @@ def hk_ai2d_run(rgb888p_img, x, y, w, h):
 # 手掌关键点检测 ai2d 释放内存
 def hk_ai2d_release():
     with ScopedTiming("hk_ai2d_release",debug_mode > 0):
-        global hk_ai2d_input_tensor, hk_ai2d_builder
+        global hk_ai2d_input_tensor,hk_ai2d_builder
         del hk_ai2d_input_tensor
         del hk_ai2d_builder
 
@@ -267,8 +270,50 @@ def hk_kpu_deinit():
         del hk_ai2d
         del hk_ai2d_output_tensor
 
+# 隔空缩放剪切 ai2d 初始化
+def space_ai2d_init():
+    with ScopedTiming("space_ai2d_init",debug_mode > 0):
+        global space_ai2d
+        space_ai2d = nn.ai2d()
+        space_ai2d.set_dtype(nn.ai2d_format.NCHW_FMT,
+                                       nn.ai2d_format.RGB_packed,
+                                       np.uint8, np.uint8)
+
+# 隔空缩放剪切 ai2d 运行
+def space_ai2d_run(rgb888p_img, x, y, w, h, out_w, out_h):
+    with ScopedTiming("space_ai2d_run",debug_mode > 0):
+        global space_ai2d,space_ai2d_input_tensor,space_ai2d_output_tensor,space_draw_ai2d_release
+        space_draw_ai2d_release = True
+        space_ai2d_input = rgb888p_img.to_numpy_ref()
+        space_ai2d_input_tensor = nn.from_numpy(space_ai2d_input)
+
+        space_ai2d.set_crop_param(True, x, y, w, h)
+        space_ai2d.set_resize_param(True, nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel )
+
+        data = np.ones((1,out_h, out_w,3), dtype=np.uint8)
+        space_ai2d_output_tensor = nn.from_numpy(data)
+
+        global space_ai2d_builder
+        space_ai2d_builder = space_ai2d.build([1,3,OUT_RGB888P_HEIGHT,OUT_RGB888P_WIDTH], [1,out_h, out_w,3])
+        space_ai2d_builder.run(space_ai2d_input_tensor, space_ai2d_output_tensor)
+
+        space_np_out = space_ai2d_output_tensor.to_numpy()
+        return space_np_out
+
+# 隔空缩放剪切 ai2d 释放内存
+def space_ai2d_release(re_ai2d):
+    with ScopedTiming("space_ai2d_release",debug_mode > 0):
+        global space_ai2d_input_tensor,space_ai2d_output_tensor,space_ai2d_builder,space_draw_ai2d_release,space_ai2d
+        if (space_draw_ai2d_release):
+            del space_ai2d_input_tensor
+            del space_ai2d_output_tensor
+            del space_ai2d_builder
+            space_draw_ai2d_release = False
+        if (re_ai2d):
+            del space_ai2d
+
 #media_utils.py
-global draw_img,osd_img                              		#for display 定义全局 作图image对象
+global draw_img,osd_img,masks                               #for display 定义全局 作图image对象
 global buffer,media_source,media_sink                       #for media   定义 media 程序中的中间存储对象
 
 #for display 初始化
@@ -280,34 +325,6 @@ def display_init():
 # display 释放内存
 def display_deinit():
     display.deinit()
-
-# display 作图过程 标出检测到的21个关键点并用不同颜色的线段连接
-def display_draw(results, x, y, w, h):
-    with ScopedTiming("display_draw",debug_mode >0):
-        global draw_img,osd_img
-
-        if results:
-            results_show = np.zeros(results.shape,dtype=np.int16)
-            results_show[0::2] = (results[0::2] * w + x) * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
-            results_show[1::2] = (results[1::2] * h + y) * DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT
-            for i in range(len(results_show)/2):
-                draw_img.draw_circle(results_show[i*2], results_show[i*2+1], 1, color=(255, 0, 255, 0),fill=False)
-            for i in range(5):
-                j = i*8
-                if i==0:
-                    R = 255; G = 0; B = 0
-                if i==1:
-                    R = 255; G = 0; B = 255
-                if i==2:
-                    R = 255; G = 255; B = 0
-                if i==3:
-                    R = 0; G = 255; B = 0
-                if i==4:
-                    R = 0; G = 0; B = 255
-                draw_img.draw_line(results_show[0], results_show[1], results_show[j+2], results_show[j+3], color=(255,R,G,B), thickness = 3)
-                draw_img.draw_line(results_show[j+2], results_show[j+3], results_show[j+4], results_show[j+5], color=(255,R,G,B), thickness = 3)
-                draw_img.draw_line(results_show[j+4], results_show[j+5], results_show[j+6], results_show[j+7], color=(255,R,G,B), thickness = 3)
-                draw_img.draw_line(results_show[j+6], results_show[j+7], results_show[j+8], results_show[j+9], color=(255,R,G,B), thickness = 3)
 
 #for camera 初始化
 def camera_init(dev_id):
@@ -359,10 +376,11 @@ def media_init():
     ret = media.buffer_init()
     if ret:
         return ret
-    global buffer, draw_img, osd_img
+    global buffer, draw_img, osd_img, masks
     buffer = media.request_buffer(4 * DISPLAY_WIDTH * DISPLAY_HEIGHT)
     # 图层1，用于画框
-    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_MPGC)
+    masks = np.zeros((DISPLAY_HEIGHT,DISPLAY_WIDTH,4),dtype=np.uint8)
+    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888,alloc=image.ALLOC_REF,data=masks)
     # 图层2，用于拷贝画框结果，防止画框过程中发生buffer搬运
     osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, poolid=buffer.pool_id, alloc=image.ALLOC_VB,
                           phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr)
@@ -377,81 +395,143 @@ def media_deinit():
     ret = media.buffer_deinit()
     return ret
 
-#**********for hand_keypoint_detect.py**********
-def hand_keypoint_detect_inference():
-    print("hand_keypoint_detect_test start")
+#**********for space_resize.py**********
+def space_resize_inference():
+    print("space_resize start")
     kpu_hand_detect = hd_kpu_init(hd_kmodel_file)                       # 创建手掌检测的 kpu 对象
     kpu_hand_keypoint_detect = hk_kpu_init(hk_kmodel_file)              # 创建手掌关键点检测的 kpu 对象
     camera_init(CAM_DEV_ID_0)                                           # 初始化 camera
     display_init()                                                      # 初始化 display
+    space_ai2d_init()                                                   # 初始化 隔空缩放剪切 ai2d 对象
 
     rgb888p_img = None
     try:
         ret = media_init()
         if ret:
-            print("hand_detect_test, buffer init failed")
+            print("space_resize, buffer init failed")
             return ret
 
         camera_start(CAM_DEV_ID_0)
+
+        global draw_img,osd_img
+        first_start = True                                              # 首次手掌入镜参数
+        two_point_left_x = 0                                            # 中指食指包括范围 x
+        two_point_top_y = 0                                             # 中指食指包括范围 y
+        two_point_mean_w = 0                                            # 中指食指首次入镜包括范围 w
+        two_point_mean_h = 0                                            # 中指食指首次入镜包括范围 h
+        two_point_crop_w = 0                                            # 中指食指包括范围 w
+        two_point_crop_h = 0                                            # 中指食指包括范围 h
+        osd_plot_x = 0                                                  # osd 画缩放图起始点 x
+        osd_plot_y = 0                                                  # osd 画缩放图起始点 y
+        ori_new_ratio = 0                                               # 缩放比例
+        new_resize_w = 0                                                # 缩放后 w
+        new_resize_h = 0                                                # 缩放后 h
+        crop_area = 0                                                   # 剪切区域
+        rect_frame_x = 0                                                # osd绘画起始点 x
+        rect_frame_y = 0                                                # osd绘画起始点 y
+
         count = 0
         while True:
             with ScopedTiming("total",1):
                 rgb888p_img = camera_read(CAM_DEV_ID_0)                 # 读取一帧图片
                 if rgb888p_img == -1:
-                    print("hand_detect_test, capture_image failed")
-                    camera_release_image(CAM_DEV_ID_0,rgb888p_img)
+                    print("space_resize, capture_image failed")
+                    #camera_release_image(CAM_DEV_ID_0,rgb888p_img)
                     rgb888p_img = None
                     continue
 
                 # for rgb888planar
                 if rgb888p_img.format() == image.RGBP888:
-                    dets = hd_kpu_run(kpu_hand_detect,rgb888p_img)                                                  # 执行手掌检测 kpu 运行 以及 后处理过程
+                    two_point = np.zeros((4),dtype=np.int16)
+                    dets_no_pro = hd_kpu_run(kpu_hand_detect,rgb888p_img)                      # 执行手掌检测 kpu 运行 以及 后处理过程
                     draw_img.clear()
 
-                    for det_box in dets:
-                        x1, y1, x2, y2 = int(det_box[2]),int(det_box[3]),int(det_box[4]),int(det_box[5])
-                        w = int(x2 - x1)
-                        h = int(y2 - y1)
+                    dets = []
+                    for det_box in dets_no_pro:
+                        if det_box[4] < OUT_RGB888P_WIDTH - 10 :
+                            dets.append(det_box)
 
-                        if (h<(0.1*OUT_RGB888P_HEIGHT)):
-                            continue
-                        if (w<(0.25*OUT_RGB888P_WIDTH) and ((x1<(0.03*OUT_RGB888P_WIDTH)) or (x2>(0.97*OUT_RGB888P_WIDTH)))):
-                            continue
-                        if (w<(0.15*OUT_RGB888P_WIDTH) and ((x1<(0.01*OUT_RGB888P_WIDTH)) or (x2>(0.99*OUT_RGB888P_WIDTH)))):
-                            continue
+                    if (len(dets)==1):
+                        for det_box in dets:
+                            x1, y1, x2, y2 = int(det_box[2]),int(det_box[3]),int(det_box[4]),int(det_box[5])
+                            w = int(x2 - x1)
+                            h = int(y2 - y1)
 
-                        w_det = int(float(x2 - x1) * DISPLAY_WIDTH // OUT_RGB888P_WIDTH)
-                        h_det = int(float(y2 - y1) * DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT)
-                        x_det = int(x1*DISPLAY_WIDTH // OUT_RGB888P_WIDTH)
-                        y_det = int(y1*DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT)
+                            if (h<(0.1*OUT_RGB888P_HEIGHT)):
+                                continue
+                            if (w<(0.25*OUT_RGB888P_WIDTH) and ((x1<(0.03*OUT_RGB888P_WIDTH)) or (x2>(0.97*OUT_RGB888P_WIDTH)))):
+                                continue
+                            if (w<(0.15*OUT_RGB888P_WIDTH) and ((x1<(0.01*OUT_RGB888P_WIDTH)) or (x2>(0.99*OUT_RGB888P_WIDTH)))):
+                                continue
 
-                        length = max(w,h)/2
-                        cx = (x1+x2)/2
-                        cy = (y1+y2)/2
-                        ratio_num = 1.26*length
+                            length = max(w,h)/2
+                            cx = (x1+x2)/2
+                            cy = (y1+y2)/2
+                            ratio_num = 1.26*length
 
-                        x1_kp = int(max(0,cx-ratio_num))
-                        y1_kp = int(max(0,cy-ratio_num))
-                        x2_kp = int(min(OUT_RGB888P_WIDTH-1, cx+ratio_num))
-                        y2_kp = int(min(OUT_RGB888P_HEIGHT-1, cy+ratio_num))
-                        w_kp = int(x2_kp - x1_kp + 1)
-                        h_kp = int(y2_kp - y1_kp + 1)
+                            x1_kp = int(max(0,cx-ratio_num))
+                            y1_kp = int(max(0,cy-ratio_num))
+                            x2_kp = int(min(OUT_RGB888P_WIDTH-1, cx+ratio_num))
+                            y2_kp = int(min(OUT_RGB888P_HEIGHT-1, cy+ratio_num))
+                            w_kp = int(x2_kp - x1_kp + 1)
+                            h_kp = int(y2_kp - y1_kp + 1)
 
-                        hk_results = hk_kpu_run(kpu_hand_keypoint_detect,rgb888p_img, x1_kp, y1_kp, w_kp, h_kp)     # 执行手掌关键点检测 kpu 运行 以及 后处理过程
+                            hk_results = hk_kpu_run(kpu_hand_keypoint_detect,rgb888p_img, x1_kp, y1_kp, w_kp, h_kp)     # 执行手掌关键点检测 kpu 运行 以及 后处理过程
 
-                        draw_img.draw_rectangle(x_det, y_det, w_det, h_det, color=(255, 0, 255, 0), thickness = 2)  # 将得到的手掌检测结果 绘制到 display
-                        display_draw(hk_results[0], x1_kp, y1_kp, w_kp, h_kp)                                       # 将得到的手掌关键点检测结果 绘制到 display
+                            results_show = np.zeros(hk_results[0].shape,dtype=np.int16)
+                            results_show[0::2] = hk_results[0][0::2] * w_kp + x1_kp
+                            results_show[1::2] = hk_results[0][1::2] * h_kp + y1_kp
+
+                            two_point[0] = results_show[8]
+                            two_point[1] = results_show[9]
+                            two_point[2] = results_show[16+8]
+                            two_point[3] = results_show[16+9]
+
+                        if (first_start):
+                            if (two_point[0] > 0 and two_point[0] < OUT_RGB888P_WIDTH and two_point[2] > 0 and two_point[2] < OUT_RGB888P_WIDTH and two_point[1] > 0 and two_point[1] < OUT_RGB888P_HEIGHT and two_point[3] > 0 and two_point[3] < OUT_RGB888P_HEIGHT):
+                                two_point_mean_w = np.sqrt(pow(two_point[0] - two_point[2],2) + pow(two_point[1] - two_point[3],2))*0.8
+                                two_point_mean_h = np.sqrt(pow(two_point[0] - two_point[2],2) + pow(two_point[1] - two_point[3],2))*0.8
+                                first_start = False
+                        else:
+                            two_point_left_x = int(max((two_point[0] + two_point[2]) / 2 - two_point_mean_w / 2, 0))
+                            two_point_top_y = int(max((two_point[1] + two_point[3]) / 2 - two_point_mean_h / 2, 0))
+                            two_point_crop_w = int(min(min((two_point[0] + two_point[2]) / 2 - two_point_mean_w / 2 + two_point_mean_w , two_point_mean_w), OUT_RGB888P_WIDTH - ((two_point[0] + two_point[2]) / 2 - two_point_mean_w / 2)))
+                            two_point_crop_h = int(min(min((two_point[1] + two_point[3]) / 2 - two_point_mean_h / 2 + two_point_mean_h , two_point_mean_h), OUT_RGB888P_HEIGHT - ((two_point[1] + two_point[3]) / 2 - two_point_mean_h / 2)))
+
+                            ori_new_ratio = np.sqrt(pow((two_point[0] - two_point[2]),2) + pow((two_point[1] - two_point[3]),2))*0.8 / two_point_mean_w
+
+                            new_resize_w = min(int(two_point_crop_w * ori_new_ratio / OUT_RGB888P_WIDTH * DISPLAY_WIDTH),600)
+                            new_resize_h = min(int(two_point_crop_h * ori_new_ratio / OUT_RGB888P_HEIGHT * DISPLAY_HEIGHT),600)
+
+                            rect_frame_x = int(two_point_left_x * 1.0 / OUT_RGB888P_WIDTH * DISPLAY_WIDTH)
+                            rect_frame_y = int(two_point_top_y * 1.0 / OUT_RGB888P_HEIGHT * DISPLAY_HEIGHT)
+
+                            draw_w = min(new_resize_w,DISPLAY_WIDTH-rect_frame_x-1)
+                            draw_h = min(new_resize_h,DISPLAY_HEIGHT-rect_frame_y-1)
+
+                            space_np_out = space_ai2d_run(rgb888p_img, two_point_left_x, two_point_top_y, two_point_crop_w, two_point_crop_h, new_resize_w, new_resize_h)      # 运行 隔空缩放检测 ai2d
+                            global masks
+                            masks[rect_frame_y:rect_frame_y + draw_h,rect_frame_x:rect_frame_x + draw_w,0] = 255
+                            masks[rect_frame_y:rect_frame_y + draw_h,rect_frame_x:rect_frame_x + draw_w,1:4] = space_np_out[0][0:draw_h,0:draw_w,:]
+                            space_ai2d_release(False)                       # 释放 隔空缩放检测 ai2d 相关对象
+
+
+                            draw_img.draw_rectangle(rect_frame_x, rect_frame_y, new_resize_w, new_resize_h, color=(255, 0, 255, 0),thickness = 4)
+                    else:
+                        draw_img.draw_string( 300 , 500, "Must have one hand !", color=(255,255,0,0), scale=7)
+                        first_start = True
 
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)         # camera 释放图像
                 rgb888p_img = None
-                if (count>10):
+
+                if (count > 5):
                     gc.collect()
                     count = 0
                 else:
                     count += 1
 
-            draw_img.copy_to(osd_img)
-            display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
+                draw_img.copy_to(osd_img)
+                display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
     except Exception as e:
         print(f"An error occurred during buffer used: {e}")
     finally:
@@ -461,20 +541,22 @@ def hand_keypoint_detect_inference():
 
         camera_stop(CAM_DEV_ID_0)                                       # 停止 camera
         display_deinit()                                                # 释放 display
-        hd_kpu_deinit()                                                 # 释放手掌检测 kpu
-        hk_kpu_deinit()                                                 # 释放手掌关键点检测 kpu
+        space_ai2d_release(True)                                        # 释放 隔空缩放检测 ai2d 相关对象
+        hd_kpu_deinit()                                  # 释放手掌检测 kpu
+        hk_kpu_deinit()                         # 释放手掌关键点检测 kpu
         global current_kmodel_obj
         del current_kmodel_obj
         del kpu_hand_detect
         del kpu_hand_keypoint_detect
+
         gc.collect()
         ret = media_deinit()                                            # 释放 整个media
         if ret:
-            print("hand_detect_test, buffer_deinit failed")
+            print("space_resize, buffer_deinit failed")
             return ret
 
-    print("hand_detect_test end")
+    print("space_resize end")
     return 0
 
 if __name__ == '__main__':
-    hand_keypoint_detect_inference()
+    space_resize_inference()

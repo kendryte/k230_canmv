@@ -7,7 +7,6 @@ import aidemo                            #aidemo模块，封装ai demo相关后�
 import image                             #图像模块，主要用于读取、图像绘制元素（框、点等）等操作
 import time                              #时间统计
 import gc                                #垃圾回收模块
-import os, sys                           #操作系统接口模块
 
 #********************for config.py********************
 # display分辨率
@@ -196,12 +195,11 @@ def kpu_run(kpu_obj,rgb888p_img):
         return post_ret[0]
 
 
-def kpu_deinit(kpu_obj):
+def kpu_deinit():
     # kpu释放
     with ScopedTiming("kpu_deinit",debug_mode > 0):
         global ai2d,ai2d_output_tensor
-        del kpu_obj                  #删除kpu_obj变量，释放对它所引用对象的内存引用
-        del ai2d                    #删除ai2d变量，释放对它所引用对象的内存引用
+        del ai2d                      #删除ai2d变量，释放对它所引用对象的内存引用
         del ai2d_output_tensor        #删除ai2d_output_tensor变量，释放对它所引用对象的内存引用
 
 #********************for media_utils.py********************
@@ -227,7 +225,7 @@ def display_draw(dets):
             for det in dets:
                 x, y, w, h = map(lambda x: int(round(x, 0)), det[:4])
                 x = x * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
-                y = y * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
+                y = y * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
                 w = w * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
                 h = h * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
                 draw_img.draw_rectangle(x,y, w, h, color=(255, 255, 0, 255), thickness = 2)
@@ -279,7 +277,7 @@ def media_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
 
-    media.buffer_config(config)
+    ret = media.buffer_config(config)
 
     global media_source, media_sink
     media_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
@@ -287,24 +285,26 @@ def media_init():
     media.create_link(media_source, media_sink)
 
     # 初始化媒体buffer
-    media.buffer_init()
+    ret = media.buffer_init()
+    if ret:
+        return ret
     global buffer, draw_img, osd_img
     buffer = media.request_buffer(4 * DISPLAY_WIDTH * DISPLAY_HEIGHT)
     # 用于画框
-    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
+    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_MPGC)
     # 用于拷贝画框结果，防止画框过程中发生buffer搬运
     osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, poolid=buffer.pool_id, alloc=image.ALLOC_VB,
                           phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr)
+    return ret
 
 def media_deinit():
-    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
-    time.sleep_ms(100)
     # meida资源释放
     global buffer,media_source, media_sink
     media.release_buffer(buffer)
     media.destroy_link(media_source, media_sink)
 
-    media.buffer_deinit()
+    ret = media.buffer_deinit()
+    return ret
 
 
 #********************for face_detect.py********************
@@ -317,18 +317,29 @@ def face_detect_inference():
     # 显示初始化
     display_init()
 
+    rgb888p_img = None
     # 注意：将一定要将一下过程包在try中，用于保证程序停止后，资源释放完毕；确保下次程序仍能正常运行
     try:
         # 注意：媒体初始化（注：媒体初始化必须在camera_start之前，确保media缓冲区已配置完全）
-        media_init()
+        ret = media_init()
+        if ret:
+            print("face_detect_test, buffer init failed")
+            return ret
         # 启动camera
         camera_start(CAM_DEV_ID_0)
+        time.sleep(5)
+        gc_count = 0
         while True:
-            os.exitpoint()
             with ScopedTiming("total",1):
                 # （1）读取一帧图像
                 rgb888p_img = camera_read(CAM_DEV_ID_0)
-                # （2）
+                # （2）若读取失败，释放当前帧
+                if rgb888p_img == -1:
+                    print("face_detect_test, capture_image failed")
+                    camera_release_image(CAM_DEV_ID_0,rgb888p_img)
+                    rgb888p_img = None
+                    continue
+
                 # （3）若读取成功，推理当前帧
                 if rgb888p_img.format() == image.RGBP888:
                     # （3.1）推理当前图像，并获取检测结果
@@ -338,27 +349,41 @@ def face_detect_inference():
 
                 # （4）释放当前帧
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)
-                gc.collect()
-    except KeyboardInterrupt as e:
-        print("user stop: ", e)
-    except BaseException as e:
-        sys.print_exception(e)
+                rgb888p_img = None
+                if gc_count > 5:
+                    gc.collect()
+                    gc_count = 0
+                else:
+                    gc_count += 1
+    except Exception as e:
         # 捕捉运行运行中异常，并打印错误
         print(f"An error occurred during buffer used: {e}")
     finally:
+        # 释放当前帧
+        if rgb888p_img is not None:
+            #先release掉申请的内存再stop
+            camera_release_image(CAM_DEV_ID_0,rgb888p_img)
+
         # 停止camera
         camera_stop(CAM_DEV_ID_0)
         # 释放显示资源
         display_deinit()
         # 释放kpu资源
-        kpu_deinit(kpu_face_detect)
+        kpu_deinit()
+        global current_kmodel_obj
+        del current_kmodel_obj
+        del kpu_face_detect
         # 垃圾回收
         gc.collect()
+        time.sleep(1)
         # 释放媒体资源
-        media_deinit()
+        ret = media_deinit()
+        if ret:
+            print("face_detect_test, buffer_deinit failed")
+            return ret
 
     print("face_detect_test end")
+    return 0
 
 if __name__ == '__main__':
-    os.exitpoint(os.EXITPOINT_ENABLE)
     face_detect_inference()

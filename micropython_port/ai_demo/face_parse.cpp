@@ -42,25 +42,25 @@ cv::Mat matrix_dst_for_osd_;
 // 15: 'ear_r'	16: 'neck_l'	17: 'neck'
 // 18: 'cloth'		
 cv::Vec4b color_list_for_osd_pixel[] = {
-    cv::Vec4b(60, 20, 220, 255),    //background， 注意：颜色顺序改为BGR-A
-    cv::Vec4b(142, 0, 0, 255),		//skin
-    cv::Vec4b(32, 11, 119, 255),    //nose
-    cv::Vec4b(230, 0, 0, 255),      //eye_g
-    cv::Vec4b(228, 0, 106, 255),	//l_eye
-    cv::Vec4b(100, 60, 0, 255),     //r_eye
-    cv::Vec4b(100, 80, 0, 255),     //l_brow
-    cv::Vec4b(70, 0, 0, 255),       //r_brow
-    cv::Vec4b(192, 0, 0, 255),      //l_ear
-    cv::Vec4b(30, 170, 250, 255),   //r_ear
-    cv::Vec4b(30, 170, 100, 255),   //mouth
-    cv::Vec4b(0, 220, 220, 255),    //u_lip
-    cv::Vec4b(175, 116, 175, 255),  //l_lip
-    cv::Vec4b(30, 0, 250, 255),     //hair
-    cv::Vec4b(42, 42, 165, 255),    //hat
-    cv::Vec4b(255, 77, 255, 255),   //ear_r
-    cv::Vec4b(252, 226, 0, 255),    //neck_l
-    cv::Vec4b(255, 182, 182, 255),  //neck
-    cv::Vec4b(0, 82, 0, 255)        //cloth
+	cv::Vec4b(255,220,20,60), //background， 注意：颜色顺序改为A-RGB
+    cv::Vec4b(255,0,0,142),//skin
+    cv::Vec4b(255,119,11,32), //nose
+    cv::Vec4b(255,0,0,230), //eye_g
+    cv::Vec4b(255,106,0,228),//l_eye
+    cv::Vec4b(255,0,60,100), //r_eye
+    cv::Vec4b(255,0,80,100), //l_brow
+    cv::Vec4b(255,0,0,70), //r_brow
+    cv::Vec4b(255,0,0,192), //l_ear
+    cv::Vec4b(255,250,170,30), //r_ear
+    cv::Vec4b(255,100,170,30), //mouth
+    cv::Vec4b(255,220,220,0), //u_lip
+    cv::Vec4b(255,175,116,175), //l_lip
+    cv::Vec4b(255,250,0,30), //hair
+    cv::Vec4b(255,165,42,42), //hat
+    cv::Vec4b(255,255,77,255), //ear_r
+    cv::Vec4b(255,0,226,252), //neck_l
+    cv::Vec4b(255,182,182,255), //neck
+    cv::Vec4b(255,0,82,0) //cloth
 };
 
 void get_affine_matrix_for_osd(Bbox& bbox)
