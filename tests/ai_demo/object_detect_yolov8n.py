@@ -193,7 +193,7 @@ def ai2d_init():
 # ai2d 运行
 def ai2d_run(rgb888p_img):
     with ScopedTiming("ai2d_run",debug_mode > 0):
-        global ai2d_input_tensor,ai2d_out_tensor
+        global ai2d_input_tensor,ai2d_out_tensor,ai2d_builder
         ai2d_input = rgb888p_img.to_numpy_ref()
         ai2d_input_tensor = nn.from_numpy(ai2d_input)
 
@@ -257,11 +257,11 @@ def kpu_run(kpu_obj,rgb888p_img):
     return dets
 
 # kpu 释放内存
-def kpu_deinit(kpu_obj):
+def kpu_deinit():
     with ScopedTiming("kpu_deinit",debug_mode > 0):
-        global ai2d,ai2d_out_tensor
-        del kpu_obj
+        global ai2d,ai2d_out_tensor,ai2d_builder
         del ai2d
+        del ai2d_builder
         del ai2d_out_tensor
 
 #media_utils.py
@@ -289,7 +289,7 @@ def display_draw(dets):
                 w = (x2 - x1) * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
                 h = (y2 - y1) * DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT
                 draw_img.draw_rectangle(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH,
-                                        y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT, w, h, color=color_four[int(det[5])],thickness=2)
+                                        y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT, w, h, color=color_four[int(det[5])],thickness=4)
                 draw_img.draw_string( int(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH) , int(y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT)-50,
                                          " " + labels[int(det[5])] + " " + str(round(det[4],2)) , color=color_four[int(det[5])] , scale=4)
             draw_img.copy_to(osd_img)
@@ -384,6 +384,8 @@ def ob_detect_inference():
 
         camera_start(CAM_DEV_ID_0)
         time.sleep(5)
+
+        count = 0
         while True:
             with ScopedTiming("total",1):
                 rgb888p_img = camera_read(CAM_DEV_ID_0)             # 读取一帧图片
@@ -400,7 +402,12 @@ def ob_detect_inference():
 
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)      # camera 释放图像
                 rgb888p_img = None
-                # gc.collect()
+
+                if (count > 5):
+                    gc.collect()
+                    count = 0
+                else:
+                    count += 1
     except Exception as e:
         print(f"An error occurred during buffer used: {e}")
     finally:
@@ -410,7 +417,11 @@ def ob_detect_inference():
 
         camera_stop(CAM_DEV_ID_0)                                   # 停止camera
         display_deinit()                                            # 释放 display
-        kpu_deinit(kpu_ob_detect)                                   # 释放 kpu
+        kpu_deinit()                                                # 释放 kpu
+        global current_kmodel_obj
+        del current_kmodel_obj
+        del kpu_ob_detect
+
         gc.collect()
         time.sleep(1)
         ret = media_deinit()                                        # 释放 整个media

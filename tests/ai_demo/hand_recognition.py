@@ -18,7 +18,7 @@ DISPLAY_HEIGHT = 1080
 
 ##ai原图分辨率输入
 OUT_RGB888P_WIDTH = ALIGN_UP(1920, 16)
-OUT_RGB888P_HEIGH = 1080
+OUT_RGB888P_HEIGHT = 1080
 
 #--------for hand detection----------
 #kmodel输入shape
@@ -28,13 +28,13 @@ hd_kmodel_input_shape = (1,3,512,512)                           # 手掌检测km
 confidence_threshold = 0.2                                      # 手掌检测阈值，用于过滤roi
 nms_threshold = 0.5                                             # 手掌检测框阈值，用于过滤重复roi
 hd_kmodel_frame_size = [512,512]                                # 手掌检测输入图片尺寸
-hd_frame_size = [OUT_RGB888P_WIDTH,OUT_RGB888P_HEIGH]           # 手掌检测直接输入图片尺寸
+hd_frame_size = [OUT_RGB888P_WIDTH,OUT_RGB888P_HEIGHT]          # 手掌检测直接输入图片尺寸
 strides = [8,16,32]                                             # 输出特征图的尺寸与输入图片尺寸的比
 num_classes = 1                                                 # 手掌检测模型输出类别数
 nms_option = False                                              # 是否所有检测框一起做NMS，False则按照不同的类分别应用NMS
 
 root_dir = '/sdcard/app/tests/'
-hd_kmodel_file = root_dir + 'kmodel/hand_det.kmodel'      # 手掌检测kmodel文件的路径
+hd_kmodel_file = root_dir + 'kmodel/hand_det.kmodel'            # 手掌检测kmodel文件的路径
 anchors = [26,27, 53,52, 75,71, 80,99, 106,82, 99,134, 140,113, 161,172, 245,276]   #anchor设置
 
 #--------for hand recognition----------
@@ -45,7 +45,7 @@ hr_kmodel_input_shape = (1,3,224,224)                           # 手势识别km
 hr_kmodel_frame_size = [224,224]                                # 手势识别输入图片尺寸
 labels = ["gun","other","yeah","five"]                          # 模型输出类别名称
 
-hr_kmodel_file = root_dir + "kmodel/hand_reco.kmodel"     # 手势识别kmodel文件的路径
+hr_kmodel_file = root_dir + "kmodel/hand_reco.kmodel"           # 手势识别kmodel文件的路径
 
 debug_mode = 0                                                  # debug模式 大于0（调试）、 反之 （不调试）
 
@@ -79,7 +79,7 @@ def hd_ai2d_init():
         global hd_ai2d_output_tensor
         # 计算padding值
         ori_w = OUT_RGB888P_WIDTH
-        ori_h = OUT_RGB888P_HEIGH
+        ori_h = OUT_RGB888P_HEIGHT
         width = hd_kmodel_frame_size[0]
         height = hd_kmodel_frame_size[1]
         ratiow = float(width) / ori_w
@@ -97,21 +97,20 @@ def hd_ai2d_init():
         left = int(round(dw - 0.1))
         right = int(round(dw - 0.1))
 
-        # init kpu and load kmodel
         hd_ai2d = nn.ai2d()
         hd_ai2d.set_dtype(nn.ai2d_format.NCHW_FMT,
                                        nn.ai2d_format.NCHW_FMT,
                                        np.uint8, np.uint8)
         hd_ai2d.set_pad_param(True, [0,0,0,0,top,bottom,left,right], 0, [114,114,114])
         hd_ai2d.set_resize_param(True, nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel )
-        hd_ai2d_builder = hd_ai2d.build([1,3,OUT_RGB888P_HEIGH,OUT_RGB888P_WIDTH], [1,3,height,width])
+        hd_ai2d_builder = hd_ai2d.build([1,3,OUT_RGB888P_HEIGHT,OUT_RGB888P_WIDTH], [1,3,height,width])
         data = np.ones(hd_kmodel_input_shape, dtype=np.uint8)
         hd_ai2d_output_tensor = nn.from_numpy(data)
 
 # 手掌检测 ai2d 运行
 def hd_ai2d_run(rgb888p_img):
     with ScopedTiming("hd_ai2d_run",debug_mode > 0):
-        global hd_ai2d_input_tensor,hd_ai2d_output_tensor
+        global hd_ai2d_input_tensor, hd_ai2d_output_tensor, hd_ai2d_builder
         hd_ai2d_input = rgb888p_img.to_numpy_ref()
         hd_ai2d_input_tensor = nn.from_numpy(hd_ai2d_input)
 
@@ -174,12 +173,12 @@ def hd_kpu_run(kpu_obj,rgb888p_img):
     return dets
 
 # 手掌检测 kpu 释放内存
-def hd_kpu_deinit(kpu_obj):
+def hd_kpu_deinit():
     with ScopedTiming("hd_kpu_deinit",debug_mode > 0):
-        global hd_ai2d, hd_ai2d_output_tensor
-        del kpu_obj
+        global hd_ai2d, hd_ai2d_output_tensor, hd_ai2d_builder
         del hd_ai2d
         del hd_ai2d_output_tensor
+        del hd_ai2d_builder
 
 #-------hand recognition--------:
 # 手势识别 ai2d 初始化
@@ -204,14 +203,15 @@ def hr_ai2d_run(rgb888p_img, x, y, w, h):
         hr_ai2d.set_resize_param(True, nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel )
 
         global hr_ai2d_builder
-        hr_ai2d_builder = hr_ai2d.build([1,3,OUT_RGB888P_HEIGH,OUT_RGB888P_WIDTH], [1,3,hr_kmodel_frame_size[1],hr_kmodel_frame_size[0]])
+        hr_ai2d_builder = hr_ai2d.build([1,3,OUT_RGB888P_HEIGHT,OUT_RGB888P_WIDTH], [1,3,hr_kmodel_frame_size[1],hr_kmodel_frame_size[0]])
         hr_ai2d_builder.run(hr_ai2d_input_tensor, hr_ai2d_output_tensor)
 
 # 手势识别 ai2d 释放内存
 def hr_ai2d_release():
     with ScopedTiming("hr_ai2d_release",debug_mode > 0):
-        global hr_ai2d_input_tensor
+        global hr_ai2d_input_tensor, hr_ai2d_builder
         del hr_ai2d_input_tensor
+        del hr_ai2d_builder
 
 # 手势识别 kpu 初始化
 def hr_kpu_init(hr_kmodel_file):
@@ -278,15 +278,14 @@ def hr_kpu_run(kpu_obj,rgb888p_img, x, y, w, h):
     return result
 
 # 手势识别 kpu 释放内存
-def hr_kpu_deinit(kpu_obj):
+def hr_kpu_deinit():
     with ScopedTiming("hr_kpu_deinit",debug_mode > 0):
         global hr_ai2d, hr_ai2d_output_tensor
-        del kpu_obj
         del hr_ai2d
         del hr_ai2d_output_tensor
 
 #media_utils.py
-global draw_img,osd_img,masks                               #for display 定义全局 作图image对象
+global draw_img,osd_img                                     #for display 定义全局 作图image对象
 global buffer,media_source,media_sink                       #for media   定义 media 程序中的中间存储对象
 
 #for display 初始化
@@ -308,7 +307,7 @@ def camera_init(dev_id):
     camera.set_outfmt(dev_id, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
 
     # set chn2 output rgb88planar
-    camera.set_outsize(dev_id, CAM_CHN_ID_2, OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGH)
+    camera.set_outsize(dev_id, CAM_CHN_ID_2, OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGHT)
     camera.set_outfmt(dev_id, CAM_CHN_ID_2, PIXEL_FORMAT_RGB_888_PLANAR)
 
 # camera 开启
@@ -383,6 +382,7 @@ def hand_recognition_inference():
             return ret
 
         camera_start(CAM_DEV_ID_0)
+        count = 0
         while True:
             with ScopedTiming("total",1):
                 rgb888p_img = camera_read(CAM_DEV_ID_0)                 # 读取一帧图片
@@ -394,25 +394,25 @@ def hand_recognition_inference():
 
                 # for rgb888planar
                 if rgb888p_img.format() == image.RGBP888:
-                    dets = hd_kpu_run(kpu_hand_detect,rgb888p_img)                      # 执行手掌检测 kpu 运行 以及 后处理过程
+                    dets = hd_kpu_run(kpu_hand_detect,rgb888p_img)                                                  # 执行手掌检测 kpu 运行 以及 后处理过程
                     draw_img.clear()
 
                     for det_box in dets:
                         x1, y1, x2, y2 = det_box[2],det_box[3],det_box[4],det_box[5]
-                        w = int(float(x2 - x1) * DISPLAY_WIDTH // OUT_RGB888P_WIDTH)
-                        h = int(float(y2 - y1) * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH)
+                        w = int(x2 - x1)
+                        h = int(y2 - y1)
 
-                        x1 = int(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH)
-                        y1 = int(y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH)
-                        x2 = int(x2 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH)
-                        y2 = int(y2 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH)
+                        if (h<(0.1*OUT_RGB888P_HEIGHT)):
+                            continue
+                        if (w<(0.25*OUT_RGB888P_WIDTH) and ((x1<(0.03*OUT_RGB888P_WIDTH)) or (x2>(0.97*OUT_RGB888P_WIDTH)))):
+                            continue
+                        if (w<(0.15*OUT_RGB888P_WIDTH) and ((x1<(0.01*OUT_RGB888P_WIDTH)) or (x2>(0.99*OUT_RGB888P_WIDTH)))):
+                            continue
 
-                        if (h<(0.1*DISPLAY_HEIGHT)):
-                            continue
-                        if (w<(0.25*DISPLAY_WIDTH) and ((x1<(0.03*DISPLAY_WIDTH)) or (x2>(0.97*DISPLAY_WIDTH)))):
-                            continue
-                        if (w<(0.15*DISPLAY_WIDTH) and ((x1<(0.01*DISPLAY_WIDTH)) or (x2>(0.99*DISPLAY_WIDTH)))):
-                            continue
+                        w_det = int(float(x2 - x1) * DISPLAY_WIDTH // OUT_RGB888P_WIDTH)
+                        h_det = int(float(y2 - y1) * DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT)
+                        x_det = int(x1*DISPLAY_WIDTH // OUT_RGB888P_WIDTH)
+                        y_det = int(y1*DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT)
 
                         length = max(w,h)/2
                         cx = (x1+x2)/2
@@ -421,19 +421,23 @@ def hand_recognition_inference():
 
                         x1_kp = int(max(0,cx-ratio_num))
                         y1_kp = int(max(0,cy-ratio_num))
-                        x2_kp = int(min(DISPLAY_WIDTH-1, cx+ratio_num))
-                        y2_kp = int(min(DISPLAY_HEIGHT-1, cy+ratio_num))
+                        x2_kp = int(min(OUT_RGB888P_WIDTH-1, cx+ratio_num))
+                        y2_kp = int(min(OUT_RGB888P_HEIGHT-1, cy+ratio_num))
                         w_kp = int(x2_kp - x1_kp + 1)
                         h_kp = int(y2_kp - y1_kp + 1)
 
-                        hr_results = hr_kpu_run(kpu_hand_recognition,rgb888p_img, x1_kp, y1_kp, w_kp, h_kp)     # 执行手势识别 kpu 运行 以及 后处理过程
+                        hr_results = hr_kpu_run(kpu_hand_recognition,rgb888p_img, x1_kp, y1_kp, w_kp, h_kp)          # 执行手势识别 kpu 运行 以及 后处理过程
+                        draw_img.draw_rectangle(x_det, y_det, w_det, h_det, color=(255, 0, 255, 0), thickness = 2)   # 将得到的手掌检测结果 绘制到 display
+                        draw_img.draw_string( x_det, y_det-50, hr_results, color=(255,0, 255, 0), scale=4)           # 将得到的手势识别结果 绘制到 display
 
-                        draw_img.draw_rectangle(x1, y1, w, h, color=(255, 0, 255, 0),thickness = 2)                           # 将得到的检测结果 绘制到 display
-                        draw_img.draw_string( x1 , y1-50, hr_results, color=(255,0, 255, 0), scale=4)           # 将得到的识别结果 绘制到 display
-
-                camera_release_image(CAM_DEV_ID_0,rgb888p_img)         # camera 释放图像
+                camera_release_image(CAM_DEV_ID_0,rgb888p_img)          # camera 释放图像
                 rgb888p_img = None
-                #gc.collect()
+                if (count>10):
+                    gc.collect()
+                    count = 0
+                else:
+                    count += 1
+
             draw_img.copy_to(osd_img)
             display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
     except Exception as e:
@@ -445,8 +449,13 @@ def hand_recognition_inference():
 
         camera_stop(CAM_DEV_ID_0)                                       # 停止 camera
         display_deinit()                                                # 释放 display
-        hd_kpu_deinit(kpu_hand_detect)                                  # 释放手掌检测 kpu
-        hr_kpu_deinit(kpu_hand_recognition)                             # 释放手势识别 kpu
+        hd_kpu_deinit()                                                 # 释放手掌检测 kpu
+        hr_kpu_deinit()                                                 # 释放手势识别 kpu
+        global current_kmodel_obj
+        del current_kmodel_obj
+        del kpu_hand_detect
+        del kpu_hand_recognition
+
         gc.collect()
         ret = media_deinit()                                            # 释放 整个media
         if ret:

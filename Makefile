@@ -131,6 +131,12 @@ build-image: micropython
 	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/kws.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
 	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_alignment.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
 	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_alignment_post.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/eye_gaze.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/yolov5n-falldown.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/cropped_test127.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/nanotrack_backbone_sim.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/nanotracker_head_calib_k230.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
+	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/gesture.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
 	@make -C k230_sdk build-image
 
 .PHONY: micropython-clean

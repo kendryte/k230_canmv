@@ -216,11 +216,10 @@ def fd_kpu_run(kpu_obj,rgb888p_img):
     else:
         return post_ret[0]          #0:det,1:landm,2:score
 
-def fd_kpu_deinit(kpu_obj):
+def fd_kpu_deinit():
     # kpu释放
     with ScopedTiming("fd_kpu_deinit",debug_mode > 0):
         global fd_ai2d, fd_ai2d_output_tensor
-        del kpu_obj               #删除人脸检测kpu_obj变量，释放对它所引用对象的内存引用
         del fd_ai2d               #删除人脸检测ai2d变量，释放对它所引用对象的内存引用
         del fd_ai2d_output_tensor #删除人脸检测ai2d_output_tensor变量，释放对它所引用对象的内存引用
 
@@ -339,11 +338,10 @@ def fm_kpu_run(kpu_obj,rgb888p_img,det):
     param = fm_kpu_post_process(param)
     return param
 
-def fm_kpu_deinit(kpu_obj):
+def fm_kpu_deinit():
     # 人脸mesh kpu释放
     with ScopedTiming("fm_kpu_deinit",debug_mode > 0):
         global fm_ai2d,fm_ai2d_output_tensor
-        del kpu_obj               # 删除kpu_obj变量，释放对它所引用对象的内存引用
         del fm_ai2d               # 删除fm_ai2d变量，释放对它所引用对象的内存引用
         del fm_ai2d_output_tensor # 删除fm_ai2d_output_tensor变量，释放对它所引用对象的内存引用
 
@@ -423,12 +421,6 @@ def fmpost_kpu_run(kpu_obj,param):
     global roi
     fmpost_kpu_post_process(roi)
     return
-
-def fmpost_kpu_deinit(kpu_obj):
-    # face mesh post模型释放
-    with ScopedTiming("fm_kpu_deinit",debug_mode > 0):
-        del kpu_obj
-
 #********************for media_utils.py********************
 global draw_img_ulab,draw_img,osd_img                       #for display
 global buffer,media_source,media_sink                       #for media
@@ -559,6 +551,7 @@ def face_mesh_inference():
         # 启动camera
         camera_start(CAM_DEV_ID_0)
         time.sleep(5)
+        gc_count = 0
         while True:
             with ScopedTiming("total",1):
                 # （1）读取一帧图像
@@ -586,8 +579,11 @@ def face_mesh_inference():
                 # （4）释放当前帧
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)
                 rgb888p_img = None
-                #with ScopedTiming("gc collect", debug_mode > 0):
-                    #gc.collect()
+                if gc_count > 5:
+                    gc.collect()
+                    gc_count = 0
+                else:
+                    gc_count += 1
     except Exception as e:
         # 捕捉运行运行中异常，并打印错误
         print(f"An error occurred during buffer used: {e}")
@@ -602,9 +598,13 @@ def face_mesh_inference():
         # 释放显示资源
         display_deinit()
         # 释放kpu资源
-        fd_kpu_deinit(kpu_face_detect)
-        fm_kpu_deinit(kpu_face_mesh)
-        fmpost_kpu_deinit(kpu_face_mesh_post)
+        fd_kpu_deinit()
+        fm_kpu_deinit()
+        global current_kmodel_obj
+        del current_kmodel_obj
+        del kpu_face_detect
+        del kpu_face_mesh
+        del kpu_face_mesh_post
         # 垃圾回收
         gc.collect()
         time.sleep(1)

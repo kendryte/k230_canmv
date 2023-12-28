@@ -113,6 +113,7 @@ class media_buffer:
 
 class media:
     buf_config = k_vb_config()
+    buf_config.max_pool_cnt = MAX_MEDIA_BUFFER_POOLS
     config_index = 0
     __buf_has_init = False
 
@@ -134,10 +135,7 @@ class media:
 
         ret = kd_mpi_sys_bind(src_mpp, dst_mpp)
         if ret:
-            print(f"create_link failed ret({ret})")
-            return ret
-
-        return 0
+            raise OSError(f"create_link failed ret({ret})")
 
 
     # destroy media unlink
@@ -156,79 +154,66 @@ class media:
 
         ret = kd_mpi_sys_unbind(src_mpp, dst_mpp)
         if ret:
-            print(f"destroy_link failed ret({ret})")
-            return ret
-
-        return 0
+            raise OSError(f"destroy_link failed ret({ret})")
 
 
     @classmethod
     def buffer_config(cls, config):
-        cls.lock.acquire()
-        if config.max_pool_cnt > cls.buf_config.max_pool_cnt:
-            cls.buf_config.max_pool_cnt = config.max_pool_cnt
-
         for i in range(0, MAX_MEDIA_BUFFER_POOLS):
             if config.comm_pool[i].blk_size and config.comm_pool[i].blk_cnt:
                 if cls.config_index > MAX_MEDIA_BUFFER_POOLS - 1:
-                    print("buffer_config failed, pool exceeds the max")
-                    cls.lock.release()
-                    return -1
+                    raise OSError("buffer_config failed, pool exceeds the max")
 
                 cls.buf_config.comm_pool[cls.config_index].blk_size = config.comm_pool[i].blk_size
                 cls.buf_config.comm_pool[cls.config_index].blk_cnt = config.comm_pool[i].blk_cnt
                 cls.buf_config.comm_pool[cls.config_index].mode = config.comm_pool[i].mode
                 cls.config_index += 1
 
-        cls.lock.release()
-        return 0
-
 
     @classmethod
     def buffer_init(cls):
         if cls.__buf_has_init:
-            print("The buffer has been initialized!!!")
-            print("This method can only be called once, please check your code!!!")
-            return -1
+            raise OSError("The buffer has been initialized!!!\n\
+            This method can only be called once, please check your code!!!")
 
         # for JPEG encoder
         cls.buf_config.comm_pool[cls.config_index].blk_size = 1843200
-        cls.buf_config.comm_pool[cls.config_index].blk_cnt = 8
+        cls.buf_config.comm_pool[cls.config_index].blk_cnt = 16
         cls.buf_config.comm_pool[cls.config_index].mode = VB_REMAP_MODE_NOCACHE
+        cls.config_index += 1
+        # for VO writeback
+        cls.buf_config.comm_pool[cls.config_index].blk_size = 3117056
+        cls.buf_config.comm_pool[cls.config_index].blk_cnt = 4
+        cls.buf_config.comm_pool[cls.config_index].mode = VB_REMAP_MODE_NOCACHE
+        cls.config_index += 1
         ret = kd_mpi_vb_set_config(cls.buf_config)
         if ret:
-            print(f"buffer_init, vb config failed({ret})")
-            return ret
+            raise OSError(f"buffer_init, vb config failed({ret})")
 
         supplement_config = k_vb_supplement_config()
         supplement_config.supplement_config |= VB_SUPPLEMENT_JPEG_MASK
         ret = kd_mpi_vb_set_supplement_config(supplement_config)
         if ret:
-            print(f"buffer_init, vb supplement config failed({ret})")
-            return ret
+            raise OSError(f"buffer_init, vb supplement config failed({ret})")
 
         ret = kd_mpi_vb_init()
         if ret:
-            print(f"buffer_init, vb init failed({ret})")
-            return ret
-        cls.__buf_has_init = True
+            raise OSError(f"buffer_init, vb init failed({ret})")
 
-        return 0
+        cls.__buf_has_init = True
+        ide_dbg_vo_wbc_init()
 
 
     @classmethod
-    def buffer_deinit(cls):
-        return
+    def buffer_deinit(cls, force=False):
         cls.buf_config.max_pool_cnt = 0
         cls.config_index = 0
         cls.__buf_has_init = False
-
+        if not force:
+            return
         ret = kd_mpi_vb_exit()
         if ret:
-            print(f"buffer_deinit, vb deinit failed({ret})")
-            return ret
-
-        return 0
+            raise OSError(f"buffer_deinit, vb deinit failed({ret})")
 
 
     @classmethod
@@ -236,44 +221,34 @@ class media:
 
         buf_handle = kd_mpi_vb_get_block(VB_INVALID_POOLID, size, '')
         if buf_handle == VB_INVALID_HANDLE:
-            print(f"request_buffer, get buf block failed, size {size}")
-            return -1
+            raise OSError(f"request_buffer, get buf block failed, size {size}")
 
         pool_id = kd_mpi_vb_handle_to_pool_id(buf_handle)
         if pool_id == VB_INVALID_POOLID:
             kd_mpi_vb_release_block(buf_handle)
-            print("request_buffer, get buf pool id error")
-            return -1
+            raise OSError("request_buffer, get buf pool id error")
 
         phys_addr = kd_mpi_vb_handle_to_phyaddr(buf_handle)
         if phys_addr == 0:
             kd_mpi_vb_release_block(buf_handle)
-            print("request_buffer, get buf phys addr failed")
-            return -1
+            raise OSError("request_buffer, get buf phys addr failed")
 
         virt_addr = kd_mpi_sys_mmap(phys_addr, size)
         if virt_addr == 0:
             kd_mpi_vb_release_block(buf_handle)
-            print("request_buffer, map buf virt addr failed")
-            return -1
+            raise OSError("request_buffer, map buf virt addr failed")
 
         buffer = media_buffer(buf_handle, pool_id, phys_addr, virt_addr, size)
-
         return buffer
 
 
     @classmethod
     def release_buffer(cls, buffer):
-        ret  = 0
         ret = kd_mpi_vb_release_block(buffer.handle)
         if ret:
-            print("release_buffer, release buf block failed")
-            ret = -1
+            raise OSError("release_buffer, release buf block failed")
 
         ret = kd_mpi_sys_munmap(buffer.virt_addr, buffer.size)
         if ret:
-            print("release_buffer, munmap failed")
-            ret = -1
-
-        return ret
+            raise OSError("release_buffer, munmap failed")
 

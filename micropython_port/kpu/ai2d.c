@@ -132,8 +132,9 @@ MP_DEFINE_CONST_OBJ_TYPE(
 // 实现各个功能函数
 // init
 STATIC mp_obj_t mp_ai2d_create() {
-    ai2d_obj_t *self = mp_obj_malloc(ai2d_obj_t, &ai2d_type);
+    ai2d_obj_t *self = m_new_obj_with_finaliser(ai2d_obj_t);
     self->ai2d_ = ai2d_create();
+    self->base.type = &ai2d_type;
     return MP_OBJ_FROM_PTR(self);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(mp_ai2d_create_obj, mp_ai2d_create);
@@ -155,11 +156,11 @@ STATIC mp_obj_t mp_ai2d_build(mp_obj_t self_in, mp_obj_t in_shape, mp_obj_t out_
     
     finite_data output_shape;
     _kd_mpi_struct_test_I(out_shape, output_shape.data, &output_shape.data_size);
-    // printf("\nstart build ai2d\n");
+
     builder_obj_t* ai2d_builder_ = m_new_obj_with_finaliser(builder_obj_t);
-    // printf("\n create empty ai2d_builder\n");
+
     ai2d_builder_->builder = ai2d_build(self->ai2d_, input_shape, output_shape);
-    // printf("\n end build ai2d\n");
+
     ai2d_builder_->base.type = &ai2d_builder_type;
     return ai2d_builder_;
 }
@@ -207,7 +208,6 @@ STATIC mp_obj_t mp_ai2d_set_pad_param(size_t n_args, const mp_obj_t *args) {
     ai2d_obj_t *self = MP_OBJ_TO_PTR(args[0]);
     ai2d_pad_param pp;
     pp.flag = mp_obj_is_true(args[1]);
-    printf("Warning: If the input width is <=32, the left pad should not be set. You can set the right pad first, then set the left pad.");
     _kd_mpi_struct_test_I(args[2], pp.paddings.data, &pp.paddings.data_size);
     pp.pad_mode = mp_obj_get_int(args[3]);
     _kd_mpi_struct_test_I(args[4], pp.pad_value.data, &pp.pad_value.data_size);
@@ -249,6 +249,7 @@ STATIC const mp_rom_map_elem_t ai2d_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_ai2d) },
     { MP_ROM_QSTR(MP_QSTR___init__), MP_ROM_PTR(&mp_ai2d_create_obj) },
     { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&mp_ai2d_destroy_obj) },
+    { MP_ROM_QSTR(MP_QSTR_release), MP_ROM_PTR(&mp_ai2d_destroy_obj) },
     { MP_ROM_QSTR(MP_QSTR_build), MP_ROM_PTR(&mp_ai2d_build_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_dtype), MP_ROM_PTR(&mp_ai2d_set_dtype_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_crop_param), MP_ROM_PTR(&mp_ai2d_set_crop_param_obj) },
@@ -283,7 +284,9 @@ STATIC mp_obj_t mp_ai2d_run(mp_obj_t self_in, mp_obj_t inputs, mp_obj_t outputs)
     builder_obj_t *self = MP_OBJ_TO_PTR(self_in);
     mp_runtime_tensor_obj_t *input_tensor = MP_OBJ_TO_PTR(inputs);
     mp_runtime_tensor_obj_t *output_tensor = MP_OBJ_TO_PTR(outputs);
-    ai2d_run(self->builder, input_tensor->r_tensor, output_tensor->r_tensor);
+    bool flag = ai2d_run(self->builder, input_tensor->r_tensor, output_tensor->r_tensor);
+    if(!flag)
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("AI2D run failed."));
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(mp_ai2d_run_obj, mp_ai2d_run);
@@ -299,6 +302,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_ai2d_release_obj, mp_ai2d_release);
 STATIC const mp_rom_map_elem_t mp_ai2d_builder_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_ai2d_builder) },
     { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&mp_ai2d_release_obj) },
+    { MP_ROM_QSTR(MP_QSTR_release), MP_ROM_PTR(&mp_ai2d_release_obj) },
     { MP_ROM_QSTR(MP_QSTR_run), MP_ROM_PTR(&mp_ai2d_run_obj) },
 };
 

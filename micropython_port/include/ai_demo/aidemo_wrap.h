@@ -50,6 +50,9 @@ typedef struct PersonKPOutput PersonKPOutput;
 // for kws 
 typedef struct feature_pipeline feature_pipeline;
 typedef struct processed_feat processed_feat;
+// for nanotracker
+typedef struct Tracker_box Tracker_box;
+typedef struct Tracker_box_center Tracker_box_center;
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,6 +84,10 @@ extern "C" {
     void release_final_feats(float* feats);
     void wav_preprocess(feature_pipeline *fp, float *wav, size_t wav_length, float* final_feats);
     void release_preprocess_class(feature_pipeline *fp);
+    //for eye_gaze
+    void eye_gaze_post_process(float** p_outputs_,float* pitch,float* yaw);
+    //for nanotracker
+    Tracker_box_center nanotracker_post_process(float* output_0, float* output_1, FrameSize sensor_size, float thresh, float* center_xy_wh, int crop_size, float CONTEXT_AMOUNT);
 #ifdef __cplusplus
 }
 #endif

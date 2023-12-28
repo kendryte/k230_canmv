@@ -29,3 +29,8 @@ DEF_INT_FUNC_INT_INT(kd_mpi_connector_power_set)
 DEF_INT_FUNC_INT(kd_mpi_connector_close)
 DEF_INT_FUNC_STR(kd_mpi_connector_open)
 DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_get_connector_info, k_connector_info)
+
+DEF_INT_FUNC_INT(ide_dbg_vo_init)
+DEF_INT_FUNC_VOID(ide_dbg_vo_wbc_init)
+DEF_INT_FUNC_VOID(ide_dbg_vo_deinit)
+DEF_INT_FUNC_INT(ide_dbg_set_vo_wbc)

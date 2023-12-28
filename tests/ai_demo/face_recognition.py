@@ -218,11 +218,10 @@ def fd_kpu_run(kpu_obj,rgb888p_img):
     else:
         return post_ret[0],post_ret[1]          #0:det,1:landm,2:score
 
-def fd_kpu_deinit(kpu_obj):
+def fd_kpu_deinit():
     # kpu释放
     with ScopedTiming("fd_kpu_deinit",debug_mode > 0):
         global fd_ai2d, fd_ai2d_output_tensor
-        del kpu_obj               #删除人脸检测kpu_obj变量，释放对它所引用对象的内存引用
         del fd_ai2d               #删除人脸检测ai2d变量，释放对它所引用对象的内存引用
         del fd_ai2d_output_tensor #删除人脸检测ai2d_output_tensor变量，释放对它所引用对象的内存引用
 
@@ -286,7 +285,7 @@ def database_search(feature):
             return 'unknown'
         elif v_score_max < face_recognition_threshold:
             # 小于人脸识别阈值，未识别
-            print('v_score_max:',v_score_max)
+#            print('v_score_max:',v_score_max)
             return 'unknown'
         else:
             # 识别成功
@@ -461,11 +460,6 @@ def fr_kpu_pre_process(rgb888p_img,sparse_points):
         # 将人脸识别ai2d输出设置为人脸识别kpu输入
         current_kmodel_obj.set_input_tensor(0, fr_ai2d_output_tensor)
 
-        #ai2d_out_data = fr_ai2d_output_tensor.to_numpy()
-        #print('ai2d_out_data.shape:',ai2d_out_data.shape)
-        #with open("/sdcard/app/ai2d_out.bin", "wb") as file:
-            #file.write(ai2d_out_data.tobytes())
-
 def fr_kpu_get_output():
     # 获取人脸识别kpu输出
     with ScopedTiming("fr_kpu_get_output",debug_mode > 0):
@@ -492,12 +486,12 @@ def fr_kpu_run(kpu_obj,rgb888p_img,sparse_points):
     recg_result = database_search(results)
     return recg_result
 
-def fr_kpu_deinit(kpu_obj):
+def fr_kpu_deinit():
     # 人脸识别kpu相关资源释放
     with ScopedTiming("fr_kpu_deinit",debug_mode > 0):
-        global fr_ai2d
-        del kpu_obj
+        global fr_ai2d,fr_ai2d_output_tensor
         del fr_ai2d
+        del fr_ai2d_output_tensor
 
 #********************for media_utils.py********************
 global draw_img,osd_img                                     #for display
@@ -526,11 +520,11 @@ def display_draw(dets,recg_results):
                 y1 = y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
                 w =  w * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
                 h = h * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
-                draw_img.draw_rectangle(x1,y1, w, h, color=(255,0, 255, 0))
+                draw_img.draw_rectangle(x1,y1, w, h, color=(255,0, 0, 255), thickness = 4)
 
                 # （2）写人脸识别结果
                 recg_text = recg_results[i]
-                draw_img.draw_string(x1,y1,recg_text,color=(255,0, 0, 255),scale=4)
+                draw_img.draw_string(x1,y1,recg_text,color=(255, 255, 0, 0),scale=4)
 
             # （3）将画图结果拷贝到osd
             draw_img.copy_to(osd_img)
@@ -638,6 +632,7 @@ def face_recognition_inference():
         # 启动camera
         camera_start(CAM_DEV_ID_0)
         time.sleep(5)
+        gc_count = 0
         while True:
             with ScopedTiming("total",1):
                 # （1）读取一帧图像
@@ -664,7 +659,11 @@ def face_recognition_inference():
                 # （4）释放当前帧
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)
                 rgb888p_img = None
-                gc.collect()
+                if gc_count > 5:
+                    gc.collect()
+                    gc_count = 0
+                else:
+                    gc_count += 1
     except Exception as e:
         # 捕捉运行运行中异常，并打印错误
         print(f"An error occurred during buffer used: {e}")
@@ -679,8 +678,12 @@ def face_recognition_inference():
         # 释放显示资源
         display_deinit()
         # 释放kpu资源
-        fd_kpu_deinit(kpu_face_detect)
-        fr_kpu_deinit(kpu_face_recg)
+        fd_kpu_deinit()
+        fr_kpu_deinit()
+        global current_kmodel_obj
+        del current_kmodel_obj
+        del kpu_face_detect
+        del kpu_face_recg
         # 垃圾回收
         gc.collect()
         time.sleep(1)

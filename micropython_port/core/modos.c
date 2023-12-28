@@ -110,3 +110,15 @@ STATIC mp_obj_t mp_os_errno(size_t n_args, const mp_obj_t *args) {
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_os_errno_obj, 0, 1, mp_os_errno);
+
+STATIC mp_obj_t mp_os_exitpoint(size_t n_args, const mp_obj_t *args) {
+    if (n_args == 1) {
+        int flag = mp_obj_get_int(args[0]);
+        mp_thread_set_exitpoint_flag(flag);
+        if (flag != EXITPOINT_DISABLE)
+            return mp_const_none;
+    }
+    mp_thread_exitpoint(EXITPOINT_ANY);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_os_exitpoint_obj, 0, 1, mp_os_exitpoint);

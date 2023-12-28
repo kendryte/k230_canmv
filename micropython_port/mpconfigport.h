@@ -60,6 +60,7 @@ typedef long long mp_off_t;
 #endif
 #endif
 
+#define MICROPY_USE_INTERNAL_PRINTF (0)
 #define MICROPY_USE_READLINE        (1)
 // Always enable GC.
 #define MICROPY_ENABLE_GC           (1)
@@ -90,6 +91,9 @@ typedef long long mp_off_t;
 #define MICROPY_PY_THREAD           (1)
 #define MICROPY_PY_OS_DUPTERM       (1)
 
+#define MICROPY_PY_NETWORK_CANMV (1)
+#define MICROPY_PY_NETWORK_HOSTNAME_DEFAULT "canmv"
+#define MICROPY_PY_SOCKET_CANMV (1)  //socket
 // Ensure builtinimport.c works with -m.
 #define MICROPY_MODULE_OVERRIDE_MAIN_IMPORT (1)
 
@@ -134,8 +138,11 @@ extern const struct _mp_print_t mp_stderr_print;
 #define MICROPY_EVENT_POLL_HOOK \
     do { \
         extern void mp_handle_pending(bool); \
+        mp_thread_exitpoint(EXITPOINT_ENABLE_SLEEP); \
         mp_handle_pending(true); \
+        MP_THREAD_GIL_EXIT(); \
         usleep(500); /* equivalent to mp_hal_delay_us(500) */ \
+        MP_THREAD_GIL_ENTER(); \
     } while (0);
 #endif
 

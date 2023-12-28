@@ -58,6 +58,8 @@ typedef struct _mp_thread_t {
     int ready;              // whether the thread is ready and running
     void *arg;              // thread Python args, a GC root pointer
     struct _mp_thread_t *next;
+    int exitpoint_flag;
+    mp_obj_t exception;
 } mp_thread_t;
 
 STATIC pthread_key_t tls_key;
@@ -124,6 +126,9 @@ void mp_thread_init(void) {
     thread->ready = 1;
     thread->arg = NULL;
     thread->next = NULL;
+    thread->exitpoint_flag = 0;
+    thread->exception = NULL;
+    MP_STATE_THREAD(user_data) = thread;
 
     #if defined(__APPLE__)
     snprintf(thread_signal_done_name, sizeof(thread_signal_done_name), "micropython_sem_%ld", (long)thread->id);
@@ -141,18 +146,14 @@ void mp_thread_init(void) {
 }
 
 void mp_thread_deinit(void) {
-    mp_thread_unix_begin_atomic_section();
-    while (thread->next != NULL) {
-        mp_thread_t *th = thread;
-        thread = thread->next;
-        pthread_cancel(th->id);
-        free(th);
+    while (1) {
+        usleep(10000);
+        mp_thread_unix_begin_atomic_section();
+        mp_thread_t *th = thread->next;
+        mp_thread_unix_end_atomic_section();
+        if (th == NULL)
+            break;
     }
-    mp_thread_unix_end_atomic_section();
-    #if defined(__APPLE__)
-    sem_close(thread_signal_done_p);
-    sem_unlink(thread_signal_done_name);
-    #endif
     assert(thread->id == pthread_self());
     free(thread);
 }
@@ -208,6 +209,9 @@ void mp_thread_start(void) {
     for (mp_thread_t *th = thread; th != NULL; th = th->next) {
         if (th->id == pthread_self()) {
             th->ready = 1;
+            th->exitpoint_flag = 0;
+            th->exception = NULL;
+            MP_STATE_THREAD(user_data) = th;
             break;
         }
     }
@@ -241,10 +245,10 @@ mp_uint_t mp_thread_create(void *(*entry)(void *), void *arg, size_t *stack_size
         goto er;
     }
 
-    ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    if (ret != 0) {
-        goto er;
-    }
+    // ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    // if (ret != 0) {
+    //     goto er;
+    // }
 
     mp_thread_unix_begin_atomic_section();
 
@@ -358,3 +362,54 @@ void mp_thread_set_realtime(void) {
     }
 }
 #endif
+
+void mp_thread_set_exitpoint_flag(int flag) {
+    mp_thread_t *th = MP_STATE_THREAD(user_data);
+    th->exitpoint_flag = flag;
+}
+
+void mp_thread_set_exception(mp_obj_t obj) {
+    mp_thread_t *th = MP_STATE_THREAD(user_data);
+    if (th->exitpoint_flag == 0) {
+        ((mp_obj_exception_t *)obj)->traceback_data = NULL;
+        MP_STATE_THREAD(mp_pending_exception) = obj;
+    } else {
+        th->exception = obj;
+    }
+}
+
+void mp_thread_set_exception_main(mp_obj_t obj) {
+    mp_thread_t *th = MP_STATE_MAIN_THREAD(user_data);
+    if (th->exitpoint_flag == 0) {
+        ((mp_obj_exception_t *)obj)->traceback_data = NULL;
+        MP_STATE_MAIN_THREAD(mp_pending_exception) = obj;
+    } else {
+        th->exception = obj;
+    }
+}
+
+void mp_thread_set_exception_other(mp_obj_t obj) {
+    const mp_obj_type_t *type = mp_obj_get_type(obj);
+    mp_thread_unix_begin_atomic_section();
+    for (mp_thread_t *th = thread; th->next != NULL; th = th->next) {
+        obj = mp_obj_new_exception(type);
+        if (th->exitpoint_flag == 0) {
+            ((mp_obj_exception_t *)obj)->traceback_data = NULL;
+            MP_STATE_THREAD(mp_pending_exception) = obj;
+        } else {
+            th->exception = obj;
+        }
+    }
+    mp_thread_unix_end_atomic_section();
+}
+
+void mp_thread_exitpoint(int flag)
+{
+    mp_thread_t *th = MP_STATE_THREAD(user_data);
+    if (th->exception != 0 && th->exitpoint_flag != flag) {
+        ((mp_obj_exception_t *)th->exception)->traceback_data = NULL;
+        MP_STATE_THREAD(mp_pending_exception) = th->exception;
+        th->exception = 0;
+        mp_handle_pending(true);
+    }
+}

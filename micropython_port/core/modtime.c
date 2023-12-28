@@ -69,6 +69,7 @@ void mp_hal_delay_us(mp_uint_t us) {
         MP_THREAD_GIL_EXIT();
         usleep(100000);
         MP_THREAD_GIL_ENTER();
+        mp_thread_exitpoint(EXITPOINT_ENABLE_SLEEP);
         mp_handle_pending(true);
         start = mp_hal_ticks_us();
     }
@@ -76,6 +77,7 @@ void mp_hal_delay_us(mp_uint_t us) {
         MP_THREAD_GIL_EXIT();
         usleep(stop - start);
         MP_THREAD_GIL_ENTER();
+        mp_thread_exitpoint(EXITPOINT_ENABLE_SLEEP);
         mp_handle_pending(true);
     }
 }

@@ -22,12 +22,12 @@ extern "C" {
 #endif
     Kpu* Kpu_create();
     void Kpu_destroy(Kpu *p);
-    void Kpu_run(Kpu *p);
-    void Kpu_load_kmodel_path(Kpu *p, const char *path);
+    bool Kpu_run(Kpu *p);
+    bool Kpu_load_kmodel_path(Kpu *p, const char *path);
     bool Kpu_load_kmodel_buffer(Kpu *p, char *buffer, size_t size);
-    void Kpu_set_input_tensor(Kpu *p, size_t index, runtime_tensor *tensor);
+    bool Kpu_set_input_tensor(Kpu *p, size_t index, runtime_tensor *tensor);
     runtime_tensor* Kpu_get_input_tensor(Kpu *p, size_t index);
-    void Kpu_set_output_tensor(Kpu *p, size_t index, runtime_tensor *tensor);
+    bool Kpu_set_output_tensor(Kpu *p, size_t index, runtime_tensor *tensor);
     runtime_tensor* Kpu_get_output_tensor(Kpu *p, size_t index);
     size_t Kpu_inputs_size(Kpu *p);
     size_t Kpu_outputs_size(Kpu *p);
@@ -40,7 +40,7 @@ extern "C" {
     ai2d *ai2d_create();
     void ai2d_destroy(ai2d *p);
     m_builder* ai2d_build(ai2d *p, finite_data input_shape, finite_data output_shape);
-    void ai2d_run(m_builder *p, runtime_tensor* input_tensor, runtime_tensor* output_tensor);
+    bool ai2d_run(m_builder *p, runtime_tensor* input_tensor, runtime_tensor* output_tensor);
     
     void ai2d_set_dtype(ai2d *p, ai2d_dtype_param dtype);
     void ai2d_set_crop_param(ai2d *p, ai2d_crop_param crop_params);

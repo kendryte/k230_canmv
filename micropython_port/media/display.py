@@ -15,12 +15,6 @@ DISPLAY_CHN_OSD1 = K_VO_DISPLAY_CHN_ID4
 DISPLAY_CHN_OSD2 = K_VO_DISPLAY_CHN_ID5
 DISPLAY_CHN_OSD3 = K_VO_DISPLAY_CHN_ID6
 
-# define pixelformat
-DISPLAY_OUT_NV12 = PIXEL_FORMAT_YVU_PLANAR_420
-DISPLAY_OUT_ARGB8888 = PIXEL_FORMAT_ARGB_8888
-DISPLAY_OUT_RGB888 = PIXEL_FORMAT_RGB_888
-DISPLAY_OUT_RGB565 = PIXEL_FORMAT_RGB_565
-
 # define VO mirror
 DISPLAY_MIRROR_NONE = K_VO_MIRROR_NONE
 DISPLAY_MIRROR_HOR = K_VO_MIRROR_HOR
@@ -31,7 +25,7 @@ class display:
     plane_array = [0] * 7
 
     @classmethod
-    def init(cls, type):
+    def init(cls, type, wbc=True):
         connector_type = type
         connector_info = k_connector_info()
         kd_mpi_get_connector_info(connector_type, connector_info)
@@ -39,10 +33,13 @@ class display:
         connector_fd = kd_mpi_connector_open(uctypes.string_at(connector_info.connector_name))
         kd_mpi_connector_power_set(connector_fd, 1)
         kd_mpi_connector_init(connector_fd, connector_info)
+        kd_mpi_connector_close(connector_fd)
+        ide_dbg_vo_init(type)
+        ide_dbg_set_vo_wbc(wbc)
         cls.plane_array = [0] * 7
 
     @classmethod
-    def set_osd_plane(cls, x, y, width, height, pixelformat, chn):
+    def set_osd_plane(cls, x, y, width, height, pixelformat, chn, alpha=255):
         offset = k_vo_point()
         offset.x = x
         offset.y = y
@@ -52,16 +49,18 @@ class display:
         img_size.height = height
 
         osd_attr = k_vo_video_osd_attr()
-        osd_attr.global_alptha = 0xff
+        osd_attr.global_alptha = alpha
         osd_attr.pixel_format = pixelformat
-        if (pixelformat == DISPLAY_OUT_ARGB8888):
+        if (pixelformat == PIXEL_FORMAT_ARGB_8888 or pixelformat == PIXEL_FORMAT_ABGR_8888):
             osd_attr.stride = (width * 4) // 8
-        elif (pixelformat == DISPLAY_OUT_RGB888):
+        elif (pixelformat == PIXEL_FORMAT_RGB_888 or pixelformat == PIXEL_FORMAT_BGR_888):
             osd_attr.stride = (width * 3) // 8
-        elif (pixelformat == DISPLAY_OUT_RGB565):
+        elif (pixelformat == PIXEL_FORMAT_RGB_565 or pixelformat == PIXEL_FORMAT_BGR_565):
             osd_attr.stride = (width * 2) // 8
+        elif (pixelformat == PIXEL_FORMAT_RGB_MONOCHROME_8BPP):
+            osd_attr.stride = (width) // 8
         else:
-            print('set osd pixelformat failed')
+            raise ValueError('set osd pixelformat failed')
         struct_copy(offset, osd_attr.display_rect)
         struct_copy(img_size, osd_attr.img_size)
         kd_mpi_vo_set_video_osd_attr(chn - 3, osd_attr)
@@ -95,7 +94,7 @@ class display:
         elif (DISPLAY_CHN_OSD0 <= chn <= DISPLAY_CHN_OSD3):
             cls.set_osd_plane(x, y, width, height, pixelformat, chn)
         else:
-            print('set_plane failed')
+            raise ValueError('set_plane failed')
 
     @classmethod
     def disable_plane(cls, chn):
@@ -104,7 +103,7 @@ class display:
         elif (DISPLAY_CHN_OSD0 <= chn <= DISPLAY_CHN_OSD3):
             kd_mpi_vo_osd_disable(chn - 3)
         else:
-            print('disable_plane failed')
+            raise ValueError('disable_plane failed')
         cls.plane_array[chn] = 0
 
     @classmethod
@@ -113,12 +112,16 @@ class display:
         height = img.height()
         phys_addr = img.phyaddr()
         pool_id = img.poolid()
+        if width & 7:
+            raise ValueError("Image width must be an integral multiple of 8 pixels")
         if img.format() == image.ARGB8888:
-            pixelformat = DISPLAY_OUT_ARGB8888
+            pixelformat = PIXEL_FORMAT_ARGB_8888
         elif img.format() == image.RGB888:
-            pixelformat = DISPLAY_OUT_RGB888
+            pixelformat = PIXEL_FORMAT_RGB_888
         elif img.format() == image.RGB565:
-            pixelformat = DISPLAY_OUT_RGB565
+            pixelformat = PIXEL_FORMAT_RGB_565
+        elif img.format() == image.GRAYSCALE:
+            pixelformat = PIXEL_FORMAT_RGB_MONOCHROME_8BPP
         elif img.format() == image.YUV420:
             pixelformat = PIXEL_FORMAT_YUV_SEMIPLANAR_420
         cls.set_plane(x, y, width, height, pixelformat, DISPLAY_MIRROR_NONE, chn)
@@ -140,6 +143,9 @@ class display:
         for i in range(0, 7):
             if cls.plane_array[i] == 1:
                 cls.disable_plane(i)
-                print(i)
+        ide_dbg_vo_deinit()
         kd_display_reset()
 
+    @classmethod
+    def enable_ide_compress(cls, enable=True):
+        ide_dbg_set_vo_wbc(enable)

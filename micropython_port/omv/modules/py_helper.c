@@ -321,7 +321,18 @@ int py_helper_keyword_color(image_t *img, uint n_args, const mp_obj_t *args, uin
             p &= 0x00ffffff;
             break;
         case PIXFORMAT_ARGB8888:
+            p = __builtin_bswap32(p);
             break;
+        case PIXFORMAT_YUV420: {
+            uint8_t r = (uint8_t)(p >> 16);
+            uint8_t g = (uint8_t)(p >> 8);
+            uint8_t b = (uint8_t)p;
+            uint8_t y = COLOR_RGB888_TO_Y(r, g, b);
+            int8_t u = COLOR_RGB888_TO_U(r, g, b);
+            int8_t v = COLOR_RGB888_TO_V(r, g, b);
+            p = (y << 16U) | (u << 8U) | v;
+            break;
+        }
         default:
             break;
     }

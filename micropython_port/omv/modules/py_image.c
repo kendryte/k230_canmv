@@ -19,6 +19,7 @@
 #include "py/objtype.h"
 #include "py/runtime.h"
 #include "py/mphal.h"
+#include "py/gc.h"
 
 #include "imlib.h"
 #include "array.h"
@@ -926,13 +927,13 @@ static mp_obj_t py_image_mean_pool(mp_obj_t img_obj, mp_obj_t x_div_obj, mp_obj_
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(py_image_mean_pool_obj, py_image_mean_pool);
 
-static mp_obj_t py_image_mean_pooled(mp_obj_t img_obj, mp_obj_t x_div_obj, mp_obj_t y_div_obj) {
-    image_t *arg_img = py_helper_arg_to_image_mutable(img_obj);
+static mp_obj_t py_image_mean_pooled(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    image_t *arg_img = py_helper_arg_to_image_mutable(args[0]);
 
-    int arg_x_div = mp_obj_get_int(x_div_obj);
+    int arg_x_div = mp_obj_get_int(args[1]);
     PY_ASSERT_TRUE_MSG(arg_x_div >= 1, "Width divisor must be greater than >= 1");
     PY_ASSERT_TRUE_MSG(arg_x_div <= arg_img->w, "Width divisor must be less than <= img width");
-    int arg_y_div = mp_obj_get_int(y_div_obj);
+    int arg_y_div = mp_obj_get_int(args[2]);
     PY_ASSERT_TRUE_MSG(arg_y_div >= 1, "Height divisor must be greater than >= 1");
     PY_ASSERT_TRUE_MSG(arg_y_div <= arg_img->h, "Height divisor must be less than <= img height");
 
@@ -940,12 +941,12 @@ static mp_obj_t py_image_mean_pooled(mp_obj_t img_obj, mp_obj_t x_div_obj, mp_ob
     out_img.w = arg_img->w / arg_x_div;
     out_img.h = arg_img->h / arg_y_div;
     out_img.pixfmt = arg_img->pixfmt;
-    out_img.pixels = xalloc(image_size(&out_img));
+    py_image_alloc(&out_img, kw_args);
 
     imlib_mean_pool(arg_img, &out_img, arg_x_div, arg_y_div);
     return py_image_from_struct(&out_img);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_3(py_image_mean_pooled_obj, py_image_mean_pooled);
+STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_mean_pooled_obj, 3, py_image_mean_pooled);
 #endif // IMLIB_ENABLE_MEAN_POOLING
 
 #ifdef IMLIB_ENABLE_MIDPOINT_POOLING
@@ -994,7 +995,7 @@ static mp_obj_t py_image_midpoint_pooled(size_t n_args, const mp_obj_t *args, mp
     out_img.w = arg_img->w / arg_x_div;
     out_img.h = arg_img->h / arg_y_div;
     out_img.pixfmt = arg_img->pixfmt;
-    out_img.pixels = xalloc(image_size(&out_img));
+    py_image_alloc(&out_img, kw_args);
 
     imlib_midpoint_pool(arg_img, &out_img, arg_x_div, arg_y_div, arg_bias);
     return py_image_from_struct(&out_img);
@@ -1002,41 +1003,10 @@ static mp_obj_t py_image_midpoint_pooled(size_t n_args, const mp_obj_t *args, mp
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_midpoint_pooled_obj, 3, py_image_midpoint_pooled);
 #endif // IMLIB_ENABLE_MIDPOINT_POOLING
 
-/*static int rgb888_to_builtin(image_t *src, image_t *dst, mp_map_t *kw_args)
-{
-    memcpy(dst, src, sizeof(image_t));
-    dst->alloc_type = ALLOC_REF;
-    if (src->pixfmt != PIXFORMAT_RGB888)
-        return 0;
-    dst->pixfmt = PIXFORMAT_RGB565;
-    dst->alloc_type = ALLOC_MPGC;
-    dst->data = xalloc(image_size(dst));
-
-    uint8_t *rgb888 = src->data;
-    uint16_t *rgb565 = (uint16_t *)dst->data;
-
-    for (int i = 0; i < src->w * src->h; i++) {
-        *rgb565++ = COLOR_R8_G8_B8_TO_RGB565(rgb888[2], rgb888[1], rgb888[0]);
-        rgb888 += 3;
-    }
-
-    return 0;
-}*/
-
 static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_palette, bool copy_to_fb,
                             mp_obj_t copy_default, bool quality_is_first_arg, bool encode_for_ide_default,
                             size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
     image_t *src_img = py_image_cobj(args[0]);
-    // image_t temp_img;
-    bool dst_is_rgb888 = false;
-
-    if (pixfmt == PIXFORMAT_RGB888) {
-        dst_is_rgb888 = true;
-        pixfmt = PIXFORMAT_RGB565;
-    }
-
-    //rgb888_to_builtin(src_img, &temp_img, kw_args);
-    //src_img = &temp_img;
 
     int quality_default = 90;
     if (quality_is_first_arg && (n_args > 1)) {
@@ -1109,6 +1079,32 @@ static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_pa
     }
 
     bool arg_e = py_helper_keyword_int(n_args, args, 13, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_encode_for_ide), encode_for_ide_default);
+    image_t temp_img;
+    bool dst_is_rgb888 = false;
+    bool src_is_rgb888 = false;
+
+    if (pixfmt == PIXFORMAT_RGB888) {
+        dst_is_rgb888 = true;
+        pixfmt = PIXFORMAT_RGB565;
+    }
+
+    if (src_img->pixfmt == PIXFORMAT_RGB888) {
+        src_is_rgb888 = true;
+        memcpy(&temp_img, src_img, sizeof(image_t));
+        temp_img.pixfmt = PIXFORMAT_RGB565;
+        temp_img.alloc_type = ALLOC_MPGC;
+        temp_img.data = xalloc(image_size(&temp_img));
+
+        uint8_t *rgb888 = src_img->data;
+        uint16_t *rgb565 = (uint16_t *)temp_img.data;
+
+        for (int i = 0; i < src_img->w * src_img->h; i++) {
+            *rgb565++ = COLOR_R8_G8_B8_TO_RGB565(rgb888[0], rgb888[1], rgb888[2]);
+            rgb888 += 3;
+        }
+
+        src_img = &temp_img;
+    }
 
     image_t dst_img = {
         .w = fast_floorf(arg_roi.w * arg_x_scale),
@@ -1267,8 +1263,8 @@ static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_pa
         fb_alloc_free_till_mark();
     }
 
-    // if (temp_img.alloc_type == ALLOC_MPGC)
-    //    xfree(temp_img.data);
+    if (src_is_rgb888)
+       xfree(temp_img.data);
 
     if (dst_is_rgb888) {
         uint16_t *rgb565 = (uint16_t *)(dst_img.data + dst_img.w * dst_img.h * 2);
@@ -1278,9 +1274,9 @@ static mp_obj_t py_image_to(pixformat_t pixfmt, const uint16_t *default_color_pa
             rgb565--;
             rgb888 -= 3;
             uint16_t register tmp = *rgb565;
-            rgb888[2] = (tmp >> 8) & 0xF8;
+            rgb888[0] = (tmp >> 8) & 0xF8;
             rgb888[1] = (tmp >> 3) & 0xFC;
-            rgb888[0] = (tmp << 3) & 0xF8;
+            rgb888[2] = (tmp << 3) & 0xF8;
         }
 
         dst_img.pixfmt = PIXFORMAT_RGB888;
@@ -2019,7 +2015,10 @@ STATIC mp_obj_t py_image_binary(size_t n_args, const mp_obj_t *args, mp_map_t *k
     out.w = arg_img->w;
     out.h = arg_img->h;
     out.pixfmt = arg_to_bitmap ? PIXFORMAT_BINARY  : arg_img->pixfmt;
-    out.pixels = arg_copy ? xalloc(image_size(&out)) : arg_img->pixels;
+    if (arg_copy)
+        py_image_alloc(&out, kw_args);
+    else
+        out.pixels = arg_img->pixels;
 
     fb_alloc_mark();
     imlib_binary(&out, arg_img, &arg_thresholds, arg_invert, arg_zero, arg_msk);
@@ -2031,6 +2030,9 @@ STATIC mp_obj_t py_image_binary(size_t n_args, const mp_obj_t *args, mp_map_t *k
         arg_img->pixfmt = PIXFORMAT_BINARY;
         py_helper_update_framebuffer(&out);
     }
+
+    if (!arg_copy)
+        return args[0];
 
     return py_image_from_struct(&out);
 }
@@ -6221,7 +6223,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_find_lbp_obj, 2, py_image_find_lbp);
 
 #ifdef IMLIB_ENABLE_FIND_KEYPOINTS
 static mp_obj_t py_image_find_keypoints(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
-    image_t *arg_img = py_helper_arg_to_image_mutable(args[0]);
+    image_t *arg_img = py_helper_arg_to_image_grayscale(args[0]);
 
     rectangle_t roi;
     py_helper_keyword_rectangle_roi(arg_img, n_args, args, 1, kw_args, &roi);
@@ -6968,6 +6970,7 @@ void py_image_alloc(image_t *image, mp_map_t *kw_args)
     bool cache = true;
     mp_obj_t data_obj = NULL;
     mp_buffer_info_t bufinfo;
+    int collected = 0;
 
     if (kw_arg_alloc_type) {
         alloc_type = mp_obj_get_int(kw_arg_alloc_type->value);
@@ -6994,15 +6997,21 @@ void py_image_alloc(image_t *image, mp_map_t *kw_args)
         if (size > bufinfo.len)
             mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("Not enough data"));
     }
-
+retry:
     if (alloc_type == ALLOC_MMZ) {
         int ret = 0;
         if (cache)
             ret = kd_mpi_sys_mmz_alloc_cached(&image->phy_addr, (void**)&image->data, "img", "anonymous", size);
         else
             ret = kd_mpi_sys_mmz_alloc(&image->phy_addr, (void**)&image->data, "img", "anonymous", size);
-        if (ret)
+        if (ret) {
+            if (!collected) {
+                gc_collect();
+                collected = 1;
+                goto retry;
+            }
             mp_raise_msg_varg(&mp_type_MemoryError, MP_ERROR_TEXT("image mmz alloc failed: %d"), ret);
+        }
     } else if (alloc_type == ALLOC_VB) {
         mp_map_elem_t *kw_arg_phyaddr = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_phyaddr), MP_MAP_LOOKUP);
         mp_map_elem_t *kw_arg_virtaddr = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_virtaddr), MP_MAP_LOOKUP);
@@ -7020,8 +7029,14 @@ void py_image_alloc(image_t *image, mp_map_t *kw_args)
         image->data = bufinfo.buf;
     } else if (alloc_type == ALLOC_HEAP) {
         image->data = malloc(size);
-        if (image->data == NULL)
+        if (image->data == NULL) {
+            if (!collected) {
+                gc_collect();
+                collected = 1;
+                goto retry;
+            }
             mp_raise_msg(&mp_type_MemoryError, MP_ERROR_TEXT("image malloc failed"));
+        }
     } else if (alloc_type == ALLOC_MPGC) {
         image->data = xalloc(size);
     } else {
@@ -7036,6 +7051,8 @@ void py_image_free(image_t *image)
 {
     uint8_t alloc_type = image->alloc_type;
 
+    if (image->data == 0)
+        return;
     if (alloc_type == ALLOC_MMZ) {
         kd_mpi_sys_mmz_free(image->phy_addr, image->data);
     } else if (alloc_type == ALLOC_VB) {
@@ -7045,6 +7062,7 @@ void py_image_free(image_t *image)
     } else if (alloc_type == ALLOC_MPGC) {
         xfree(image->data);
     }
+    image->data = 0;
 }
 
 mp_obj_t py_image_load_image(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
@@ -7351,6 +7369,7 @@ int py_image_descriptor_from_roi(image_t *img, const char *path, rectangle_t *ro
     FIL fp;
     FRESULT res = FR_OK;
 
+    py_helper_arg_to_image_grayscale(img);
     printf("Save Descriptor: ROI(%d %d %d %d)\n", roi->x, roi->y, roi->w, roi->h);
     array_t *kpts = orb_find_keypoints(img, false, 20, 1.5f, 100, CORNER_AGAST, roi);
     printf("Save Descriptor: KPTS(%d)\n", array_length(kpts));

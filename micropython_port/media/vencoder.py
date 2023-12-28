@@ -40,8 +40,7 @@ class Encoder:
 
     def SetOutBufs(self, chn, buf_num, width, height):
         if (chn > VENC_CHN_ID_MAX - 1):
-            print("venc create, chn id: ", chn, " out of range 0 ~ 3")
-            return -1
+            raise ValueError("venc create, chn id: ", chn, " out of range 0 ~ 3")
 
         if buf_num and width and height:
             self.outbuf_num = buf_num
@@ -50,16 +49,11 @@ class Encoder:
             config.comm_pool[0].blk_cnt = buf_num
             config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
             config.comm_pool[0].blk_size = ALIGN_UP(width * height * 3 // 4, VENC_ALIGN_4K)
-            ret = media.buffer_config(config)
-            if ret:
-                print("venc buffer config failed")
-                return -1
-        return 0
+            media.buffer_config(config)
 
     def Create(self, chn, chnAttr):
         if (chn > VENC_CHN_ID_MAX - 1):
-            print("venc create, chn id: ", chn, " out of range 0 ~ 3")
-            return -1
+            raise ValueError("venc create, chn id: ", chn, " out of range 0 ~ 3")
 
         venc_chn_attr = k_venc_chn_attr()
         venc_chn_attr.venc_attr.type = chnAttr.payload_type
@@ -78,33 +72,24 @@ class Encoder:
 
         ret = kd_mpi_venc_create_chn(chn, venc_chn_attr)
         if ret != 0:
-            print("mpi venc create chn failed.")
-            return -1
-        return 0
-
+            raise OSError("mpi venc create chn failed.")
 
     def Start(self, chn):
         if (chn > VENC_CHN_ID_MAX - 1):
-            print("venc Start, chn id: ", chn, " out of range 0 ~ 3")
-            return -1
+            raise ValueError("venc Start, chn id: ", chn, " out of range 0 ~ 3")
 
         ret = kd_mpi_venc_start_chn(chn)
         if ret != 0:
-            print("mpi venc start failed.")
-            return -1
-        return 0
-
+            raise OSError("mpi venc start failed.")
 
     def GetStream(self, chn, streamData):
         if (chn > VENC_CHN_ID_MAX - 1):
-            print("venc GetStream, chn id: ", chn, " out of range 0 ~ 3")
-            return -1
+            raise ValueError("venc GetStream, chn id: ", chn, " out of range 0 ~ 3")
 
         status = k_venc_chn_status()
         ret = kd_mpi_venc_query_status(chn, status)
         if ret != 0:
-            print("mpi venc query status failed.")
-            return -1
+            raise OSError("mpi venc query status failed.")
         if status.cur_packs > 0:
             self.output.pack_cnt = status.cur_packs
         else:
@@ -117,8 +102,7 @@ class Encoder:
 
         ret = kd_mpi_venc_get_stream(chn, self.output, -1)
         if ret != 0:
-            print("mpi venc get stream failed.")
-            return -1
+            raise OSError("mpi venc get stream failed.")
 
         for pack_idx in range(0, streamData.pack_cnt):
             vir_data = kd_mpi_sys_mmap(self.output._pack[pack_idx].phys_addr, self.output._pack[pack_idx].len)
@@ -127,48 +111,31 @@ class Encoder:
             streamData.stream_type[pack_idx] = self.output._pack[pack_idx].type
             streamData.pts[pack_idx] = self.output._pack[pack_idx].pts
 
-        return 0
-
-
     def ReleaseStream(self, chn, streamData):
         if (chn > VENC_CHN_ID_MAX - 1):
-            print("venc ReleaseStream, chn id: ", chn, " out of range 0 ~ 3")
-            return -1
+            raise ValueError("venc ReleaseStream, chn id: ", chn, " out of range 0 ~ 3")
 
         for pack_idx in range(0, streamData.pack_cnt):
             ret = kd_mpi_sys_munmap(streamData.data[pack_idx], streamData.data_size[pack_idx])
             if ret != 0:
-                print("mpi sys munmap failed.")
-                return -1
+                raise OSError("mpi sys munmap failed.")
 
         ret = kd_mpi_venc_release_stream(chn, self.output)
         if ret != 0:
-            print("mpi venc release stream failed.")
-            return -1
-
-        return 0
-
+            raise OSError("mpi venc release stream failed.")
 
     def Stop(self, chn):
         if (chn > VENC_CHN_ID_MAX - 1):
-            print("venc Stop, chn id: ", chn, " out of range 0 ~ 3")
-            return -1
+            raise ValueError("venc Stop, chn id: ", chn, " out of range 0 ~ 3")
 
         ret = kd_mpi_venc_stop_chn(chn)
         if ret != 0:
-            print("mpi venc stop failed.")
-            return -1
-
-        return 0
+            raise OSError("mpi venc stop failed.")
 
     def Destroy(self, chn):
         if (chn > VENC_CHN_ID_MAX - 1):
-            print("venc Destroy, chn id: ", chn, " out of range 0 ~ 3")
-            return -1
+            raise ValueError("venc Destroy, chn id: ", chn, " out of range 0 ~ 3")
 
         ret = kd_mpi_venc_destroy_chn(chn)
         if ret != 0:
-            print("mpi venc destroy failed.")
-            return -1
-
-        return 0
+            raise OSError("mpi venc destroy failed.")

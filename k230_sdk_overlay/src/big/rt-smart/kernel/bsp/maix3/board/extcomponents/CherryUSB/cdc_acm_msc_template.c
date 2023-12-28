@@ -19,14 +19,25 @@
 #define USBD_LANGID_STRING 1033
 
 /*!< config descriptor size */
+#define ENABLE_USB_MSC 0
+#if ENABLE_USB_MSC
 #define USB_CONFIG_SIZE (9 + CDC_ACM_DESCRIPTOR_LEN + MSC_DESCRIPTOR_LEN)
+#else
+#define USB_CONFIG_SIZE (9 + CDC_ACM_DESCRIPTOR_LEN)
+#endif
 
 /*!< global descriptor */
 static const uint8_t cdc_msc_descriptor[] = {
     USB_DEVICE_DESCRIPTOR_INIT(USB_2_0, 0xEF, 0x02, 0x01, USBD_VID, USBD_PID, 0x0100, 0x01),
+    #if ENABLE_USB_MSC
     USB_CONFIG_DESCRIPTOR_INIT(USB_CONFIG_SIZE, 0x03, 0x01, USB_CONFIG_BUS_POWERED, USBD_MAX_POWER),
+    #else
+    USB_CONFIG_DESCRIPTOR_INIT(USB_CONFIG_SIZE, 0x02, 0x01, USB_CONFIG_BUS_POWERED, USBD_MAX_POWER),
+    #endif
     CDC_ACM_DESCRIPTOR_INIT(0x00, CDC_INT_EP, CDC_OUT_EP, CDC_IN_EP, 0x02),
+    #if ENABLE_USB_MSC
     MSC_DESCRIPTOR_INIT(0x02, MSC_OUT_EP, MSC_IN_EP, 0x00),
+    #endif
     ///////////////////////////////////////
     /// string0 descriptor
     ///////////////////////////////////////
@@ -119,6 +130,7 @@ void usbd_configure_done_callback(void)
 }
 
 extern size_t actual_bytes;
+extern size_t actual_write;
 extern struct rt_semaphore cdc_read_sem;
 extern struct rt_semaphore cdc_write_sem;
 extern struct rt_device g_cdc_rt_device;
@@ -144,7 +156,7 @@ void usbd_cdc_acm_bulk_out(uint8_t ep, uint32_t nbytes)
 void usbd_cdc_acm_bulk_in(uint8_t ep, uint32_t nbytes)
 {
     //USB_LOG_RAW("actual in len:%u\r\n", nbytes);
-
+    actual_write += nbytes;
     if ((nbytes % CDC_MAX_MPS) == 0 && nbytes) {
         /* send zlp */
         usbd_ep_start_write(CDC_IN_EP, NULL, 0);
@@ -174,7 +186,7 @@ struct usbd_interface intf2;
 void cdc_acm_msc_init(void)
 {
     rt_sem_init(&cdc_read_sem, "cdc/read", 0, RT_IPC_FLAG_FIFO);
-    rt_sem_init(&cdc_write_sem, "cdc/write", 0, RT_IPC_FLAG_FIFO);
+    rt_sem_init(&cdc_write_sem, "cdc/write", 1, RT_IPC_FLAG_FIFO);
     usbd_desc_register(cdc_msc_descriptor);
     usbd_add_interface(usbd_cdc_acm_init_intf(&intf0));
     usbd_add_interface(usbd_cdc_acm_init_intf(&intf1));

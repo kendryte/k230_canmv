@@ -195,12 +195,11 @@ def kpu_run(kpu_obj,rgb888p_img):
         return post_ret[0]
 
 
-def kpu_deinit(kpu_obj):
+def kpu_deinit():
     # kpu释放
     with ScopedTiming("kpu_deinit",debug_mode > 0):
         global ai2d,ai2d_output_tensor
-        del kpu_obj                  #删除kpu_obj变量，释放对它所引用对象的内存引用
-        del ai2d                    #删除ai2d变量，释放对它所引用对象的内存引用
+        del ai2d                      #删除ai2d变量，释放对它所引用对象的内存引用
         del ai2d_output_tensor        #删除ai2d_output_tensor变量，释放对它所引用对象的内存引用
 
 #********************for media_utils.py********************
@@ -226,7 +225,7 @@ def display_draw(dets):
             for det in dets:
                 x, y, w, h = map(lambda x: int(round(x, 0)), det[:4])
                 x = x * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
-                y = y * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
+                y = y * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
                 w = w * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
                 h = h * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
                 draw_img.draw_rectangle(x,y, w, h, color=(255, 255, 0, 255), thickness = 2)
@@ -329,6 +328,7 @@ def face_detect_inference():
         # 启动camera
         camera_start(CAM_DEV_ID_0)
         time.sleep(5)
+        gc_count = 0
         while True:
             with ScopedTiming("total",1):
                 # （1）读取一帧图像
@@ -350,7 +350,11 @@ def face_detect_inference():
                 # （4）释放当前帧
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)
                 rgb888p_img = None
-
+                if gc_count > 5:
+                    gc.collect()
+                    gc_count = 0
+                else:
+                    gc_count += 1
     except Exception as e:
         # 捕捉运行运行中异常，并打印错误
         print(f"An error occurred during buffer used: {e}")
@@ -365,7 +369,10 @@ def face_detect_inference():
         # 释放显示资源
         display_deinit()
         # 释放kpu资源
-        kpu_deinit(kpu_face_detect)
+        kpu_deinit()
+        global current_kmodel_obj
+        del current_kmodel_obj
+        del kpu_face_detect
         # 垃圾回收
         gc.collect()
         time.sleep(1)

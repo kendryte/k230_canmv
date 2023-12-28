@@ -16,6 +16,7 @@
 #include "mpi_vb_api.h"
 #include "mpi_vo_api.h"
 #include "mpstate.h"
+#include "mpthread.h"
 #include "obj.h"
 #include "objstr.h"
 #include "readline.h"
@@ -42,27 +43,20 @@
 
 #if CONFIG_CANMV_IDE_SUPPORT
 
-#define TEST_PIC 0
-
-int usb_cdc_fd;
-
-void mp_hal_stdout_tx_strn(const char *str, size_t len);
-
+#define IDE_DEBUG_PRINT 0
 #if IDE_DEBUG_PRINT
 #define pr(fmt,...) fprintf(stderr,fmt "\n",##__VA_ARGS__)
 #else
 #define pr(fmt,...)
 #endif
 
-static pthread_t ide_dbg_task_p;
+int usb_cdc_fd;
+pthread_t ide_dbg_task_p;
 static unsigned char usb_cdc_read_buf[4096];
 static struct ide_dbg_svfil_t ide_dbg_sv_file;
 static mp_obj_exception_t ide_exception; //IDE interrupt
 static mp_obj_str_t ide_exception_str;
 static mp_obj_tuple_t* ide_exception_str_tuple = NULL;
-#if !TEST_PIC
-static mp_obj_t mp_const_ide_interrupt = (mp_obj_t)(&ide_exception);
-#endif
 static sem_t stdin_sem;
 static char stdin_ring_buffer[4096];
 static unsigned stdin_write_ptr = 0;
@@ -70,14 +64,41 @@ static unsigned stdin_read_ptr = 0;
 
 int usb_rx(void) {
     char c;
-    sem_wait(&stdin_sem);
+    struct timeval tval;
+    struct timespec to;
+    gettimeofday(&tval, NULL);
+    to.tv_sec = tval.tv_sec + 1;
+    to.tv_nsec = tval.tv_usec * 1000;
+    if (sem_timedwait(&stdin_sem, &to) != 0)
+        return -1;
     c = stdin_ring_buffer[stdin_read_ptr++];
     stdin_read_ptr %= sizeof(stdin_ring_buffer);
     return c;
 }
 
+void usb_rx_clear(void) {
+    while (1) {
+        if (sem_trywait(&stdin_sem) != 0)
+            return;
+        stdin_read_ptr++;
+        stdin_read_ptr %= sizeof(stdin_ring_buffer);
+    }
+}
+
 int usb_tx(const void* buffer, size_t size) {
-    return write(usb_cdc_fd, buffer, size);
+    // slice
+    #define BLOCK_SIZE 1024
+    size_t ptr = 0;
+    while (1) {
+        if (size > ptr + BLOCK_SIZE) {
+            write(usb_cdc_fd, (char*)buffer + ptr, BLOCK_SIZE);
+            ptr += BLOCK_SIZE;
+        } else {
+            write(usb_cdc_fd, (char*)buffer + ptr, size - ptr);
+            break;
+        }
+    }
+    return size;
 }
 
 void print_raw(const uint8_t* data, size_t size) {
@@ -91,23 +112,34 @@ void print_raw(const uint8_t* data, size_t size) {
 }
 
 static uint32_t ide_script_running = 0;
-static char tx_buf[256];
-static volatile uint32_t tx_buf_len = 0;
+// ringbuffer
+#define TX_BUF_SIZE 1024
+static char tx_buf[TX_BUF_SIZE];
+static uint32_t tx_buf_w_ptr = 0;
+static uint32_t tx_buf_r_ptr = 0;
 static pthread_mutex_t tx_buf_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+#define RINGBUFFER_WRITABLE(len,wptr,rptr) ((wptr)>=(rptr)?((len)-(wptr)+(rptr)):((rptr)-(wptr)-1))
+#define RINGBUFFER_READABLE(len,wptr,rptr) ((wptr)>=(rptr)?(wptr-rptr):(len-rptr+wptr))
+#define TX_BUF_WRITABLE RINGBUFFER_WRITABLE(TX_BUF_SIZE,tx_buf_w_ptr,tx_buf_r_ptr)
+#define TX_BUF_READABLE RINGBUFFER_READABLE(TX_BUF_SIZE,tx_buf_w_ptr,tx_buf_r_ptr)
+#define RINGBUFFER_WRITE(buf,len,wptr,w,wlen) do{\
+if(wlen+wptr<len){memcpy(buf+wptr,w,wlen);wptr+=wlen;}\
+else{memcpy(buf+wptr,w,len-wptr);\
+memcpy(buf,w+len-wptr,wlen-(len-wptr));wptr=wlen-(len-wptr);}\
+}while(0)
+
 void mpy_stdout_tx(const char* data, size_t size) {
-    // FIXME
+    // ringbuffer
     pthread_mutex_lock(&tx_buf_mutex);
-    if (sizeof(tx_buf) - tx_buf_len < size) {
+    if (size > TX_BUF_WRITABLE) {
         pthread_mutex_unlock(&tx_buf_mutex);
-        // wait tx_buf_len to zero
-        while (tx_buf_len) {
+        while (size > TX_BUF_WRITABLE) {
             usleep(2000);
         }
         pthread_mutex_lock(&tx_buf_mutex);
     }
-    memcpy(tx_buf + tx_buf_len, data, size);
-    tx_buf_len += size;
+    RINGBUFFER_WRITE(tx_buf, TX_BUF_SIZE, tx_buf_w_ptr, data, size);
     pthread_mutex_unlock(&tx_buf_mutex);
 }
 
@@ -133,11 +165,17 @@ void mpy_start_script(char* filepath);
 void mpy_stop_script();
 static char *script_string = NULL;
 static sem_t script_sem;
-static volatile bool ide_attached = false;
+static bool ide_attached = false;
+static bool ide_disconnect = false;
+static enum {
+    FB_FROM_NONE,
+    FB_FROM_USER_SET,
+    FB_FROM_VO_WRITEBACK
+} fb_from = FB_FROM_NONE, fb_from_current;
 
 char* ide_dbg_get_script() {
     sem_wait(&script_sem);
-    return script_string;
+    return ide_attached ? script_string : NULL;
 }
 
 bool ide_dbg_attach(void) {
@@ -149,44 +187,47 @@ void ide_dbg_on_script_start(void) {
 }
 
 void ide_dbg_on_script_end(void) {
-    ide_script_running = 0;
-    // wait print done
-    while (tx_buf_len) {
-        usleep(2000);
+    if (script_string) {
+        free(script_string);
+        script_string = NULL;
     }
+    // wait print done
+    int count = 0;
+    while (tx_buf_w_ptr != tx_buf_r_ptr && count < 100) {
+        usleep(10000);
+        count++;
+    }
+    ide_script_running = 0;
+    if (ide_disconnect) {
+        ide_disconnect = false;
+        ide_attached = false;
+    }
+    fb_from = FB_FROM_NONE;
 }
 
-static void interrupt_repl(void) {
+void interrupt_repl(void) {
+    stdin_ring_buffer[stdin_write_ptr++] = CHAR_CTRL_C;
+    stdin_write_ptr %= sizeof(stdin_ring_buffer);
+    sem_post(&stdin_sem);
     stdin_ring_buffer[stdin_write_ptr++] = CHAR_CTRL_D;
     stdin_write_ptr %= sizeof(stdin_ring_buffer);
     sem_post(&stdin_sem);
 }
 
-static void interrupt_ide(void) {
+void interrupt_ide(void) {
     pr("[usb] exit IDE mode");
     ide_attached = false;
-    // exit script mode
-    if (script_string) {
-        free(script_string);
-        script_string = NULL;
-    }
     sem_post(&script_sem);
 }
 
-static volatile bool enable_pic = true;
-static bool flag_wait_exit = false;
-
-static enum {
-    FB_FROM_NONE,
-    FB_FROM_USER_SET,
-    FB_FROM_VO_WRITEBACK
-} fb_from = FB_FROM_NONE;
-static volatile void* fb_data = NULL;
+static bool enable_pic = true;
+static void* fb_data = NULL;
 static uint32_t fb_size = 0, fb_width = 0, fb_height = 0;
 static pthread_mutex_t fb_mutex;
 // FIXME: reuse buf
 void ide_set_fb(const void* data, uint32_t size, uint32_t width, uint32_t height) {
     pthread_mutex_lock(&fb_mutex);
+    fb_from = FB_FROM_USER_SET;
     if (fb_data) {
         // not sended
         pthread_mutex_unlock(&fb_mutex);
@@ -199,15 +240,17 @@ void ide_set_fb(const void* data, uint32_t size, uint32_t width, uint32_t height
     fb_height = height;
     pthread_mutex_unlock(&fb_mutex);
 }
-#define ENABLE_VO_WRITEBACK 0
+
+#define ENABLE_VO_WRITEBACK 1
 // for VO writeback
 #if ENABLE_VO_WRITEBACK
-static volatile char vo_wbc_enabled = 0;
 static void* wbc_jpeg_buffer = NULL;
 static size_t wbc_jpeg_buffer_size = 0;
 static uint32_t wbc_jpeg_size = 0;
-static volatile k_connector_type connector_type = 0;
+static k_connector_type connector_type = 0;
+static k_video_frame_info frame_info;
 #endif
+
 int ide_dbg_vo_init(k_connector_type _connector_type) {
     #if ENABLE_VO_WRITEBACK
     connector_type = _connector_type;
@@ -218,6 +261,7 @@ int ide_dbg_vo_init(k_connector_type _connector_type) {
 int ide_dbg_vo_wbc_init(void) {
     #if ENABLE_VO_WRITEBACK
     k_connector_info vo_info;
+
     kd_mpi_get_connector_info(connector_type, &vo_info);
     pr("[omv] %s(%d), %ux%u", __func__, connector_type, vo_info.resolution.hdisplay, vo_info.resolution.vdisplay);
     k_vo_wbc_attr attr = {
@@ -228,15 +272,12 @@ int ide_dbg_vo_wbc_init(void) {
     };
     if (kd_mpi_vo_set_wbc_attr(&attr)) {
         pr("[omv] kd_mpi_vo_set_wbc_attr error");
-        vo_wbc_enabled = -1;
         return -1;
     }
     if (kd_mpi_vo_enable_wbc()) {
         pr("[omv] kd_mpi_vo_enable_wbc error");
-        vo_wbc_enabled = -1;
         return -1;
     }
-    vo_wbc_enabled = 1;
     pr("[omv] VO writeback enabled");
     #endif
     return 0;
@@ -245,21 +286,30 @@ int ide_dbg_vo_wbc_init(void) {
 int ide_dbg_vo_deinit(void) {
     pr("[omv] %s", __func__);
     #if ENABLE_VO_WRITEBACK
-    if (vo_wbc_enabled > 0) {
-        kd_mpi_vo_disable_wbc();
-        vo_wbc_enabled = 0;
-    }
+    #include <sys/mman.h>
+    int fd = open("/dev/mem", O_RDWR | O_SYNC);
+    if (fd < 0)
+        mp_raise_OSError(errno);
+    void *vo_base = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0x90840000);
+    if (vo_base == NULL)
+        mp_raise_OSError(errno);
+    *(uint32_t *)(vo_base + 0x118) = 0x10000;
+    *(uint32_t *)(vo_base + 0x004) = 0x11;
+    munmap(vo_base, 4096);
+    close(fd);
+    usleep(50000);
+    kd_mpi_vo_disable_wbc();
     #endif
     return 0;
 }
 
+int ide_dbg_set_vo_wbc(int enable) {
+    pr("[omv] %s, enable(%d)", __func__, enable);
+    fb_from = enable ? FB_FROM_VO_WRITEBACK : FB_FROM_NONE;
+    return 0;
+}
+
 static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* data, size_t length) {
-    #if TEST_PIC
-    static unsigned pic_idx = 0;
-    extern unsigned long num_jpeg;
-    extern unsigned long index_jpeg[];
-    extern unsigned char data_jpeg[];
-    #endif
     for (size_t i = 0; i < length;) {
         switch (state->state) {
             case FRAME_HEAD:
@@ -325,36 +375,26 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     case USBDBG_SCRIPT_EXEC: {
                         // TODO
                         pr("cmd: USBDBG_SCRIPT_EXEC size %u", state->data_length);
+                        if (ide_script_running != 0)
+                            mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&ide_exception));
+                        usleep(100000);
+                        if (ide_script_running != 0)
+                            break;
                         // recv script string
-                        if (script_string != NULL) {
-                            free(script_string);
-                        }
                         script_string = malloc(state->data_length + 1);
                         read_until(usb_cdc_fd, script_string, state->data_length);
                         script_string[state->data_length] = '\0';
                         // into script mode, interrupt REPL, send CTRL-D
                         ide_script_running = 1;
-                        #if !TEST_PIC
                         sem_post(&script_sem);
-                        #endif
                         break;
                     }
                     case USBDBG_SCRIPT_STOP: {
                         // TODO
                         pr("cmd: USBDBG_SCRIPT_STOP");
-                        flag_wait_exit = true;
-                        #if TEST_PIC
-                        ide_script_running = 0;
-                        #else
                         // raise IDE interrupt
-                        if (ide_script_running) {
-                            // FIXME
-                            MP_THREAD_GIL_ENTER();
-                            mp_obj_exception_clear_traceback(mp_const_ide_interrupt);
-                            mp_sched_exception(mp_const_ide_interrupt);
-                            MP_THREAD_GIL_EXIT();
-                        }
-                        #endif
+                        if (ide_script_running)
+                            mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&ide_exception));
                         break;
                     }
                     case USBDBG_SCRIPT_SAVE: {
@@ -471,22 +511,33 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     case USBDBG_TX_BUF_LEN: {
                         // DO NOT PRINT
                         pthread_mutex_lock(&tx_buf_mutex);
-                        #if !PRINT_ALL
-                        if (tx_buf_len)
-                        #endif
-                        {
-                            pr("cmd: USBDBG_TX_BUF_LEN %u", tx_buf_len);
+                        uint32_t len = TX_BUF_READABLE;
+                        if (len == 0) {
                         }
-                        uint32_t tmp = tx_buf_len;
+                        #if !PRINT_ALL
+                        else {
+                            pr("cmd: USBDBG_TX_BUF_LEN %u", len);
+                        }
+                        #endif
+                        usb_tx((void*)&len, sizeof(len));
                         pthread_mutex_unlock(&tx_buf_mutex);
-                        usb_tx(&tmp, sizeof(tx_buf_len));
                         break;
                     }
                     case USBDBG_TX_BUF: {
-                        pr("cmd: USBDBG_TX_BUF");
                         pthread_mutex_lock(&tx_buf_mutex);
-                        usb_tx(tx_buf, tx_buf_len);
-                        tx_buf_len = 0;
+                        // pr("cmd: USBDBG_TX_BUF %u", TX_BUF_READABLE);
+                        uint32_t len = TX_BUF_READABLE;
+                        if (len > state->data_length) {
+                            len = state->data_length;
+                        }
+                        if (TX_BUF_SIZE - tx_buf_r_ptr > len) {
+                            usb_tx(tx_buf + tx_buf_r_ptr, len);
+                            tx_buf_r_ptr += len;
+                        } else {
+                            usb_tx(tx_buf + tx_buf_r_ptr, TX_BUF_SIZE - tx_buf_r_ptr);
+                            usb_tx(tx_buf, len - (TX_BUF_SIZE - tx_buf_r_ptr));
+                            tx_buf_r_ptr = len - (TX_BUF_SIZE - tx_buf_r_ptr);
+                        }
                         pthread_mutex_unlock(&tx_buf_mutex);
                         break;
                     }
@@ -495,124 +546,71 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         #if PRINT_ALL
                         pr("cmd: USBDBG_FRAME_SIZE");
                         #endif
-                        #if TEST_PIC
-                        uint32_t resp[3] = {
-                            1920, // width
-                            1080, // height
-                            index_jpeg[pic_idx + 1] - index_jpeg[pic_idx], // size
-                        };
-                        if (!ide_script_running) {
-                            resp[0] = 0;
-                            resp[1] = 0;
-                            resp[2] = 0;
-                        }
-                        #else
                         uint32_t resp[3] = {
                             0, // width
                             0, // height
                             0, // size
                         };
-
-                        pthread_mutex_lock(&fb_mutex);
-                        if (fb_data) {
-                            pr("[omv] use user set fb");
-                            resp[0] = fb_width;
-                            resp[1] = fb_height;
-                            resp[2] = fb_size;
-                            fb_from = FB_FROM_USER_SET;
-                        }
-                        pthread_mutex_unlock(&fb_mutex);
-                        if (resp[2] != 0) {
+                        if (!enable_pic || fb_from == FB_FROM_NONE)
                             goto skip;
-                        }
+                        fb_from_current = fb_from;
+                        if (fb_from_current == FB_FROM_USER_SET) {
+                            pthread_mutex_lock(&fb_mutex);
+                            if (fb_data) {
+                                pr("[omv] use user set fb");
+                                resp[0] = fb_width;
+                                resp[1] = fb_height;
+                                resp[2] = fb_size;
+                            }
+                            pthread_mutex_unlock(&fb_mutex);
                         #if ENABLE_VO_WRITEBACK
-                        // try vo writeback
-                        if (vo_wbc_enabled > 0) {
-                            pr("[omv] try using writeback");
-                            k_video_frame_info frame_info;
-                            unsigned error = kd_mpi_wbc_dump_frame(&frame_info, 100);
-                            if (error) {
-                                pr("[omv] kd_mpi_wbc_dump_frame error: %u", error);
-                                goto skip;
+                        } else if (fb_from_current == FB_FROM_VO_WRITEBACK) {
+                            if (wbc_jpeg_size == 0) {
+                                unsigned error = kd_mpi_wbc_dump_frame(&frame_info, 50);
+                                if (error) {
+                                    pr("[omv] kd_mpi_wbc_dump_frame error: %u", error);
+                                    goto skip;
+                                }
+                                frame_info.v_frame.pixel_format = PIXEL_FORMAT_YVU_SEMIPLANAR_420;
+                                //pr("[omv] kd_mpi_wbc_dump_frame success w(%u)h(%u)phy(%08lx)",
+                                //frame_info.v_frame.width, frame_info.v_frame.height, frame_info.v_frame.phys_addr[0]);
+                                // JPEG compressing
+                                int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int timeout, void*(*realloc)(void*, unsigned long));
+                                int ssize = hd_jpeg_encode(&frame_info, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
+                                kd_mpi_wbc_dump_release(&frame_info);
+                                if (ssize <= 0) {
+                                    pr("[omv] hardware JPEG error %d", ssize);
+                                    // error
+                                    goto skip;
+                                }
+                                wbc_jpeg_size = ssize;
                             }
-                            frame_info.v_frame.width = 1920;
-                            frame_info.v_frame.height = 1080;
-                            frame_info.v_frame.pixel_format = PIXEL_FORMAT_YUV_SEMIPLANAR_420;
-                            pr("[omv] kd_mpi_wbc_dump_frame success w(%u)h(%u)phy(%08lx)",
-                            frame_info.v_frame.width, frame_info.v_frame.height, frame_info.v_frame.phys_addr[0]);
-                            // JPEG compressing
-                            int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int timeout, void*(*realloc)(void*, unsigned long));
-                            int ssize = hd_jpeg_encode(&frame_info, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
-                            if (ssize <= 0) {
-                                // error
-                                goto skip;
-                            }
-                            kd_mpi_wbc_dump_release(&frame_info);
                             resp[0] = frame_info.v_frame.width;
                             resp[1] = frame_info.v_frame.height;
-                            resp[2] = ssize;
-                            wbc_jpeg_size = ssize;
-                            wbc_jpeg_buffer_size = wbc_jpeg_buffer_size > ssize ? wbc_jpeg_buffer_size : ssize;
-                            fb_from = FB_FROM_VO_WRITEBACK;
+                            resp[2] = wbc_jpeg_size;
+                            wbc_jpeg_buffer_size = wbc_jpeg_buffer_size > wbc_jpeg_size ? wbc_jpeg_buffer_size : wbc_jpeg_size;
+                        #endif
                         }
-                        #endif
                         skip:
-                        #endif
                         if (resp[2]) {
-                            pr("cmd: USBDBG_FRAME_SIZE %u %u %u", resp[0], resp[1], resp[2]);
+                            pr("cmd: USBDBG_FRAME_SIZE %u %u %u from(%d)", resp[0], resp[1], resp[2], fb_from);
                         }
                         usb_tx(&resp, sizeof(resp));
                         break;
                     }
                     case USBDBG_FRAME_DUMP: {
-                        // pr("cmd: USBDBG_FRAME_DUMP");
-                        // DO NOT PRINT
-                        #if PRINT_ALL
                         pr("cmd: USBDBG_FRAME_DUMP");
-                        #endif
-                        #if TEST_PIC
-                        if (state->data_length != index_jpeg[pic_idx + 1] - index_jpeg[pic_idx]) {
-                            pr("cmd: USBDBG_FRAME_DUMP, expected size %lu, got %u",
-                                index_jpeg[pic_idx + 1] - index_jpeg[pic_idx],
-                                state->data_length);
-                        }
-                        // 1024bytes fragment
-                        size_t x = 0;
-                        for (; x < state->data_length; x += 1024) {
-                            usb_tx(data_jpeg + index_jpeg[pic_idx] + x, 1024);
-                        }
-                        if (x < state->data_length) {
-                            usb_tx(data_jpeg + index_jpeg[pic_idx] + x, state->data_length - x);
-                        }
-                        pic_idx += 1;
-                        pic_idx %= num_jpeg;
-                        #else
-                        if (fb_from == FB_FROM_USER_SET) {
+                        if (fb_from_current == FB_FROM_USER_SET) {
                             pthread_mutex_lock(&fb_mutex);
-                            size_t x = 0;
-                            for (; x < fb_size; x += 1024) {
-                                usb_tx((uint8_t*)fb_data + x, 1024);
-                            }
-                            if (x < fb_size) {
-                                usb_tx((uint8_t*)fb_data + x, fb_size - x);
-                            }
+                            usb_tx((void*)fb_data, fb_size);
                             free((void*)fb_data);
                             fb_data = NULL;
                             pthread_mutex_unlock(&fb_mutex);
                         }
                         #if ENABLE_VO_WRITEBACK
-                        else if (fb_from == FB_FROM_VO_WRITEBACK) {
-                            size_t x = 0;
-                            for (; x < wbc_jpeg_size; x += 1024) {
-                                usb_tx(wbc_jpeg_buffer + x, 1024);
-                            }
-                            if (x < wbc_jpeg_size) {
-                                usb_tx(wbc_jpeg_buffer + x, wbc_jpeg_size - x);
-                            }
-                        }
-                        #endif
-                        else {
-                            // ???
+                        else if (fb_from_current == FB_FROM_VO_WRITEBACK) {
+                            usb_tx(wbc_jpeg_buffer, wbc_jpeg_size);
+                            wbc_jpeg_size = 0;
                         }
                         #endif
                         break;
@@ -620,7 +618,12 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     case USBDBG_SYS_RESET: {
                         // TODO: reset serialport to REPL mode
                         pr("cmd: USBDBG_SYS_RESET");
-                        interrupt_ide();
+                        if (ide_script_running) {
+                            ide_disconnect = true;
+                            mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&ide_exception));
+                        } else {
+                            interrupt_ide();
+                        }
                         break;
                     }
                     case USBDBG_FB_ENABLE: {
@@ -665,6 +668,10 @@ extern volatile bool repl_script_running;
 static void* ide_dbg_task(void* args) {
     ide_dbg_state_t state;
     state.state = FRAME_HEAD;
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+    struct sched_param param;
+    param.sched_priority = 20;
+    pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
     while (1) {
         struct timeval tv = {
             .tv_sec = 1,
@@ -682,23 +689,31 @@ static void* ide_dbg_task(void* args) {
         } else if (result < 0) {
             perror("select() error");
             kill(getpid(), SIGINT);
-            return NULL;
+            continue;
         }
         if (FD_ISSET(STDIN_FILENO, &rfds)) {
-            pr("exit, press enter");
-            kill(getpid(), SIGINT);
-            return NULL;
+            char tmp;
+            read(STDIN_FILENO, &tmp, 1);
+            if (tmp == CHAR_CTRL_C || tmp == 'q')
+                kill(getpid(), SIGINT);
+            continue;
         }
         if (FD_ISSET(usb_cdc_fd, &efds)) {
             // RTS
             pr("[usb] RTS");
-            if (ide_dbg_attach()) {
-                if (flag_wait_exit) {
-                    interrupt_ide();
-                    flag_wait_exit = false;
+            static struct timeval tval_last = {};
+            struct timeval tval;
+            gettimeofday(&tval, NULL);
+            if (tval.tv_sec > tval_last.tv_sec + 2) {
+                if (ide_dbg_attach()) {
+                    if (ide_script_running) {
+                        ide_disconnect = true;
+                        mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&ide_exception));
+                    } else {
+                        interrupt_ide();
+                    }
                 }
-            } else {
-                interrupt_repl();
+                tval_last = tval;
             }
         }
         if (!FD_ISSET(usb_cdc_fd, &rfds)) {
@@ -730,6 +745,8 @@ static void* ide_dbg_task(void* args) {
                     interrupt_repl();
                 }
                 ide_attached = true;
+                if (ide_script_running)
+                    mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&ide_exception));
                 ide_dbg_update(&state, usb_cdc_read_buf, size);
             } else {
                 // FIXME: mock machine.UART, restore this when UART library finish
@@ -750,10 +767,9 @@ static void* ide_dbg_task(void* args) {
                 pr("[usb] read %lu bytes ", size);
                 print_raw(usb_cdc_read_buf, size);
                 if ((size == 1) && (usb_cdc_read_buf[0] == CHAR_CTRL_C) && repl_script_running) {
-                    // terminate script running, FIXME: multithread raise
+                    // terminate script running
                     #if MICROPY_KBD_EXCEPTION
-                    mp_sched_keyboard_interrupt();
-                    //nlr_raise(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
+                    mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
                     #endif
                 } else {
                     if (stdin_write_ptr + size <= sizeof(stdin_ring_buffer)) {
@@ -787,6 +803,8 @@ void ide_dbg_init(void) {
         perror("open /dev/ttyUSB1 error");
         return;
     }
+    // clear input buffer
+    while (0 < read(usb_cdc_fd, usb_cdc_read_buf, sizeof(usb_cdc_read_buf)));
     sem_init(&script_sem, 0, 0);
     sem_init(&stdin_sem, 0, 0);
     pthread_mutex_init(&fb_mutex, NULL);

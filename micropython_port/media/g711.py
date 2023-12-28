@@ -17,7 +17,7 @@ def _vb_buffer_init(frames_per_buffer=1024):
     config.comm_pool[0].blk_size = int(frames_per_buffer * 2 * 4)
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
 
-    return media.buffer_config(config)
+    media.buffer_config(config)
 
 class Encoder:
     chns_enable = [0 for i in range(0,AENC_MAX_CHN_NUMS)]
@@ -33,7 +33,6 @@ class Encoder:
             self._audio_frame.pool_id = kd_mpi_vb_handle_to_pool_id(self._audio_handle)
             self._audio_frame.phys_addr = kd_mpi_vb_handle_to_phyaddr(self._audio_handle)
             self._audio_frame.virt_addr = kd_mpi_sys_mmap(self._audio_frame.phys_addr, frame_size)
-            return 0
 
     def _deinit_audio_frame(self):
         if (self._audio_handle != -1):
@@ -77,9 +76,8 @@ class Encoder:
                 raise ValueError(("kd_mpi_aenc_create_chn:%d faild")%(self.chn))
 
             self.init = True
-            return 0
-
-        return -1
+        else:
+            raise RuntimeError("The instance has been initialized")
 
     def destroy(self):
         if (self.init):
@@ -92,7 +90,6 @@ class Encoder:
             self._deinit_audio_frame()
 
         self.init = False
-        return 0
 
     def encode(self,frame_data):
         audio_stream = k_audio_stream()
@@ -126,7 +123,6 @@ class Decoder:
             self._audio_stream.len = frame_size
             self._audio_stream.phys_addr = kd_mpi_vb_handle_to_phyaddr(self._audio_handle)
             self._audio_stream.stream = kd_mpi_sys_mmap(self._audio_stream.phys_addr, frame_size)
-            return 0
 
     def _deinit_audio_stream(self):
         if (self._audio_handle != -1):
@@ -169,8 +165,8 @@ class Decoder:
                 raise ValueError(("kd_mpi_adec_create_chn:%d faild")%(self.chn))
 
             self.init = True
-            return 0
-        return -1
+        else:
+            raise RuntimeError("The instance has been initialized")
 
     def destroy(self):
         if (self.init):
@@ -182,7 +178,6 @@ class Decoder:
             self._deinit_audio_stream()
 
         self.init = False
-        return 0
 
     def decode(self,stream_data):
         audio_frame = k_audio_frame()

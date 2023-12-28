@@ -408,7 +408,7 @@ typedef enum {
 #define PIXFORMAT_FLAGS_C          (1 << 26) // Colored format.
 #define PIXFORMAT_FLAGS_J          (1 << 25) // Compressed format (JPEG/PNG).
 #define PIXFORMAT_FLAGS_R          (1 << 24) // RAW/Bayer format.
-#define PIXFORMAT_FLAGS_CY         (PIXFORMAT_FLAGS_C | PIXFORMAT_FLAGS_Y)
+#define PIXFORMAT_FLAGS_CY         (PIXFORMAT_FLAGS_C | PIXFORMAT_FLAGS_Y | PIXFORMAT_FLAGS_M)
 #define PIXFORMAT_FLAGS_CM         (PIXFORMAT_FLAGS_C | PIXFORMAT_FLAGS_M)
 #define PIXFORMAT_FLAGS_CR         (PIXFORMAT_FLAGS_C | PIXFORMAT_FLAGS_R)
 #define PIXFORMAT_FLAGS_CJ         (PIXFORMAT_FLAGS_C | PIXFORMAT_FLAGS_J)
@@ -692,9 +692,9 @@ bool image_get_mask_pixel(image_t *ptr, int x, int y);
         __typeof__ (x) _x = (x);                           \
         __typeof__ (y) _y = (y);                           \
         uint32_t offset = ((_image->w * _y) + _x) * 3;     \
-        (((uint8_t *) _image->data)[offset + 0] << 0) |    \
+        (((uint8_t *) _image->data)[offset + 2] << 0) |    \
         (((uint8_t *) _image->data)[offset + 1] << 8) |    \
-        (((uint8_t *) _image->data)[offset + 2] << 16)     \
+        (((uint8_t *) _image->data)[offset + 0] << 16)     \
     })
 
 #define IMAGE_PUT_RGB888_PIXEL(image, x, y, v)                  \
@@ -704,9 +704,9 @@ bool image_get_mask_pixel(image_t *ptr, int x, int y);
         __typeof__ (y) _y = (y);                                \
         __typeof__ (v) _v = (v);                                \
         uint32_t offset = ((_image->w * _y) + _x) * 3;          \
-        ((uint8_t *) _image->data)[offset + 0] = _v >> 0;       \
+        ((uint8_t *) _image->data)[offset + 2] = _v >> 0;       \
         ((uint8_t *) _image->data)[offset + 1] = _v >> 8;       \
-        ((uint8_t *) _image->data)[offset + 2] = _v >> 16;      \
+        ((uint8_t *) _image->data)[offset + 0] = _v >> 16;      \
     })
 
 #define IMAGE_GET_ARGB8888_PIXEL(image, x, y)              \
@@ -724,6 +724,11 @@ bool image_get_mask_pixel(image_t *ptr, int x, int y);
         __typeof__ (y) _y = (y);                                \
         __typeof__ (v) _v = (v);                                \
         ((uint32_t *) _image->data)[(_image->w * _y) + _x] = _v;\
+    })
+
+#define IMAGE_PUT_YUV420_PIXEL(image, x, y, v) \
+    ({\
+        \
     })
 
 // Fast Stuff //

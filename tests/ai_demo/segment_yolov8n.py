@@ -34,6 +34,29 @@ debug_mode = 0                                                  # debug模式 �
 #标签 多目标分割的所有可识别类别
 labels = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"]
 
+#颜色板 用于作图
+color_four = [(255, 220, 20, 60), (255, 119, 11, 32), (255, 0, 0, 142), (255, 0, 0, 230),
+        (255, 106, 0, 228), (255, 0, 60, 100), (255, 0, 80, 100), (255, 0, 0, 70),
+        (255, 0, 0, 192), (255, 250, 170, 30), (255, 100, 170, 30), (255, 220, 220, 0),
+        (255, 175, 116, 175), (255, 250, 0, 30), (255, 165, 42, 42), (255, 255, 77, 255),
+        (255, 0, 226, 252), (255, 182, 182, 255), (255, 0, 82, 0), (255, 120, 166, 157),
+        (255, 110, 76, 0), (255, 174, 57, 255), (255, 199, 100, 0), (255, 72, 0, 118),
+        (255, 255, 179, 240), (255, 0, 125, 92), (255, 209, 0, 151), (255, 188, 208, 182),
+        (255, 0, 220, 176), (255, 255, 99, 164), (255, 92, 0, 73), (255, 133, 129, 255),
+        (255, 78, 180, 255), (255, 0, 228, 0), (255, 174, 255, 243), (255, 45, 89, 255),
+        (255, 134, 134, 103), (255, 145, 148, 174), (255, 255, 208, 186),
+        (255, 197, 226, 255), (255, 171, 134, 1), (255, 109, 63, 54), (255, 207, 138, 255),
+        (255, 151, 0, 95), (255, 9, 80, 61), (255, 84, 105, 51), (255, 74, 65, 105),
+        (255, 166, 196, 102), (255, 208, 195, 210), (255, 255, 109, 65), (255, 0, 143, 149),
+        (255, 179, 0, 194), (255, 209, 99, 106), (255, 5, 121, 0), (255, 227, 255, 205),
+        (255, 147, 186, 208), (255, 153, 69, 1), (255, 3, 95, 161), (255, 163, 255, 0),
+        (255, 119, 0, 170), (255, 0, 182, 199), (255, 0, 165, 120), (255, 183, 130, 88),
+        (255, 95, 32, 0), (255, 130, 114, 135), (255, 110, 129, 133), (255, 166, 74, 118),
+        (255, 219, 142, 185), (255, 79, 210, 114), (255, 178, 90, 62), (255, 65, 70, 15),
+        (255, 127, 167, 115), (255, 59, 105, 106), (255, 142, 108, 45), (255, 196, 172, 0),
+        (255, 95, 54, 80), (255, 128, 76, 255), (255, 201, 57, 1), (255, 246, 0, 122),
+        (255, 191, 162, 208)]
+
 #scoped_timing.py 用于debug模式输出程序块运行时间
 class ScopedTiming:
     def __init__(self, info="", enable_profile=True):
@@ -107,7 +130,7 @@ def ai2d_init():
 # ai2d 运行
 def ai2d_run(rgb888p_img):
     with ScopedTiming("ai2d_run",debug_mode > 0):
-        global ai2d_input_tensor,ai2d_out_tensor
+        global ai2d_input_tensor,ai2d_out_tensor,ai2d_builder
         ai2d_input = rgb888p_img.to_numpy_ref()
         ai2d_input_tensor = nn.from_numpy(ai2d_input)
 
@@ -173,11 +196,11 @@ def kpu_run(kpu_obj,rgb888p_img):
     return seg_res
 
 # kpu 释放内存
-def kpu_deinit(kpu_obj):
+def kpu_deinit():
     with ScopedTiming("kpu_deinit",debug_mode > 0):
-        global ai2d,ai2d_out_tensor
-        del kpu_obj
+        global ai2d,ai2d_out_tensor,ai2d_builder
         del ai2d
+        del ai2d_builder
         del ai2d_out_tensor
 
 #media_utils.py
@@ -205,7 +228,7 @@ def display_draw(seg_res):
 
             for i, det in enumerate(dets):
                 x1, y1, w, h = map(lambda x: int(round(x, 0)), det)
-                draw_img.draw_string( int(x1) , int(y1)-50, " " + labels[int(ids[i])] + " " + str(round(scores[i],2)) , color=(255,0,0,0), scale=4)
+                draw_img.draw_string( int(x1) , int(y1)-50, " " + labels[int(ids[i])] + " " + str(round(scores[i],2)) , color=color_four[int(ids[i])], scale=4)
             draw_img.copy_to(osd_img)
             display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
         else:
@@ -299,6 +322,8 @@ def seg_inference():
 
         camera_start(CAM_DEV_ID_0)
         time.sleep(5)
+
+        count = 0
         while True:
             with ScopedTiming("total",1):
                 rgb888p_img = camera_read(CAM_DEV_ID_0)             # 读取一帧图片
@@ -315,7 +340,12 @@ def seg_inference():
 
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)      # camera 释放图像
                 rgb888p_img = None
-                #gc.collect()
+
+                if (count > 5):
+                    gc.collect()
+                    count = 0
+                else:
+                    count += 1
     except Exception as e:
         print(f"An error occurred during buffer used: {e}")
     finally:
@@ -325,7 +355,11 @@ def seg_inference():
 
         camera_stop(CAM_DEV_ID_0)                                   # 停止 camera
         display_deinit()                                            # 释放 display
-        kpu_deinit(kpu_seg)                                         # 释放 kpu
+        kpu_deinit()                                         # 释放 kpu
+        global current_kmodel_obj
+        del current_kmodel_obj
+        del kpu_seg
+
         gc.collect()
         time.sleep(1)
         ret = media_deinit()                                        # 释放 整个media

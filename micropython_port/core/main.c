@@ -65,6 +65,7 @@
 // Command line options, with their defaults
 STATIC bool compile_only = false;
 STATIC uint emit_opt = MP_EMIT_OPT_NONE;
+bool process_exit = false;
 
 #if MICROPY_ENABLE_GC
 // Heap size of GC heap (if enabled)
@@ -198,9 +199,7 @@ STATIC char *strjoin(const char *s1, int sep_char, const char *s2) {
 }
 #endif
 
-STATIC void mp_hal_stdout_tx_str_cooked(const char* str) {
-    mp_hal_stdout_tx_strn_cooked(str, strlen(str));
-}
+extern void mp_hal_stdout_tx_str_cooked(const char* str);
 
 volatile bool repl_script_running = false;
 
@@ -506,13 +505,12 @@ MP_NOINLINE int main_(int argc, char **argv) {
     // means "pipe was requested to terminate, it's not an error"), should
     // catch EPIPE themselves.
     signal(SIGPIPE, SIG_IGN);
+    signal(SIGINT, SIG_IGN);
     #endif
 
-    int usb_cdc_fd = open("/dev/ttyUSB1", O_RDWR);
-    if (usb_cdc_fd < 0) {
-        perror("open /dev/ttyUSB1 error");
-        return -1;
-    }
+    struct sched_param param;
+    param.sched_priority = 30;
+    pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
 
     // Define a reasonable stack limit to detect stack overflow.
     mp_uint_t stack_limit = 128 * 1024 * (sizeof(void *) / 4);
@@ -646,6 +644,10 @@ MP_NOINLINE int main_(int argc, char **argv) {
     sys_set_excecutable(argv[0]);
     #endif
 
+    extern void usb_rx_clear(void);
+    usb_rx_clear();
+    mp_hal_set_interrupt_char(-1);
+
     const int NOTHING_EXECUTED = -2;
     int ret = NOTHING_EXECUTED;
     //bool inspect = false;
@@ -660,7 +662,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
                 set_sys_argv(argv, a + 1, a); // The -c becomes first item of sys.argv, as in CPython
                 set_sys_argv(argv, argc, a + 2); // Then what comes after the command
                 ret = do_str(argv[a + 1]);
-                break;
+                goto main_thread_exit;
             } else if (strcmp(argv[a], "-m") == 0) {
                 if (a + 1 >= argc) {
                     return invalid_args();
@@ -711,7 +713,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
                 }
 
                 ret = 0;
-                break;
+                goto main_thread_exit;
             } else if (strcmp(argv[a], "-X") == 0) {
                 a += 1;
             #if MICROPY_DEBUG_PRINTERS
@@ -732,7 +734,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
         } else {
             set_sys_argv(argv, argc, a);
             ret = do_file(argv[a]);
-            break;
+            goto main_thread_exit;
         }
     }
 
@@ -804,6 +806,10 @@ MP_NOINLINE int main_(int argc, char **argv) {
         do_repl();
     }
     fprintf(stderr, "[mpy] exit, reset\n");
+main_thread_exit:
+    // exit other thread
+    mp_thread_set_exception_other(mp_obj_new_exception(&mp_type_SystemExit));
+    MP_THREAD_GIL_EXIT();
 
     #if MICROPY_PY_SYS_SETTRACE
     MP_STATE_THREAD(prof_trace_callback) = MP_OBJ_NULL;
@@ -831,9 +837,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
     mp_thread_deinit();
     #endif
 
-    #if defined(MICROPY_UNIX_COVERAGE)
     gc_sweep_all();
-    #endif
 
     mp_deinit();
 
@@ -854,9 +858,17 @@ MP_NOINLINE int main_(int argc, char **argv) {
         kd_mpi_venc_destroy_chn(VENC_MAX_CHN_NUMS - 1);
     }
     jpeg_encoder_created = 0;
+    void ide_dbg_vo_deinit(void);
+    ide_dbg_vo_deinit();
     kd_mpi_vb_exit();
 
     // printf("total bytes = %d\n", m_get_total_bytes_allocated());
+    if (process_exit) {
+        extern pthread_t ide_dbg_task_p;
+        usleep(100000);
+        pthread_cancel(ide_dbg_task_p);
+        return ret;
+    }
     goto soft_reset;
     return ret & 0xff;
 }

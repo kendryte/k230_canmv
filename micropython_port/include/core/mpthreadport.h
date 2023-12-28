@@ -24,8 +24,13 @@
  * THE SOFTWARE.
  */
 
+#ifndef MP_THREAD_PORT_H
+#define MP_THREAD_PORT_H
+
 #include <pthread.h>
 #include <stdbool.h>
+#include "py/mphal.h"
+#include "py/mpthread.h"
 
 typedef pthread_mutex_t mp_thread_mutex_t;
 
@@ -43,3 +48,17 @@ void mp_thread_unix_end_atomic_section(void);
 extern bool mp_thread_is_realtime_enabled;
 void mp_thread_set_realtime(void);
 #endif
+
+enum {
+    EXITPOINT_ANY = -1,
+    EXITPOINT_DISABLE = 0,
+    EXITPOINT_ENABLE,
+    EXITPOINT_ENABLE_SLEEP,
+};
+
+void mp_thread_set_exitpoint_flag(int flag);
+void mp_thread_set_exception_main(mp_obj_t obj);
+void mp_thread_set_exception_other(mp_obj_t obj);
+void mp_thread_exitpoint(int flag);
+
+#endif // MP_THREAD_PORT_H

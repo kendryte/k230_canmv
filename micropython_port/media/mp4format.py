@@ -11,7 +11,6 @@ import uctypes
 import time
 
 
-
 class MuxerCfgStr:
     def __init__(self):
         self.file_name = 0
@@ -66,19 +65,13 @@ class Mp4Container:
         self.count = 0
         self.audio_timestamp = 0
 
-
     def Create(self, mp4Cfg):
         if mp4Cfg.type == K_MP4_CONFIG_MUXER:
             camera.set_outbufs(CAM_DEV_ID_0, CAM_CHN_ID_0, 6)
             camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, mp4Cfg.muxerCfg.pic_width, mp4Cfg.muxerCfg.pic_height)
             camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
-            ret = self.venc.SetOutBufs(VENC_CHN_ID_0, 15, mp4Cfg.muxerCfg.pic_width, mp4Cfg.muxerCfg.pic_height)
-            if ret:
-                print("Mp4Container, venc SetOutBufs failed.")
-                return -1
-
+            self.venc.SetOutBufs(VENC_CHN_ID_0, 15, mp4Cfg.muxerCfg.pic_width, mp4Cfg.muxerCfg.pic_height)
             # audio init
-
             FORMAT = paInt16
             CHANNELS = 2
             RATE = 44100
@@ -91,10 +84,7 @@ class Mp4Container:
             elif mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711A:
                 self.aenc = g711.Encoder(K_PT_G711A,CHUNK)
 
-            ret = media.buffer_init()
-            if ret:
-                print("Mp4Container, media buffer_init failed.")
-                return -1
+            media.buffer_init()
 
             self.video_payload_type = mp4Cfg.muxerCfg.video_payload_type
             self.audio_payload_type = mp4Cfg.muxerCfg.audio_payload_type
@@ -111,10 +101,7 @@ class Mp4Container:
             width = ALIGN_UP(mp4Cfg.muxerCfg.pic_width, 16)
             chnAttr = ChnAttrStr(payload_type, profile, width, mp4Cfg.muxerCfg.pic_height)
             self.save_idr = bytearray(width * mp4Cfg.muxerCfg.pic_height * 3 // 4)
-            ret = self.venc.Create(VENC_CHN_ID_0, chnAttr)
-            if ret:
-                print("Mp4Container, venc Create failed.")
-                return -1
+            self.venc.Create(VENC_CHN_ID_0, chnAttr)
 
             self.aenc.create()
             self.audio_stream = self.pyaudio.open(format=FORMAT,
@@ -132,8 +119,7 @@ class Mp4Container:
             handle = k_u64_ptr()
             ret = kd_mp4_create(handle, mp4_cfg)
             if ret:
-                print("Mp4Container, kd_mp4_create failed.")
-                return -1
+                raise OSError("Mp4Container, kd_mp4_create failed.")
 
             self.mp4_handle = handle.value
             video_track_info = k_mp4_track_info_s()
@@ -145,8 +131,7 @@ class Mp4Container:
             video_track_handle = k_u64_ptr()
             ret = kd_mp4_create_track(self.mp4_handle, video_track_handle, video_track_info)
             if ret:
-                print("Mp4Container, kd_mp4_create_track failed.")
-                return -1
+                raise OSError("Mp4Container, kd_mp4_create_track failed.")
 
             self.mp4_video_track_handle = video_track_handle.value
 
@@ -163,46 +148,23 @@ class Mp4Container:
             audio_track_handle = k_u64_ptr()
             ret = kd_mp4_create_track(self.mp4_handle, audio_track_handle, audio_track_info)
             if ret:
-                print("Mp4Container, kd_mp4_create_track failed.")
-                return -1
+                raise OSError("Mp4Container, kd_mp4_create_track failed.")
             self.mp4_audio_track_handle = audio_track_handle.value
-
-            return 0
-
 
     def Start(self):
         media_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
         media_sink = media_device(VIDEO_ENCODE_MOD_ID, VENC_DEV_ID, VENC_CHN_ID_0)
-        ret = media.create_link(media_source, media_sink)
-        if ret:
-            print("Mp4Container, create link with camera failed.")
-            return -1
-
-        ret = self.venc.Start(VENC_CHN_ID_0)
-        if ret:
-            print("Mp4Container, venc Start failed.")
-            return -1
-
-        ret = camera.start_stream(CAM_DEV_ID_0)
-        if ret:
-            print("Mp4Container, camera start_stream failed.")
-            return -1
-
-        return 0
-
+        media.create_link(media_source, media_sink)
+        self.venc.Start(VENC_CHN_ID_0)
+        camera.start_stream(CAM_DEV_ID_0)
 
     def Process(self):
         frame_data = k_mp4_frame_data_s()
-        ret = self.venc.GetStream(VENC_CHN_ID_0, self.stream_data)
-        if ret:
-            print("Mp4Container, venc GetStream failed.")
-            return -1
+        self.venc.GetStream(VENC_CHN_ID_0, self.stream_data)
 
         for pack_idx in range(0, self.stream_data.pack_cnt):
             if self.get_idr == 0:
-                print(self.idr_size)
                 self.save_idr[self.idr_size:self.idr_size+self.stream_data.data_size[pack_idx]] = uctypes.bytearray_at(self.stream_data.data[pack_idx], self.stream_data.data_size[pack_idx])
-                print(type(self.save_idr))
                 self.idr_size += self.stream_data.data_size[pack_idx]
                 self.idr_pts = self.stream_data.pts[pack_idx]
             elif self.get_idr == 1:
@@ -220,79 +182,46 @@ class Mp4Container:
                 frame_data.time_stamp = self.idr_pts
                 self.get_idr = 1
             else:
-                ret = self.venc.ReleaseStream(VENC_CHN_ID_0, self.stream_data)
-                if ret:
-                    print("Mp4Container, venc ReleaseStream failed.")
-                    return -1
-                return 0
+                self.venc.ReleaseStream(VENC_CHN_ID_0, self.stream_data)
+                return
 
         ret = kd_mp4_write_frame(self.mp4_handle, self.mp4_video_track_handle, frame_data)
         if ret:
-            print("Mp4Container, kd_mp4_write_frame failed.")
-            return -1
+            raise OSError("Mp4Container, kd_mp4_write_frame failed.")
 
-        ret = self.venc.ReleaseStream(VENC_CHN_ID_0, self.stream_data)
-        if ret:
-            print("Mp4Container, venc ReleaseStream failed.")
-            return -1
+        self.venc.ReleaseStream(VENC_CHN_ID_0, self.stream_data)
 
-        enc_data = self.aenc.encode(self.audio_stream.read())
-        frame_data.codec_id = self.audio_payload_type
-        frame_data.data = uctypes.addressof(enc_data)
-        frame_data.data_length = len(enc_data)
-        self.audio_timestamp += 40*1000
-        frame_data.time_stamp = self.audio_timestamp
-        ret = kd_mp4_write_frame(self.mp4_handle, self.mp4_audio_track_handle, frame_data)
-        if ret:
-            print("Mp4Container, write audio stream failed.")
-            return -1
-
-        return 0
+        # enc_data = self.aenc.encode(self.audio_stream.read())
+        # frame_data.codec_id = self.audio_payload_type
+        # frame_data.data = uctypes.addressof(enc_data)
+        # frame_data.data_length = len(enc_data)
+        # self.audio_timestamp += 40*1000
+        # frame_data.time_stamp = self.audio_timestamp
+        # ret = kd_mp4_write_frame(self.mp4_handle, self.mp4_audio_track_handle, frame_data)
+        # if ret:
+        #     raise OSError("Mp4Container, write audio stream failed.")
 
     def Stop(self):
         camera.stop_stream(CAM_DEV_ID_0)
 
         media_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
         media_sink = media_device(VIDEO_ENCODE_MOD_ID, VENC_DEV_ID, VENC_CHN_ID_0)
-        ret = media.destroy_link(media_source, media_sink)
-        if ret:
-            print("Mp4Container, destroy link with camera failed.")
-            return -1
-
+        media.destroy_link(media_source, media_sink)
         self.venc.Stop(VENC_CHN_ID_0)
-        if ret:
-            print("Mp4Container, venc Stop failed.")
-            return -1
-
         self.audio_stream.stop_stream()
         self.audio_stream.close()
         self.pyaudio.terminate()
         self.aenc.destroy()
 
-        return 0
-
-
     def Destroy(self):
         ret = kd_mp4_destroy_tracks(self.mp4_handle)
         if ret:
-            print("Mp4Container, kd_mp4_destroy_tracks failed.")
-            return -1
+            raise OSError("Mp4Container, kd_mp4_destroy_tracks failed.")
 
         ret = kd_mp4_destroy(self.mp4_handle)
         if ret:
-            print("Mp4Container, kd_mp4_destroy failed.")
-            return -1
+            raise OSError("Mp4Container, kd_mp4_destroy failed.")
 
-        ret = self.venc.Destroy(VENC_CHN_ID_0)
-        if ret:
-            print("Mp4Container, venc Destroy failed.")
-            return -1
-
+        self.venc.Destroy(VENC_CHN_ID_0)
         kd_mpi_aenc_destroy_chn(0)
-
-        ret = media.buffer_deinit()
-        if ret:
-            print("Mp4Container, media buffer_init failed.")
-            return -1
-
-        return 0
+        media.buffer_deinit()

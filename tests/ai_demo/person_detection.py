@@ -100,7 +100,7 @@ def ai2d_init():
 # ai2d 运行
 def ai2d_run(rgb888p_img):
     with ScopedTiming("ai2d_run",debug_mode > 0):
-        global ai2d_input_tensor,ai2d_output_tensor
+        global ai2d_input_tensor,ai2d_output_tensor,ai2d_builder
         ai2d_input = rgb888p_img.to_numpy_ref()
         ai2d_input_tensor = nn.from_numpy(ai2d_input)
         ai2d_builder.run(ai2d_input_tensor, ai2d_output_tensor)
@@ -164,11 +164,11 @@ def kpu_run(kpu_obj,rgb888p_img):
     return dets
 
 # kpu 释放内存
-def kpu_deinit(kpu_obj):
+def kpu_deinit():
     with ScopedTiming("kpu_deinit",debug_mode > 0):
-        global ai2d, ai2d_output_tensor
-        del kpu_obj
+        global ai2d, ai2d_output_tensor,ai2d_builder
         del ai2d
+        del ai2d_builder
         del ai2d_output_tensor
 
 #media_utils.py
@@ -208,7 +208,7 @@ def display_draw(dets):
                     continue
                 if (w<(0.15*DISPLAY_WIDTH) and ((x1<(0.01*DISPLAY_WIDTH)) or (x2>(0.99*DISPLAY_WIDTH)))):
                     continue
-                draw_img.draw_rectangle(x1 , y1 , int(w) , int(h) , color=(255, 0, 255, 0),thickness = 2)
+                draw_img.draw_rectangle(x1 , y1 , int(w) , int(h) , color=(255, 0, 255, 0),thickness = 4)
                 draw_img.draw_string( x1 , y1-50, " " + labels[det_box[0]] + " " + str(round(det_box[1],2)) , color=(255,0, 255, 0), scale=4)
             draw_img.copy_to(osd_img)
             display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
@@ -300,6 +300,8 @@ def person_detect_inference():
             return ret
 
         camera_start(CAM_DEV_ID_0)
+
+        count = 0
         while True:
             with ScopedTiming("total",total_debug_mode):
                 rgb888p_img = camera_read(CAM_DEV_ID_0)                 # 读取一帧图片
@@ -316,7 +318,12 @@ def person_detect_inference():
 
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)          # camera 释放图像
                 rgb888p_img = None
-                # gc.collect()
+
+                if (count > 5):
+                    gc.collect()
+                    count = 0
+                else:
+                    count += 1
     except Exception as e:
         print(f"An error occurred during buffer used: {e}")
     finally:
@@ -326,7 +333,11 @@ def person_detect_inference():
 
         camera_stop(CAM_DEV_ID_0)                                       # 停止 camera
         display_deinit()                                                # 释放 display
-        kpu_deinit(kpu_person_detect)                                   # 释放 kpu
+        kpu_deinit()                                                    # 释放 kpu
+        global current_kmodel_obj
+        del current_kmodel_obj
+        del kpu_person_detect
+
         gc.collect()
         ret = media_deinit()                                            # 释放 整个media
         if ret:

@@ -84,6 +84,15 @@ def kpu_init_kws():
         kpu.load_kmodel(kmodel_file_kws)
         return kpu
 
+# kws 释放kpu
+def kpu_deinit():
+    # kpu释放
+    with ScopedTiming("kpu_deinit",debug_mode > 0):
+        global current_kmodel_obj,audio_input_tensor,cache_input_tensor
+        del current_kmodel_obj
+        del audio_input_tensor
+        del cache_input_tensor
+
 # kws音频预处理
 def kpu_pre_process_kws(pcm_data_list):
     global current_kmodel_obj
@@ -162,7 +171,8 @@ def kws_inference():
         p.terminate()
         media.buffer_deinit()
         aidemo.kws_fp_destroy(fp)
-        #gc.collect()
+        kpu_deinit()
+        del kpu_kws
 
 if __name__=="__main__":
     kws_inference()

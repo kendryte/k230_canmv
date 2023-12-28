@@ -193,6 +193,7 @@ void ndarray_assign_elements(ndarray_obj_t *, mp_obj_t , uint8_t , size_t *);
 size_t *ndarray_contract_shape(ndarray_obj_t *, uint8_t );
 int32_t *ndarray_contract_strides(ndarray_obj_t *, uint8_t );
 
+MP_DECLARE_CONST_FUN_OBJ_1(ndarray_del_obj);
 ndarray_obj_t *ndarray_from_iterable(mp_obj_t , uint8_t );
 ndarray_obj_t *ndarray_new_dense_ndarray(uint8_t , size_t *, uint8_t );
 ndarray_obj_t *ndarray_new_ndarray_from_tuple(mp_obj_tuple_t *, uint8_t );

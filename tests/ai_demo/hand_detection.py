@@ -18,7 +18,7 @@ DISPLAY_HEIGHT = 1080
 
 ##ai原图分辨率输入
 OUT_RGB888P_WIDTH = ALIGN_UP(1920, 16)
-OUT_RGB888P_HEIGH = 1080
+OUT_RGB888P_HEIGHT = 1080
 
 #kmodel输入shape
 kmodel_input_shape = (1,3,512,512)                  # kmodel输入分辨率
@@ -27,17 +27,17 @@ kmodel_input_shape = (1,3,512,512)                  # kmodel输入分辨率
 confidence_threshold = 0.2                          # 手掌检测阈值，用于过滤roi
 nms_threshold = 0.5                                 # 手掌检测框阈值，用于过滤重复roi
 kmodel_frame_size = [512,512]                       # 手掌检测输入图片尺寸
-frame_size = [OUT_RGB888P_WIDTH,OUT_RGB888P_HEIGH]  # 直接输入图片尺寸
+frame_size = [OUT_RGB888P_WIDTH,OUT_RGB888P_HEIGHT] # 直接输入图片尺寸
 strides = [8,16,32]                                 # 输出特征图的尺寸与输入图片尺寸的比
 num_classes = 1                                     # 模型输出类别数
 nms_option = False                                  # 是否所有检测框一起做NMS，False则按照不同的类分别应用NMS
 labels = ["hand"]                                   # 模型输出类别名称
 
 root_dir = '/sdcard/app/tests/'
-kmodel_file = root_dir + 'kmodel/hand_det.kmodel'     # kmodel文件的路径
+kmodel_file = root_dir + 'kmodel/hand_det.kmodel'   # kmodel文件的路径
 anchors = [26,27, 53,52, 75,71, 80,99, 106,82, 99,134, 140,113, 161,172, 245,276]   #anchor设置
 
-debug_mode = 0                                              # debug模式 大于0（调试）、 反之 （不调试）
+debug_mode = 0                                      # debug模式 大于0（调试）、 反之 （不调试）
 
 #scoped_timing.py 用于debug模式输出程序块运行时间
 class ScopedTiming:
@@ -68,7 +68,7 @@ def ai2d_init():
         global ai2d_output_tensor
         # 计算padding值
         ori_w = OUT_RGB888P_WIDTH
-        ori_h = OUT_RGB888P_HEIGH
+        ori_h = OUT_RGB888P_HEIGHT
         width = kmodel_frame_size[0]
         height = kmodel_frame_size[1]
         ratiow = float(width) / ori_w
@@ -92,14 +92,14 @@ def ai2d_init():
                                        np.uint8, np.uint8)
         ai2d.set_pad_param(True, [0,0,0,0,top,bottom,left,right], 0, [114,114,114])
         ai2d.set_resize_param(True, nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel )
-        ai2d_builder = ai2d.build([1,3,OUT_RGB888P_HEIGH,OUT_RGB888P_WIDTH], [1,3,height,width])
+        ai2d_builder = ai2d.build([1,3,OUT_RGB888P_HEIGHT,OUT_RGB888P_WIDTH], [1,3,height,width])
         data = np.ones(kmodel_input_shape, dtype=np.uint8)
         ai2d_output_tensor = nn.from_numpy(data)
 
 # ai2d 运行
 def ai2d_run(rgb888p_img):
     with ScopedTiming("ai2d_run",debug_mode > 0):
-        global ai2d_input_tensor,ai2d_output_tensor
+        global ai2d_input_tensor, ai2d_output_tensor, ai2d_builder
         ai2d_input = rgb888p_img.to_numpy_ref()
         ai2d_input_tensor = nn.from_numpy(ai2d_input)
         ai2d_builder.run(ai2d_input_tensor, ai2d_output_tensor)
@@ -162,15 +162,15 @@ def kpu_run(kpu_obj,rgb888p_img):
     return dets
 
 # kpu 释放内存
-def kpu_deinit(kpu_obj):
+def kpu_deinit():
     with ScopedTiming("kpu_deinit",debug_mode > 0):
-        global ai2d, ai2d_output_tensor
-        del kpu_obj
+        global ai2d, ai2d_output_tensor, ai2d_builder
         del ai2d
         del ai2d_output_tensor
+        del ai2d_builder
 
 #media_utils.py
-global draw_img,osd_img,masks                               #for display 定义全局 作图image对象
+global draw_img,osd_img                                     #for display 定义全局 作图image对象
 global buffer,media_source,media_sink                       #for media   定义 media 程序中的中间存储对象
 
 #for display 初始化
@@ -193,12 +193,12 @@ def display_draw(dets):
             for det_box in dets:
                 x1, y1, x2, y2 = det_box[2],det_box[3],det_box[4],det_box[5]
                 w = float(x2 - x1) * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
-                h = float(y2 - y1) * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
+                h = float(y2 - y1) * DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT
 
                 x1 = int(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH)
-                y1 = int(y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH)
+                y1 = int(y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT)
                 x2 = int(x2 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH)
-                y2 = int(y2 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH)
+                y2 = int(y2 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGHT)
 
                 if (h<(0.1*DISPLAY_HEIGHT)):
                     continue
@@ -206,8 +206,8 @@ def display_draw(dets):
                     continue
                 if (w<(0.15*DISPLAY_WIDTH) and ((x1<(0.01*DISPLAY_WIDTH)) or (x2>(0.99*DISPLAY_WIDTH)))):
                     continue
-                draw_img.draw_rectangle(x1 , y1 , int(w) , int(h) , color=(255, 0, 255, 0),thickness = 2)
-                draw_img.draw_string( x1 , y1-50, " " + labels[det_box[0]] + " " + str(round(det_box[1],2)) , color=(255,0, 255, 0), scale=4)
+                draw_img.draw_rectangle(x1 , y1 , int(w) , int(h), color=(255, 0, 255, 0), thickness = 2)
+                draw_img.draw_string( x1 , y1-50, " " + labels[det_box[0]] + " " + str(round(det_box[1],2)), color=(255,0, 255, 0), scale=4)
             draw_img.copy_to(osd_img)
             display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
         else:
@@ -224,7 +224,7 @@ def camera_init(dev_id):
     camera.set_outfmt(dev_id, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
 
     # set chn2 output rgb88planar
-    camera.set_outsize(dev_id, CAM_CHN_ID_2, OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGH)
+    camera.set_outsize(dev_id, CAM_CHN_ID_2, OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGHT)
     camera.set_outfmt(dev_id, CAM_CHN_ID_2, PIXEL_FORMAT_RGB_888_PLANAR)
 
 # camera 开启
@@ -298,6 +298,7 @@ def hand_detect_inference():
             return ret
 
         camera_start(CAM_DEV_ID_0)
+        count = 0
         while True:
             with ScopedTiming("total",1):
                 rgb888p_img = camera_read(CAM_DEV_ID_0)                 # 读取一帧图片
@@ -314,7 +315,12 @@ def hand_detect_inference():
 
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)          # camera 释放图像
                 rgb888p_img = None
-                #gc.collect()
+                if (count>10):
+                    gc.collect()
+                    count = 0
+                else:
+                    count += 1
+
     except Exception as e:
         print(f"An error occurred during buffer used: {e}")
     finally:
@@ -324,7 +330,10 @@ def hand_detect_inference():
 
         camera_stop(CAM_DEV_ID_0)                                       # 停止 camera
         display_deinit()                                                # 释放 display
-        kpu_deinit(kpu_hand_detect)                                     # 释放 kpu
+        kpu_deinit()                                                    # 释放 kpu
+        global current_kmodel_obj
+        del current_kmodel_obj
+        del kpu_hand_detect
         gc.collect()
         ret = media_deinit()                                            # 释放 整个media
         if ret:

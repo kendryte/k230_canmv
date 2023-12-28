@@ -15,7 +15,7 @@ DISPLAY_HEIGHT = 1080
 
 #ai原图分辨率输入
 OUT_RGB888P_WIDTH = ALIGN_UP(640, 16)
-OUT_RGB888P_HEIGHT = 480
+OUT_RGB888P_HEIGHT = 360
 
 #车牌检测 和 车牌识别 kmodel输入shape
 det_kmodel_input_shape = (1,3,640,640)
@@ -52,7 +52,7 @@ class ScopedTiming:
 
 
 #ai_utils.py
-global det_current_kmodel_obj,rec_current_kmodel_obj                                # 定义全局的 kpu 对象
+global current_kmodel_obj                                                           # 定义全局的 kpu 对象
 global det_ai2d,det_ai2d_input_tensor,det_ai2d_output_tensor,det_ai2d_builder       # 定义车牌检测 ai2d 对象 ，并且定义 ai2d 的输入、输出 以及 builder
 global rec_ai2d,rec_ai2d_input_tensor,rec_ai2d_output_tensor,rec_ai2d_builder       # 定义车牌识别 ai2d 对象 ，并且定义 ai2d 的输入、输出 以及 builder
 
@@ -169,17 +169,17 @@ def rec_kpu_init(kmodel_file):
 def det_kpu_pre_process(rgb888p_img):
     det_ai2d_run(rgb888p_img)
     with ScopedTiming("det_kpu_pre_process",debug_mode > 0):
-        global det_current_kmodel_obj,det_ai2d_out_tensor
+        global current_kmodel_obj,det_ai2d_out_tensor
         # set kpu input
-        det_current_kmodel_obj.set_input_tensor(0, det_ai2d_out_tensor)
+        current_kmodel_obj.set_input_tensor(0, det_ai2d_out_tensor)
 
 # 车牌识别 kpu 输入预处理
 def rec_kpu_pre_process(img_array):
     rec_ai2d_run(img_array)
     with ScopedTiming("rec_kpu_pre_process",debug_mode > 0):
-        global rec_current_kmodel_obj,rec_ai2d_out_tensor
+        global current_kmodel_obj,rec_ai2d_out_tensor
         # set kpu input
-        rec_current_kmodel_obj.set_input_tensor(0, rec_ai2d_out_tensor)
+        current_kmodel_obj.set_input_tensor(0, rec_ai2d_out_tensor)
 
 # 车牌识别 抠图
 def rec_array_pre_process(rgb888p_img,dets):
@@ -191,10 +191,10 @@ def rec_array_pre_process(rgb888p_img,dets):
 # 车牌检测 获取 kmodel 输出
 def det_kpu_get_output():
     with ScopedTiming("det_kpu_get_output",debug_mode > 0):
-        global det_current_kmodel_obj
+        global current_kmodel_obj
         results = []
-        for i in range(det_current_kmodel_obj.outputs_size()):
-            data = det_current_kmodel_obj.get_output_tensor(i)
+        for i in range(current_kmodel_obj.outputs_size()):
+            data = current_kmodel_obj.get_output_tensor(i)
             result = data.to_numpy()
             tmp2 = result.copy()
             del data
@@ -204,8 +204,8 @@ def det_kpu_get_output():
 # 车牌识别 获取 kmodel 输出
 def rec_kpu_get_output():
     with ScopedTiming("rec_kpu_get_output",debug_mode > 0):
-        global rec_current_kmodel_obj
-        data = rec_current_kmodel_obj.get_output_tensor(0)
+        global current_kmodel_obj
+        data = current_kmodel_obj.get_output_tensor(0)
         result = data.to_numpy()
         result = result.reshape((result.shape[0] * result.shape[1] * result.shape[2]))
         tmp = result.copy()
@@ -214,8 +214,8 @@ def rec_kpu_get_output():
 
 # 车牌检测 kpu 运行
 def det_kpu_run(kpu_obj,rgb888p_img):
-    global det_current_kmodel_obj
-    det_current_kmodel_obj = kpu_obj
+    global current_kmodel_obj
+    current_kmodel_obj = kpu_obj
     # (1) 原图预处理，并设置模型输入
     det_kpu_pre_process(rgb888p_img)
     # (2) kpu 运行
@@ -232,10 +232,10 @@ def det_kpu_run(kpu_obj,rgb888p_img):
 
 # 车牌识别 kpu 运行
 def rec_kpu_run(kpu_obj,rgb888p_img,dets):
-    global rec_current_kmodel_obj
+    global current_kmodel_obj
     if (len(dets) == 0):
         return []
-    rec_current_kmodel_obj = kpu_obj
+    current_kmodel_obj = kpu_obj
     # (1) 原始图像抠图，车牌检测结果 points 排序
     imgs_array_boxes = rec_array_pre_process(rgb888p_img,dets)
     imgs_array = imgs_array_boxes[0]
@@ -259,19 +259,17 @@ def rec_kpu_run(kpu_obj,rgb888p_img,dets):
 
 
 # 车牌检测 kpu 释放内存
-def det_kpu_deinit(kpu_obj):
+def det_kpu_deinit():
     with ScopedTiming("det_kpu_deinit",debug_mode > 0):
         global det_ai2d, det_ai2d_builder, det_ai2d_out_tensor
-        del kpu_obj
         del det_ai2d
         del det_ai2d_builder
         del det_ai2d_out_tensor
 
 # 车牌识别 kpu 释放内存
-def rec_kpu_deinit(kpu_obj):
+def rec_kpu_deinit():
     with ScopedTiming("rec_kpu_deinit",debug_mode > 0):
         global rec_ai2d, rec_ai2d_out_tensor
-        del kpu_obj
         del rec_ai2d
         del rec_ai2d_out_tensor
 
@@ -305,7 +303,7 @@ def display_draw(dets_recs):
                     point_8[i * 2 + 0] = int(x)
                     point_8[i * 2 + 1] = int(y)
                 for i in range(4):
-                    draw_img.draw_line(point_8[i * 2 + 0],point_8[i * 2 + 1],point_8[(i+1) % 4 * 2 + 0],point_8[(i+1) % 4 * 2 + 1],color=(255, 0, 255, 0),thickness=2)
+                    draw_img.draw_line(point_8[i * 2 + 0],point_8[i * 2 + 1],point_8[(i+1) % 4 * 2 + 0],point_8[(i+1) % 4 * 2 + 1],color=(255, 0, 255, 0),thickness=4)
                 draw_img.draw_string( point_8[6], point_8[7] + 20, recs[det_index] , color=(255,255,153,18) , scale=4)
             draw_img.copy_to(osd_img)
             display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD3)
@@ -400,6 +398,8 @@ def licence_det_rec_inference():
 
         camera_start(CAM_DEV_ID_0)
         time.sleep(5)
+
+        count = 0
         while True:
             with ScopedTiming("total",1):
                 rgb888p_img = camera_read(CAM_DEV_ID_0)                 # 读取一帧图片
@@ -417,7 +417,12 @@ def licence_det_rec_inference():
 
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)                      # camera 释放图像
                 rgb888p_img = None
-                # gc.collect()
+
+                if (count > 5):
+                    gc.collect()
+                    count = 0
+                else:
+                    count += 1
     except Exception as e:
         print(f"An error occurred during buffer used: {e}")
     finally:
@@ -427,8 +432,12 @@ def licence_det_rec_inference():
 
         camera_stop(CAM_DEV_ID_0)                                                   # 停止 camera
         display_deinit()                                                            # 释放 display
-        det_kpu_deinit(kpu_licence_det)                                             # 释放 车牌检测 kpu
-        rec_kpu_deinit(kpu_licence_rec)                                             # 释放 车牌识别 kpu
+        det_kpu_deinit()                                                            # 释放 车牌检测 kpu
+        rec_kpu_deinit()                                                            # 释放 车牌识别 kpu
+        global current_kmodel_obj
+        del current_kmodel_obj
+        del kpu_licence_det
+        del kpu_licence_rec
         gc.collect()
         time.sleep(1)
         ret = media_deinit()                                                        # 释放 整个media
