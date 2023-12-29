@@ -127,7 +127,7 @@ void mp_hal_stdio_mode_orig(void) {
 #endif
 
 int mp_hal_stdin_rx_chr(void) {
-    char c;
+    int c;
     extern int usb_rx(void);
     while (1) {
         MP_THREAD_GIL_EXIT();
