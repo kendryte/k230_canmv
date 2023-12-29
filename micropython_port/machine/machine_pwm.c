@@ -47,6 +47,7 @@ typedef struct _machine_pwm_obj_t {
     double freq;
     double duty;
     bool active;
+    bool valid;
 } machine_pwm_obj_t;
 
 typedef struct {
@@ -68,13 +69,20 @@ STATIC k230_pwm_obj_t k230_pwm_obj = {
 /******************************************************************************/
 // MicroPython bindings for PWM
 
+STATIC void mp_machine_pwm_obj_check(machine_pwm_obj_t *self) {
+    if (self->valid == 0)
+        mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("The PWM channel object has been deleted"));
+}
+
 STATIC void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     machine_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
     pwm_config_t config;
+
+    mp_machine_pwm_obj_check(self);
     config.channel = self->channel;
     if (ioctl(k230_pwm_obj.fd, KD_PWM_CMD_GET, &config))
         mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("PWM channel %u get config error"), self->channel);
-    mp_printf(print, "pwm chanel %d: period=%u, pulse=%u, %s", self->channel,
+    mp_printf(print, "pwm chanel %d: period = %u ns, pulse = %u ns, %s", self->channel,
         config.period, config.pulse, self->active ? "enabled" : "disabled");
 }
 
@@ -118,8 +126,6 @@ STATIC mp_obj_t mp_machine_pwm_make_new(const mp_obj_type_t *type, size_t n_args
     } else {
         mp_raise_ValueError(MP_ERROR_TEXT("invalid channel"));
     }
-    machine_pwm_obj_t *self = mp_obj_malloc(machine_pwm_obj_t, &machine_pwm_type);
-    self->channel = channel;
 
     if (k230_pwm_obj.refcnt == 0 && k230_pwm_obj.fd == -1) {
         k230_pwm_obj.fd = open(PWM_DEVICE_NAME, O_RDWR);
@@ -127,17 +133,26 @@ STATIC mp_obj_t mp_machine_pwm_make_new(const mp_obj_type_t *type, size_t n_args
             mp_raise_OSError_with_filename(errno, PWM_DEVICE_NAME);
     }
 
+    machine_pwm_obj_t *self = m_new_obj_with_finaliser(machine_pwm_obj_t);
+    self->base.type = &machine_pwm_type;
+    self->channel = channel;
+
     mp_map_t kw_args;
     mp_map_init_fixed_table(&kw_args, n_kw, args + n_args);
     mp_machine_pwm_init_helper(self, n_args - 1, args + 1, &kw_args);
 
     k230_pwm_obj.used[channel] = 1;
     k230_pwm_obj.refcnt++;
+    self->valid = true;
 
     return MP_OBJ_FROM_PTR(self);
 }
 
 STATIC void mp_machine_pwm_deinit(machine_pwm_obj_t *self) {
+    if (self->valid == 0)
+        return;
+
+    self->valid = 0;
     k230_pwm_obj.used[self->channel] = 0;
 
     if (k230_pwm_obj.refcnt)
@@ -152,6 +167,7 @@ STATIC void mp_machine_pwm_deinit(machine_pwm_obj_t *self) {
 STATIC mp_obj_t mp_machine_pwm_freq_get(machine_pwm_obj_t *self) {
     pwm_config_t config;
 
+    mp_machine_pwm_obj_check(self);
     config.channel = self->channel;
     if (ioctl(k230_pwm_obj.fd, KD_PWM_CMD_GET, &config))
         mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("PWM channel %u get config error"), self->channel);
@@ -160,9 +176,10 @@ STATIC mp_obj_t mp_machine_pwm_freq_get(machine_pwm_obj_t *self) {
 }
 
 STATIC void mp_machine_pwm_freq_set(machine_pwm_obj_t *self, mp_float_t freq) {
-    self->freq = freq <= 0 ? 1 : freq;
-
     pwm_config_t config;
+
+    mp_machine_pwm_obj_check(self);
+    self->freq = freq <= 0 ? 1 : freq;
     config.channel = self->channel;
     config.period = (uint32_t)(1000000000.0 / self->freq);
     config.pulse = (uint32_t)(self->duty / 100 * config.period);
@@ -173,6 +190,7 @@ STATIC void mp_machine_pwm_freq_set(machine_pwm_obj_t *self, mp_float_t freq) {
 STATIC mp_obj_t mp_machine_pwm_duty_get(machine_pwm_obj_t *self) {
     pwm_config_t config;
 
+    mp_machine_pwm_obj_check(self);
     config.channel = self->channel;
     if (ioctl(k230_pwm_obj.fd, KD_PWM_CMD_GET, &config))
         mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("PWM channel %u get config error"), self->channel);
@@ -181,9 +199,10 @@ STATIC mp_obj_t mp_machine_pwm_duty_get(machine_pwm_obj_t *self) {
 }
 
 STATIC void mp_machine_pwm_duty_set(machine_pwm_obj_t *self, mp_float_t duty) {
-    self->duty = duty < 0 ? 0 : duty > 100 ? 100 : duty;
-
     pwm_config_t config;
+
+    mp_machine_pwm_obj_check(self);
+    self->duty = duty < 0 ? 0 : duty > 100 ? 100 : duty;
     config.channel = self->channel;
     config.period = (uint32_t)(1000000000.0 / self->freq);
     config.pulse = (uint32_t)(self->duty / 100 * config.period);
@@ -194,6 +213,7 @@ STATIC void mp_machine_pwm_duty_set(machine_pwm_obj_t *self, mp_float_t duty) {
 STATIC void mp_machine_pwm_enable(machine_pwm_obj_t *self, bool enable) {
     pwm_config_t config;
 
+    mp_machine_pwm_obj_check(self);
     config.channel = self->channel;
     self->active = enable;
     if (ioctl(k230_pwm_obj.fd, self->active ? KD_PWM_CMD_ENABLE : KD_PWM_CMD_DISABLE, &config))
@@ -201,15 +221,28 @@ STATIC void mp_machine_pwm_enable(machine_pwm_obj_t *self, bool enable) {
             self->channel, self->active ? "enabled" : "disabled");
 }
 
+STATIC mp_obj_t machine_pwm_del(mp_obj_t self_in) {
+    machine_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
+
+    mp_machine_pwm_deinit(self);
+
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(machine_pwm_del_obj, machine_pwm_del);
+
 STATIC mp_obj_t machine_pwm_deinit(mp_obj_t self_in) {
     machine_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
+
+    mp_machine_pwm_obj_check(self);
     mp_machine_pwm_deinit(self);
+
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(machine_pwm_deinit_obj, machine_pwm_deinit);
 
 STATIC mp_obj_t machine_pwm_freq(size_t n_args, const mp_obj_t *args) {
     machine_pwm_obj_t *self = MP_OBJ_TO_PTR(args[0]);
+
     if (n_args == 1) {
         // Get frequency.
         return mp_machine_pwm_freq_get(self);
@@ -224,6 +257,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_pwm_freq_obj, 1, 2, machine_p
 
 STATIC mp_obj_t machine_pwm_duty(size_t n_args, const mp_obj_t *args) {
     machine_pwm_obj_t *self = MP_OBJ_TO_PTR(args[0]);
+
     if (n_args == 1) {
         // Get duty cycle.
         return mp_machine_pwm_duty_get(self);
@@ -246,6 +280,7 @@ STATIC mp_obj_t machine_pwm_enable(mp_obj_t self_o, mp_obj_t enable) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(machine_pwm_enable_obj, machine_pwm_enable);
 
 STATIC const mp_rom_map_elem_t machine_pwm_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&machine_pwm_del_obj) },
     { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&machine_pwm_deinit_obj) },
     { MP_ROM_QSTR(MP_QSTR_freq), MP_ROM_PTR(&machine_pwm_freq_obj) },
     { MP_ROM_QSTR(MP_QSTR_duty), MP_ROM_PTR(&machine_pwm_duty_obj) },
