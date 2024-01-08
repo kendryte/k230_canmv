@@ -323,7 +323,10 @@ STATIC int do_file(const char *file) {
 }
 
 STATIC int do_str(const char *str) {
-    return execute_from_lexer(LEX_SRC_STR, str, MP_PARSE_FILE_INPUT, false);
+    repl_script_running = true;
+    int ret = execute_from_lexer(LEX_SRC_STR, str, MP_PARSE_FILE_INPUT, false);
+    repl_script_running = false;
+    return ret;
 }
 
 STATIC void print_help(char **argv) {
