@@ -662,6 +662,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
                 set_sys_argv(argv, a + 1, a); // The -c becomes first item of sys.argv, as in CPython
                 set_sys_argv(argv, argc, a + 2); // Then what comes after the command
                 ret = do_str(argv[a + 1]);
+                process_exit = true;
                 goto main_thread_exit;
             } else if (strcmp(argv[a], "-m") == 0) {
                 if (a + 1 >= argc) {
@@ -713,6 +714,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
                 }
 
                 ret = 0;
+                process_exit = true;
                 goto main_thread_exit;
             } else if (strcmp(argv[a], "-X") == 0) {
                 a += 1;
@@ -734,6 +736,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
         } else {
             set_sys_argv(argv, argc, a);
             ret = do_file(argv[a]);
+            process_exit = true;
             goto main_thread_exit;
         }
     }
