@@ -481,11 +481,13 @@ MP_NOINLINE int main_(int argc, char **argv);
 void ide_dbg_init(void);
 #define SDCARD_MOUNT "/sdcard"
 
+bool command_line_mode = false;
+
 int main(int argc, char **argv) {
-    fprintf(stderr, "Built %s %s\n", __DATE__, __TIME__);
     // wait /dev/ttyUSB1 and /sdcard ready
     usleep(1000000);
-    ide_dbg_init();
+    if (argc == 1)
+        ide_dbg_init();
     //dup2(usb_cdc_fd, STDOUT_FILENO);
     // We should capture stack top ASAP after start, and it should be
     // captured guaranteedly before any other stack variables are allocated.
@@ -662,6 +664,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
                 if (a + 1 >= argc) {
                     return invalid_args();
                 }
+                command_line_mode = true;
                 set_sys_argv(argv, a + 1, a); // The -c becomes first item of sys.argv, as in CPython
                 set_sys_argv(argv, argc, a + 2); // Then what comes after the command
                 ret = do_str(argv[a + 1]);
@@ -737,6 +740,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
                 return invalid_args();
             }
         } else {
+            command_line_mode = true;
             set_sys_argv(argv, argc, a);
             ret = do_file(argv[a]);
             process_exit = true;
@@ -872,7 +876,8 @@ main_thread_exit:
     if (process_exit) {
         extern pthread_t ide_dbg_task_p;
         usleep(100000);
-        pthread_cancel(ide_dbg_task_p);
+        if (!command_line_mode)
+            pthread_cancel(ide_dbg_task_p);
         return ret;
     }
     goto soft_reset;
