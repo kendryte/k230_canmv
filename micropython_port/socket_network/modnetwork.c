@@ -36,6 +36,7 @@
 
 #include "shared/netutils/netutils.h"
 #include "extmod/modnetwork.h"
+#include "ipcm_socket_network.h"
 
 #if MICROPY_PY_NETWORK_CYW43
 // So that CYW43_LINK_xxx constants are available to MICROPY_PORT_NETWORK_INTERFACES.
@@ -130,12 +131,26 @@ mp_obj_t mod_network_hostname(size_t n_args, const mp_obj_t *args) {
         return mp_const_none;
     }
 }
+STATIC mp_obj_t mod_network_linuxcmd(size_t n_args, const mp_obj_t *args) {   
+    char cmd[256];
+    char cmd_recv[1024];
+
+    cmd[0] = 0;
+    cmd_recv[0] = 0;
+    snprintf(cmd,sizeof(cmd), "%s", mp_obj_str_get_str(args[1]));
+    ipcm_network_exe_cmd(cmd, cmd_recv, sizeof(cmd_recv));
+    return mp_obj_new_str(cmd_recv, strlen(cmd_recv));         
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_network_linuxcmd_obj, 2, 2, mod_network_linuxcmd);
+
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_network_hostname_obj, 0, 1, mod_network_hostname);
 extern const struct _mp_obj_type_t network_lan_type;
+extern const struct _mp_obj_type_t network_wlan_type;
 STATIC const mp_rom_map_elem_t mp_module_network_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_network) },
     { MP_ROM_QSTR(MP_QSTR_country), MP_ROM_PTR(&mod_network_country_obj) },
     { MP_ROM_QSTR(MP_QSTR_hostname), MP_ROM_PTR(&mod_network_hostname_obj) },
+    { MP_ROM_QSTR(MP_QSTR_linuxcmd), MP_ROM_PTR(&mod_network_linuxcmd_obj) },
 
     // Defined per port in mpconfigport.h
     #ifdef MICROPY_PORT_NETWORK_INTERFACES
@@ -144,7 +159,7 @@ STATIC const mp_rom_map_elem_t mp_module_network_globals_table[] = {
     #endif
 
     { MP_ROM_QSTR(MP_QSTR_LAN), MP_ROM_PTR(&network_lan_type) },
-    //{ MP_ROM_QSTR(MP_QSTR_WLAN), MP_ROM_PTR(&esp_network_wlan_type) },
+    { MP_ROM_QSTR(MP_QSTR_WLAN), MP_ROM_PTR(&network_wlan_type) },
 
     // Allow a port to take mostly full control of the network module.
     #ifdef MICROPY_PY_NETWORK_MODULE_GLOBALS_INCLUDEFILE
