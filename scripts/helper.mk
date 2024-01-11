@@ -20,17 +20,17 @@ fast_dl:
 	if [ ! -f k230_sdk_overlay/.ready_dl_src ]; then \
 		echo "download k230_sdk"; \
 		if [ $(NATIVE_BUILD) -ne 1 ]; then \
-		wget -c --show-progress $(k230_sdk_download_url) -O - | tar --touch --no-overwrite-dir -xz ; fi; \
+		wget -c --show-progress $(k230_sdk_download_url) -O - | tar -xz ; fi; \
 		touch k230_sdk_overlay/.ready_dl_src; \
 	fi; \
 	if [ ! -f micropython_port/.ready_dl_src ]; then \
 		echo "download micropython"; \
-		wget -c --show-progress $(micropython_download_url) -O - | tar --touch --no-overwrite-dir -xz ; \
+		wget -c --show-progress $(micropython_download_url) -O - | tar -xz ; \
 		touch micropython_port/.ready_dl_src; \
 	fi; \
 	if [ ! -f micropython_port/lvgl/.ready_dl_src ]; then \
 		echo "download lvgl"; \
-		wget -c --show-progress $(lvgl_download_url) -O - | tar --touch --no-overwrite-dir -xz -C micropython_port/lvgl ; \
+		wget -c --show-progress $(lvgl_download_url) -O - | tar -xz -C micropython_port/lvgl ; \
 		touch micropython_port/lvgl/.ready_dl_src; \
 	fi;
 
