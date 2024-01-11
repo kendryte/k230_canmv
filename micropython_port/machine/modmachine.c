@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "py/runtime.h"
 #include "py/obj.h"
@@ -58,9 +59,48 @@ STATIC mp_obj_t machine_reset(void) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(machine_reset_obj, machine_reset);
 
+void memcpy_fast(void *dst, void *src, size_t size) {
+    if (((uint64_t)src & 0x7) != ((uint64_t)dst & 0x7)) {
+        memcpy(dst, src, size);
+        return;
+    }
+    uint8_t offset = (uint64_t)dst & 0x7;
+    size_t len;
+    if (offset) {
+        len = 8 - offset;
+        if (len > size)
+            len = size;
+        memcpy(dst, src, len);
+        size -= len;
+        dst += len;
+        src += len;
+    }
+    uint64_t *pdst = dst;
+    uint64_t *psrc = src;
+    len = size >> 3;
+    for (int i = 0; i < len; i++)
+        *pdst++ = *psrc++;
+    if (size & 0x7) {
+        len <<= 3;
+        dst += len;
+        src += len;
+        memcpy(dst, src, size & 0x7);
+    }
+}
+
+STATIC mp_obj_t machine_mem_copy(mp_obj_t dst_obj, mp_obj_t src_obj, mp_obj_t size_obj) {
+    void *dst = (void *)mp_obj_get_int(dst_obj);
+    void *src = (void *)mp_obj_get_int(src_obj);
+    size_t size = mp_obj_get_int(size_obj);
+    memcpy_fast(dst, src, size);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_3(machine_mem_copy_obj, machine_mem_copy);
+
 STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_machine) },
     { MP_ROM_QSTR(MP_QSTR_reset), MP_ROM_PTR(&machine_reset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_mem_copy), MP_ROM_PTR(&machine_mem_copy_obj) },
     { MP_ROM_QSTR(MP_QSTR_UART), MP_ROM_PTR(&machine_uart_type) },
     { MP_ROM_QSTR(MP_QSTR_PWM), MP_ROM_PTR(&machine_pwm_type) },
     { MP_ROM_QSTR(MP_QSTR_WDT), MP_ROM_PTR(&machine_wdt_type) },

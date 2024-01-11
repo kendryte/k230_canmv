@@ -65,9 +65,9 @@ mp_uint_t mp_hal_ticks_us(void) {
 void mp_hal_delay_us(mp_uint_t us) {
     mp_uint_t start = mp_hal_ticks_us();
     mp_uint_t stop = start + us;
-    while (start + 100000 < stop) {
+    while (start + 1000 < stop) {
         MP_THREAD_GIL_EXIT();
-        usleep(100000);
+        usleep(1000);
         MP_THREAD_GIL_ENTER();
         mp_thread_exitpoint(EXITPOINT_ENABLE_SLEEP);
         mp_handle_pending(true);

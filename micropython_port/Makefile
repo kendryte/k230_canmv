@@ -99,7 +99,7 @@ LDFLAGS_MP4 += -L$(MP4_LIB_PATH) -lmp4
 LDFLAGS += $(LDFLAGS_MPP) $(LDFLAGS_MP4)
 
 OPENCV_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/utils/lib/opencv/lib
-OPENCV_DEP_LIB_PATH= $(K230_CANMV_ROOT)/k230_sdk/src/big/utils/lib/opencv/lib/opencv4/3rdparty
+OPENCV_DEP_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/utils/lib/opencv/lib/opencv4/3rdparty
 OPENCV_LIBS = -lstdc++ -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -lopencv_highgui -lopencv_videoio -lzlib -llibjpeg-turbo -llibopenjp2 -llibpng -llibtiff -llibwebp -lcsi_cv -latomic
 LDFLAGS += -L$(OPENCV_LIB_PATH) -L$(OPENCV_DEP_LIB_PATH) -Wl,--start-group $(OPENCV_LIBS) -Wl,--end-group
 
@@ -131,6 +131,24 @@ SOCKET_SRC_C = $(wildcard socket_network/*.c)
 OMV_SRC_C += $(wildcard omv/*/*.c)
 INC += -Iomv/alloc -Iomv/boards/canmv -Iomv/common -Iomv/imlib -Iomv/modules
 
+# LVGL build rules
+LVGL_BINDING_DIR = $(K230_CANMV_ROOT)/micropython_port/lvgl/lv_binding_micropython
+LVGL_DIR = $(LVGL_BINDING_DIR)/lvgl
+LVGL_GENERIC_DRV_DIR = $(LVGL_BINDING_DIR)/driver/generic
+INC += -I$(LVGL_BINDING_DIR)
+ALL_LVGL_SRC = $(shell find $(LVGL_DIR) -type f -name '*.h') $(LVGL_BINDING_DIR)/lv_conf.h
+LVGL_PP = $(BUILD)/lvgl/lvgl.pp.c
+LVGL_MPY = $(BUILD)/lvgl/lv_mpy.c
+LVGL_MPY_METADATA = $(BUILD)/lvgl/lv_mpy.json
+
+$(LVGL_MPY): $(ALL_LVGL_SRC) $(LVGL_BINDING_DIR)/gen/gen_mpy.py
+	$(ECHO) "LVGL-GEN $@"
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(CPP) $(LV_CFLAGS) -DPYCPARSER -x c -I $(LVGL_BINDING_DIR)/pycparser/utils/fake_libc_include $(INC) $(LVGL_DIR)/lvgl.h > $(LVGL_PP)
+	$(Q)python3.8 $(LVGL_BINDING_DIR)/gen/gen_mpy.py -M lvgl -MP lv -MD $(LVGL_MPY_METADATA) -E $(LVGL_PP) $(LVGL_DIR)/lvgl.h > $@
+
+LVGL_SRC_C = $(subst $(TOP)/,,$(shell find $(LVGL_DIR)/src -type f -name "*.c") $(LVGL_MPY))
+
 SRC_C += \
 	${MACHINE_SRC_C} \
 	${MAIX_SRC_C} \
@@ -138,7 +156,8 @@ SRC_C += \
 	${KPU_SRC_C}  ${SOCKET_SRC_C} \
 	${OMV_SRC_C} \
 	${AICUBE_SRC_C} \
-	${AIDEMO_SRC_C}
+	${AIDEMO_SRC_C} \
+	${LVGL_SRC_C}
 
 SHARED_SRC_C += $(addprefix shared/,\
 	runtime/gchelper_generic.c \

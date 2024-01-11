@@ -65,9 +65,11 @@ static unsigned stdin_read_ptr = 0;
 int usb_rx(void) {
     char c;
     struct timeval tval;
+    struct timeval tval_add = {0, 1000};
     struct timespec to;
     gettimeofday(&tval, NULL);
-    to.tv_sec = tval.tv_sec + 1;
+    timeradd(&tval, &tval_add, &tval);
+    to.tv_sec = tval.tv_sec;
     to.tv_nsec = tval.tv_usec * 1000;
     if (sem_timedwait(&stdin_sem, &to) != 0)
         return -1;
@@ -703,8 +705,10 @@ static void* ide_dbg_task(void* args) {
             pr("[usb] RTS");
             static struct timeval tval_last = {};
             struct timeval tval;
+            struct timeval tval_sub;
             gettimeofday(&tval, NULL);
-            if (tval.tv_sec > tval_last.tv_sec + 2) {
+            timersub(&tval, &tval_last, &tval_sub);
+            if (tval_sub.tv_sec >= 1) {
                 if (ide_dbg_attach()) {
                     if (ide_script_running) {
                         ide_disconnect = true;
