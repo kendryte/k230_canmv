@@ -848,6 +848,7 @@ int ipcm_network_exe_cmd(char *cmd, char *recvbuf, int recvlen)
     k_ipcmsg_message_t* pReq = NULL;
     k_ipcmsg_message_t* pResp = NULL;
 
+
     ipcm_socket_server_init();
     //printf("f=%s l=%d %s\n", __func__,__LINE__,cmd );    
     pReq = kd_ipcmsg_create_message(0, FUNC_NETWORK_CMD, cmd, strlen(cmd)+1);
@@ -863,10 +864,14 @@ int ipcm_network_exe_cmd(char *cmd, char *recvbuf, int recvlen)
     kd_ipcmsg_destroy_message(pReq);    
     
     if(retVal == 0){
+        k_s32 temp_len = MIN(pResp->u32BodyLen, recvlen );
         //printf("ipcm_socket ret =%x %x %x\n", pResp->s32RetVal,pResp->u32CMD, pResp->u32BodyLen);
         retVal = pResp->s32RetVal;        
-        if(recvlen > pResp->u32BodyLen)
-            memcpy(recvbuf, pResp->pBody, pResp->u32BodyLen);
+        //if(recvlen > pResp->u32BodyLen)
+        memcpy(recvbuf, pResp->pBody, temp_len);
+        if(temp_len > 0)
+            recvbuf[temp_len - 1] = 0;
+        
         kd_ipcmsg_destroy_message(pResp);
     }else {
         //printf("f=%s l=%d %x \n", __func__,__LINE__, retVal);
@@ -913,7 +918,7 @@ mp_obj_t ipcm_network_lan_ifconfig(char *netname,  size_t n_args, const mp_obj_t
 
     }else if (args[0] == MP_OBJ_NEW_QSTR(MP_QSTR_dhcp)){
         //dhcp  -i eth0;
-        snprintf(cmd,sizeof(cmd), "udhcpc -i %s -q >/dev/null", netname);
+        snprintf(cmd,sizeof(cmd), "udhcpc -i %s -q -n >/dev/null", netname);
         ret = ipcm_network_exe_cmd(cmd, buf, sizeof(buf));
         return mp_obj_new_bool(ret == 0);
     }else  {

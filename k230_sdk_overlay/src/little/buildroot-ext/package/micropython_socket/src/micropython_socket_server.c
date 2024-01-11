@@ -537,6 +537,8 @@ ssize_t mcsk_srv_proc_netcmd(k_ipcmsg_message_t* msg, char  *body, int *bdlen)
         *bdlen = 0;
     }
     //printf("f =%s l=%d cmd=%s ret =%d\n", __func__, __LINE__, cmd, ret);
+    // if(*bdlen)
+    //     printf("ret connet =%s\n", body);
     return ret;
 }
 static void mcsk_rcv_msg_proc(k_s32 s32Id, k_ipcmsg_message_t* msg)
