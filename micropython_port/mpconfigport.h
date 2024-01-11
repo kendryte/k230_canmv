@@ -90,6 +90,7 @@ typedef long long mp_off_t;
 #define MICROPY_PY_SELECT           (1)
 #define MICROPY_PY_THREAD           (1)
 #define MICROPY_PY_OS_DUPTERM       (1)
+#define MICROPY_SCHEDULER_DEPTH     (8)
 
 #define MICROPY_PY_NETWORK_CANMV (1)
 #define MICROPY_PY_NETWORK_HOSTNAME_DEFAULT "canmv"
@@ -191,8 +192,8 @@ extern const struct _mp_print_t mp_stderr_print;
 #define MICROPY_PERSISTENT_CODE_LOAD   (1)
 
 // Extra memory debugging.
-#define MICROPY_MALLOC_USES_ALLOCATED_SIZE (1)
-#define MICROPY_MEM_STATS              (1)
+#define MICROPY_MALLOC_USES_ALLOCATED_SIZE (0)
+#define MICROPY_MEM_STATS              (0)
 
 // Enable a small performance boost for the VM.
 #define MICROPY_OPT_COMPUTED_GOTO      (1)

@@ -703,6 +703,7 @@ static mp_obj_t py_image_poolid(mp_obj_t img_obj) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(py_image_poolid_obj, py_image_poolid);
 
+extern void memcpy_fast(void *dst, void *src, size_t size);
 static mp_obj_t py_image_copy_to(mp_obj_t img_obj, mp_obj_t dst_img_obj) {
     image_t *image = py_image_cobj(img_obj);
     image_t *dst_image = py_image_cobj(dst_img_obj);
@@ -710,10 +711,23 @@ static mp_obj_t py_image_copy_to(mp_obj_t img_obj, mp_obj_t dst_img_obj) {
     if (image_size(image) != image_size(dst_image))
         mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("image size or format mismatch"));
 
-    memcpy(dst_image->data, image->data, image_size(image));
+    memcpy_fast(dst_image->data, image->data, image_size(image));
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(py_image_copy_to_obj, py_image_copy_to);
+
+static mp_obj_t py_image_copy_from(mp_obj_t img_obj, mp_obj_t obj) {
+    image_t *image = py_image_cobj(img_obj);
+    mp_buffer_info_t bufinfo;
+
+    mp_get_buffer_raise(obj, &bufinfo, MP_BUFFER_READ);
+    if (image_size(image) != bufinfo.len)
+        mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("image and buffer size mismatch"));
+
+    memcpy_fast(image->data, bufinfo.buf, bufinfo.len);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(py_image_copy_from_obj, py_image_copy_from);
 
 static mp_obj_t py_image_to_numpy_ref(mp_obj_t img_obj) {
     image_t *image = py_image_cobj(img_obj);
@@ -6381,6 +6395,7 @@ static const mp_rom_map_elem_t locals_dict_table[] = {
     /* Basic Methods */
     {MP_ROM_QSTR(MP_QSTR___del__),             MP_ROM_PTR(&py_image_del_obj)},
     {MP_ROM_QSTR(MP_QSTR_copy_to),             MP_ROM_PTR(&py_image_copy_to_obj)},
+    {MP_ROM_QSTR(MP_QSTR_copy_from),           MP_ROM_PTR(&py_image_copy_from_obj)},
     {MP_ROM_QSTR(MP_QSTR_to_numpy_ref),        MP_ROM_PTR(&py_image_to_numpy_ref_obj)},
     {MP_ROM_QSTR(MP_QSTR_phyaddr),             MP_ROM_PTR(&py_image_phyaddr_obj)},
     {MP_ROM_QSTR(MP_QSTR_virtaddr),            MP_ROM_PTR(&py_image_virtaddr_obj)},

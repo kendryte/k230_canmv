@@ -162,8 +162,10 @@ tag_sync:
   - ls -alht k230_sdk
   - cur_user=$(id -u)
   - cur_group=$(id -g)
+  - sudo chown -R ${cur_user}:${cur_group} ./micropython_port
   - sudo chown -R ${cur_user}:${cur_group} ./micropython
   - sudo chown -R ${cur_user}:${cur_group} ./k230_sdk
+  - ls -alht micropython_port
   - ls -alht micropython
   - ls -alht k230_sdk
   - echo "----------skip toolchain download in local docker----------"
@@ -658,6 +660,9 @@ before_script:
   - uptime
   - pwd
   - ls -alht
+  - ls -alht k230_sdk
+  - ls -alht micropython
+  - ls -alht micropython_port
   - uname -a
   - cat /etc/issue
   - echo $CI_PROJECT_DIR
@@ -670,6 +675,8 @@ before_script:
   - git config --global user.email "${GITLAB_USER_EMAIL}"
   - git config --global user.name "${GITLAB_USER_NAME}"
   - git config --global --add safe.directory $CI_PROJECT_DIR
+  - git config --global --add safe.directory $CI_PROJECT_DIR/k230_sdk
+  - git config --global --add safe.directory $CI_PROJECT_DIR/micropython
   - echo '----------fetch all tags----------'
   - git fetch --tags
 
