@@ -61,6 +61,12 @@ STATIC mp_obj_t mp_from_numpy(mp_obj_t ndarray)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_from_numpy_obj, mp_from_numpy);
 
+STATIC mp_obj_t mp_shrink_memory_pool()
+{
+    shrink_memory_pool();
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(mp_shrink_memory_pool_obj, mp_shrink_memory_pool);
 
 STATIC const mp_rom_map_elem_t nncase_runtime_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_nncase_runtime) },
@@ -70,6 +76,7 @@ STATIC const mp_rom_map_elem_t nncase_runtime_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_interp_mode), MP_ROM_PTR(&interp_mode_type) },
     { MP_ROM_QSTR(MP_QSTR_ai2d_format), MP_ROM_PTR(&ai2d_format_type) },
     { MP_ROM_QSTR(MP_QSTR_from_numpy), MP_ROM_PTR(&mp_from_numpy_obj) },
+    { MP_ROM_QSTR(MP_QSTR_shrink_memory_pool), MP_ROM_PTR(&mp_shrink_memory_pool_obj) },
 };
 
 STATIC MP_DEFINE_CONST_DICT(nncase_runtime_module_globals, nncase_runtime_module_globals_table);

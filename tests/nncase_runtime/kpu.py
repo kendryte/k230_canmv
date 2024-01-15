@@ -32,11 +32,10 @@ kpu.run()
 
 # get output
 for i in range(kpu.outputs_size()):
-    result = kpu.get_output_tensor(i)
-    data = result.to_numpy()
+    data = kpu.get_output_tensor(i).to_numpy()
     print("result: ", i, data.flatten()[-5:])
     print(data.shape, data.dtype)
-    del result
 
 del kpu
 gc.collect()
+nn.shrink_memory_pool()

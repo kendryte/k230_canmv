@@ -119,6 +119,10 @@ int mp_dtype_to_nncase(char data_type)
     }
 }
 
+void shrink_memory_pool()
+{
+    nncase::runtime::shrink_memory_pool();
+}
 
 
 // func 

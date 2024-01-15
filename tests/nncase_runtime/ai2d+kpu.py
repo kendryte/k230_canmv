@@ -48,12 +48,10 @@ kpu.run()
 
 # get output
 for i in range(kpu.outputs_size()):
-    data = kpu.get_output_tensor(i)
-    result = data.to_numpy()
-    print("result: ", i, result.flatten()[-5:])
-    print(result.shape,result.dtype)
-    del data
-    
+    data = kpu.get_output_tensor(i).to_numpy()
+    print("result: ", i, data.flatten()[-5:])
+    print(data.shape, data.dtype)
+
 del kpu_input
 del ai2d_input_tensor
 del ai2d_builder
@@ -61,3 +59,4 @@ del ai2d_out
 del ai2d
 del kpu
 gc.collect()
+nn.shrink_memory_pool()
