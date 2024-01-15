@@ -1,4 +1,3 @@
-DEBUG = 1
 include ${K230_CANMV_BUILD_DIR}/include/config/auto.conf
 
 CROSS_COMPILE = ${K230_CANMV_ROOT}/k230_sdk/toolchain/riscv64-linux-musleabi_for_x86_64-pc-linux-gnu/bin/riscv64-unknown-linux-musl-
@@ -59,7 +58,7 @@ CFLAGS += $(INC) -std=gnu99 $(COPT) $(CFLAGS_EXTRA)
 NNCASEINC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/nncase/riscv64
 NNCASEINC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/nncase/riscv64/nncase/include
 CXXFLAGS += -fopenmp -march=rv64imafdcv -mabi=lp64d -mcmodel=medany
-CXXFLAGS += $(INC) $(NNCASEINC) -std=c++20
+CXXFLAGS += $(INC) $(COPT) $(NNCASEINC) -std=c++20
 
 # Debugging/Optimization
 ifdef DEBUG
