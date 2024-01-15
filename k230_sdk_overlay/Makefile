@@ -12,12 +12,10 @@ BUILDROOT_EXT_SRC_PATH="src/little/buildroot-ext"
 POST_COPY_ROOTFS_PATH=board/common/post_copy_rootfs
 UNITTEST_SRC_PATH=src/big/unittest
 
-#DOWNLOAD_URL=https://ai.b-bug.org/k230
-DOWNLOAD_URL?=https://kendryte-download.canaan-creative.com/k230
-STATUS := $(shell curl --output /dev/null --silent --head --fail https://ai.b-bug.org/k230/ && echo $$?)
-
-ifeq ($(STATUS),0)
+ifeq ($(NATIVE_BUILD),1)
 DOWNLOAD_URL=https://ai.b-bug.org/k230
+else
+DOWNLOAD_URL?=https://kendryte-download.canaan-creative.com/k230
 endif
 
 RTT_TOOLCHAIN_URL = $(DOWNLOAD_URL)/toolchain/riscv64-unknown-linux-musl-rv64imafdcv-lp64d-20230420.tar.bz2
@@ -108,8 +106,8 @@ prepare_sourcecode:prepare_toolchain
 #ai
 	@echo "download nncase sdk"
 	@rm -rf src/big/utils/; rm -rf src/big/ai;
-	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/kmodel/kmodel_v2.4.0.1.tgz -O - | tar -xzC src/big/
-	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/nncase/nncase_k230_v2.4.0.tgz -O - | tar -xzC src/big/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/kmodel/kmodel_v2.7.0.tgz -O - | tar -xzC src/big/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/nncase/nncase_k230_v2.7.0.tgz -O - | tar -xzC src/big/
 
 #big utils
 	@echo "download big utils"
@@ -508,7 +506,9 @@ uboot-clean: defconfig
 
 .PHONY: build-image
 build-image: defconfig  prepare_memory  check_src
-	$(K230_SDK_ROOT)/$(CONFIG_GEN_IMG_SCRIPT) ;cd $(K230_SDK_ROOT);
+	set -e; \
+	$(K230_SDK_ROOT)/$(CONFIG_GEN_IMG_SCRIPT); \
+	cd $(K230_SDK_ROOT);
 
 .PHONY: clean
 clean: uboot-clean little-core-opensbi-clean linux-clean rt-smart-clean

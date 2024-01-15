@@ -90,7 +90,7 @@ sync_submodule: .fast_dl
 .PHONY: prepare_sourcecode
 prepare_sourcecode: sync_submodule
 	@echo "prepare_sourcecode"
-	@make -C k230_sdk prepare_sourcecode CONF=$(CONF)
+	@make -C k230_sdk prepare_sourcecode CONF=$(CONF) NATIVE_BUILD=$(NATIVE_BUILD)
 
 .PHONY: .sync_overlay
 .sync_overlay: .autoconf
