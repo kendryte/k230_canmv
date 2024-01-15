@@ -12,6 +12,7 @@
 #include "py/binary.h"
 #include "ulab_tools.h"
 #include <stdlib.h>
+#include <sys/stat.h>
 // 数据结构
 typedef int mpy_datatype_t;
 
@@ -128,7 +129,10 @@ STATIC mp_obj_t mp_kpu_load_kmodel(mp_obj_t self_in, mp_obj_t filename_in) {
         kpu_obj_t *self = MP_OBJ_TO_PTR(self_in);
         self->base.type = &kpu_type;
         size_t len = 0;
-        bool flag = Kpu_load_kmodel_path(self->interp, mp_obj_str_get_data(filename_in, &len));
+        const char *filename = mp_obj_str_get_data(filename_in, &len);
+        if (access(filename, R_OK) != 0)
+            mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Kmodel file not exist."));
+        bool flag = Kpu_load_kmodel_path(self->interp, filename);
         if(!flag)
             mp_raise_msg(&mp_type_EOFError, MP_ERROR_TEXT("KPU load model failed from path."));
     }
@@ -246,7 +250,6 @@ STATIC const mp_rom_map_elem_t kpu_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_kpu) },
     { MP_ROM_QSTR(MP_QSTR___init__), MP_ROM_PTR(&kpu_create_obj) },
     { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&kpu_destroy_obj) },
-    { MP_ROM_QSTR(MP_QSTR_release), MP_ROM_PTR(&kpu_destroy_obj) },
     { MP_ROM_QSTR(MP_QSTR_load_kmodel), MP_ROM_PTR(&kpu_load_kmodel_obj) },
     { MP_ROM_QSTR(MP_QSTR_run), MP_ROM_PTR(&kpu_run_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_input_tensor), MP_ROM_PTR(&kpu_get_input_tensor_obj) },
@@ -274,8 +277,6 @@ MP_DEFINE_CONST_OBJ_TYPE(
     make_new, mp_kpu_create,
     locals_dict, &kpu_locals_dict
     );
-
-
 
 
 STATIC mp_obj_t mp_to_numpy(mp_obj_t self_in) {
@@ -311,7 +312,6 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_runtime_tensor_del_obj, mp_runtime_tensor_re
 STATIC const mp_rom_map_elem_t mp_rt_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_runtime_tensor) },
     { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&mp_runtime_tensor_del_obj) },
-    { MP_ROM_QSTR(MP_QSTR_release), MP_ROM_PTR(&mp_runtime_tensor_del_obj) },
     { MP_ROM_QSTR(MP_QSTR_to_numpy), MP_ROM_PTR(&mp_to_numpy_obj) },
 };
 

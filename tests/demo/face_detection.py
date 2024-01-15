@@ -335,6 +335,8 @@ def main():
     except Exception as e:
         sys.print_exception(e)
     finally:
+        gc.collect()
+        nn.shrink_memory_pool()
         if camera_is_init:
             print("camera deinit")
             camera_deinit()
