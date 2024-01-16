@@ -42,5 +42,5 @@ mkdir /sharefs -p
 micropython_socket_server &
 /mnt/sharefs &
 cd -
-/sbin/ifup -a  || (sleep 2; /sbin/ifup -a) 
+/sbin/ifup -a  || (sleep 4; /sbin/ifup -a) 
 echo ""
