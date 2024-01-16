@@ -8,6 +8,7 @@ from media.camera import *
 from media.display import *
 from media.media import *
 import time, os
+import sys
 
 def camera_test():
     print("camera_test")
