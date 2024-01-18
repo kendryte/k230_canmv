@@ -9,6 +9,7 @@ variables:
     GITLAB_REPO: git@g.a-bug.org:maix_sw/k230_canmv.git
     GITHUB_REPO: git@github.com:kendryte/k230_canmv.git
     GITEE_REPO: git@gitee.com:kendryte/k230_canmv.git
+    TEST_SCRIPTS_REPO: git@g.a-bug.org:maix_sw/k230_canmv_testscripts.git
 
 default:
   image: ai.b-bug.org:5000/k230_sdk:latest
@@ -19,8 +20,10 @@ default:
 stages:
   - build_setup
   - build_src
-  - load_test
+  - smoke_test
+  - test
   - publish
+  - send_msg
 
 # MR merged
 push_sync:
@@ -68,11 +71,64 @@ tag_sync:
   - echo "${JOB_TYPE}"
   - echo "${DST_BASE}"
   - echo "${SUB_BASE}"
-  - echo "${sdk_url}"
-  - echo "${sdk_path}"
+  - echo "${sysimage_path}"
+  - echo "${sysimage_md5}"
   - echo "${image_url}"
   - echo "${image_path}"
   - echo "${BUILD}"
+
+.get_job_result: &get_job_result
+  - |
+      echo "CI_PROJECT_NAME $CI_PROJECT_NAME"
+      echo "CI_JOB_NAME $CI_JOB_NAME"
+      echo "CI_JOB_STATUS $CI_JOB_STATUS"
+      echo "CI_JOB_ID $CI_JOB_ID"
+      echo "CI_JOB_IMAGE $CI_JOB_IMAGE"
+      echo "CI_JOB_NAME_SLUG $CI_JOB_NAME_SLUG"
+      echo "CI_JOB_STAGE $CI_JOB_STAGE"
+      echo "CI_JOB_TIMEOUT $CI_JOB_TIMEOUT"
+      echo "CI_JOB_URL $CI_JOB_URL"
+      echo "CI_PIPELINE_SOURCE $CI_PIPELINE_SOURCE"
+      echo "CI_PIPELINE_URL $CI_PIPELINE_URL"
+      echo "CI_PIPELINE_NAME $CI_PIPELINE_NAME"
+      echo "CI_PIPELINE_TRIGGERED $CI_PIPELINE_TRIGGERED"
+      echo "check send feishu msg to group"
+      SEND="FALSE"
+      if [[ "$CI_PIPELINE_SOURCE" != "merge_request_event" ]]; then
+        if [[ "$CI_JOB_STATUS" == "success" ]]; then
+          echo "job pass, check again"
+          if [[ "$CI_JOB_STAGE" == "send_msg" ]]; then
+            echo "match the last test, will send feishu pass msg"
+            SEND="TRUE"
+          else
+            echo "job pass but not the last one, continue the next job"
+          fi
+        elif [[ "$CI_JOB_STATUS" == "failed" ]]; then
+            echo "job failed, will send feishu msg now"
+            SEND="TRUE"
+        else
+          echo "unknown job status"
+        fi
+      else
+        echo "skip feishu msg for MR event"
+      fi
+      echo "Pipeline created at $CI_PIPELINE_CREATED_AT"
+      total_seconds=$(($(date +%s) - $(date -d $CI_PIPELINE_CREATED_AT +%s)))
+      echo "Total pipeline duration ${total_seconds} seconds"
+      t_hours=$((total_seconds / 3600))
+      t_minutes=$(( (total_seconds % 3600) / 60 ))
+      t_seconds=$((total_seconds % 60))
+      echo "Total pipeline duration ${t_hours}小时${t_minutes}分${t_seconds}秒"
+      if [[ "$SEND" == "TRUE" ]]; then
+        test -d bin || mkdir ./bin
+        test -f ./bin/send_feishy && rm -rf ./bin/send_feishu
+        wget -qc https://ai.b-bug.org/k510/downloads/github/send_feishu -O ./bin/send_feishu
+        chmod +x ./bin/send_feishu
+        ./bin/send_feishu --msg_type pipeline --gitlab_repo $CI_PROJECT_NAME --pipeline_source $CI_PIPELINE_SOURCE --pipeline_version ${SUB_BASE} --pipeline_seconds $total_seconds --pipeline_stage $CI_JOB_STAGE --pipeline_url $CI_PIPELINE_URL --pipeline_result $CI_JOB_STATUS --sdk_url "$sdk_url" --image_url "$image_url"
+        echo "send feishu done"
+      else
+        echo "skip send feishu msg"
+      fi
 
 .get_job_type: &get_job_type
   - echo "----------get dst dir with job type----------"
@@ -310,7 +366,7 @@ tag_sync:
 
 .test:
   test_setup:
-    - echo "----------get available test devices----------"
+    - - echo "----------Step 1. get available test devices----------"
     - test -d bin || mkdir ./bin
     - test -f ./bin/ailab && rm -rf ./bin/ailab
     - wget -qc https://ai.b-bug.org/k510/downloads/github/ailab -O ./bin/ailab
@@ -325,7 +381,7 @@ tag_sync:
           exit 1
         fi
     - echo "----------get available test devices done----------"
-    - echo "----------reserve test device----------"
+    - echo "----------Step 2. reserve test device----------"
     - |
         echo "check job from MR or tag or schedule or web"
         if [[ ${CI_MERGE_REQUEST_IID} ]]; then
@@ -351,18 +407,11 @@ tag_sync:
             echo "ERROR: Reserve DUT failed"
             exit 1
           fi
-    # - power=$(./bin/ailab power --type=cycle ${available})
-    # - echo $power
-    # - >
-    #       if [[ $power =~ "True" ]]; then
-    #         echo "Reset DUT pass"
-    #       else
-    #         echo "ERROR: Reset DUT failed"
-    #         exit 1
-    #       fi
-    - echo "----------save reserved/available for after_script----------"
+    - echo "----------Step 3. save reserved/available for after_script----------"
     - echo "${available}" > available
     - echo "${reserved}" > reserved
+    #- power=$(./bin/ailab power --type=on ${available})
+    #- echo $power
     - echo "----------reserve test device done----------"
   test_teardown:
     - echo "----------release test device----------"
@@ -444,30 +493,8 @@ tag_sync:
   copy_test_resource:
     - echo "----------Step 5. copy test resource----------"
     - echo "get build step result"
-    - echo $sdk_path
-    - echo $image_path
-    - echo $utest_path
-    - echo $ai_poc_path
-    - echo $fancy_poc_path
-    - echo $SUB_BASE
+    - *show_vars
     - pwd
-    - |
-        echo "---get utest floder without build or with build---"
-        if [[ -z $utest_path ]]; then
-          echo "k230 utest NOT build in current job, use latest utest daily build"
-          echo "get latest K230 utest"
-          utest_ver=$(ls -alht /data1/k230/dev-release/utest/latest | awk -F '/' '{print $11}')
-          utest_dir=$(ls -alht /data1/k230/dev-release/utest/latest | awk -F '-> ' '{print $2}')
-          ls -alht $utest_dir || exit 1
-          utest_path="$utest_dir/k230_utest_${utest_ver}.tar.gz"
-          echo "---use latest utest path: $utest_path"
-          echo "---use latest utest ver: $utest_ver"
-        else
-          echo "k230 utest already build and exist in current job"
-          utest_ver=$SUB_BASE
-          echo "---use current utest path: $utest_path"
-          echo "---use current utest ver: $utest_ver"
-        fi
     - echo "---get nfs case floder---"
     - |
       echo ${NFS_BASE}
@@ -477,11 +504,8 @@ tag_sync:
       echo "---create NFS dir---"
       echo "generate sub dir for MR/Pre-releae/relese job"
       echo "check job from MR or tag or schedule or web"
-      sdk_testcase_copy="NO"
       if [[ ${CI_MERGE_REQUEST_IID} ]]; then
           echo "current job is MR, skip and use CI_MERGE_REQUEST_IID"
-          echo "set MR flag for sdk_testcase copy"
-          sdk_testcase_copy="YES"
       elif [[ ${CI_COMMIT_TAG} ]]; then
           echo "current job is release job, use CI_COMMIT_TAG"
           CI_MERGE_REQUEST_IID=${CI_COMMIT_TAG}
@@ -499,42 +523,27 @@ tag_sync:
       echo "update current NFS_CASE_FOLDER permission before write"
       sudo mkdir -p ${NFS_CASE_FOLDER} || exit 1
       sudo chmod -R 777 ${NFS_CASE_FOLDER} || exit 1
+    - echo "---add testcase script to nfs folder"
+    - git clone ${TEST_SCRIPTS_REPO} k230_canmv_testscripts || exit 1
+    - cd k230_canmv_testscripts || exit 1
+    - git fetch origin main || exit 1
+    - git checkout main || exit 1
+    - echo "check micropython_testcases dir should be exist"
+    - ls micropython_testcases || exit 1
+    - cd ../ || exit 1
     - echo "---copy test resource to nfs dir in nfs_server"
-    - mkdir -p $NFS_CASE_FOLDER/output || exit 1
-    - sudo chmod -R 777 $NFS_CASE_FOLDER/output || exit 1
-    #- test -h $NFS_CASE_FOLDER/resource && rm -rf $NFS_CASE_FOLDER/resource
-    #- ln -s $NFS_BASE/$HW_TYPE/resource $NFS_CASE_FOLDER/resource || exit 1
-    - time cp -rf --sparse=always $NFS_BASE/$HW_TYPE/resource $NFS_CASE_FOLDER/resource
-    - echo "unzip utest file to nfs dir in nfs_server"
+    - time cp -rf --sparse=always ./k230_canmv_testscripts/micropython_testcases/ $NFS_CASE_FOLDER/
     - cd $NFS_CASE_FOLDER/ || exit 1;
-    - ls $utest_path || exit 1
-    - time tar -zxf $utest_path || exit 1
     - ls -alht || exit 1
     - |
-       if [[ -d "testcase" ]]; then
-         echo "testcase dir exist, skip rename and continue"
-       elif [[ -d "utest" ]]; then
-         echo "testcase not exist and utest exist, rename utest dir to testcase"
-         mv -f utest testcase || exit 1
+       if [[ -d "micropython_testcases" ]]; then
+         echo "micropython_testcases dir exist, continue run test job"
        else
-         echo "utest and testcase dir not exit, return error and exit"
+         echo "micropython_testcases dir not exit, return error and exit"
          exit 1
        fi
-    - echo "confirm testcase dir again"
-    - ls -alht testcase || exit 1
-    - |
-        echo "copy sdk testcase for MR smoke test"
-        if [[ "$sdk_testcase_copy" == "YES" ]]; then
-          echo "current job is MR, copy sdk_testcase from image path"
-          echo $image_path || exit 1
-          echo "get testcase full path"
-          ls $image_path/$DEFAULT_CONF/sdk_testcase/ |grep k230_testcase
-          sdk_testcase_name=$(ls $image_path/$DEFAULT_CONF/sdk_testcase/ |grep k230_testcase)
-          echo $sdk_testcase_name || exit 1
-          time tar -zxf $image_path/$DEFAULT_CONF/sdk_testcase/$sdk_testcase_name || exit 1
-        else
-          echo "current job is not MR, skip copy sdk testcase"
-        fi
+    - echo "confirm micropython_testcase dir again"
+    - ls -alht micropython_testcases || exit 1
     - echo "show test resource in nfs_server"
     - tree $NFS_CASE_FOLDER
     - cd -
@@ -543,87 +552,43 @@ tag_sync:
     - echo "----------Step 6. generate test device yml file for test job----------"
     - ./bin/ailab convert --dest=script --format yaml --file_name=${TEST_ENV}.yml --nfs_server_ip $NFS_SERVER --nfs_case_folder $NFS_CASE_FOLDER ${available}
     - test -f ${TEST_ENV}.yml || exit 1
-    - echo "cp ${TEST_ENV}.yml to nfs_case_folder for NUC remote PC audio job"
+    - echo "cp ${TEST_ENV}.yml to nfs_case_folder"
     - cp -rf --sparse=always ${TEST_ENV}.yml $NFS_CASE_FOLDER/ || exit 1
     - test -f $NFS_CASE_FOLDER/${TEST_ENV}.yml || exit 1
-
   smoke_test:
     - echo "----------Run Smoke Test start----------"
     - test -d bin || mkdir ./bin
     - test -f ./bin/airobot && rm -rf ./bin/airobot
     - wget -qc https://ai.b-bug.org/k510/downloads/github/airobot -O ./bin/airobot
     - chmod +x ./bin/airobot
-    - test -f ./k230.robot && rm -rf ./k230.robot
-    - wget -qc https://ai.b-bug.org/k510/downloads/github/k230.robot -O ./k230.robot
-    - ./bin/ailab convert --dest=script --format yaml --file_name=${TEST_ENV}.yml --nfs_server_ip $NFS_SERVER --nfs_case_folder $NFS_CASE_FOLDER ${available}
-    - test -f ${TEST_ENV}.yml || exit 1
-    - echo "cp ${TEST_ENV}.yml to nfs_case_folder for NUC remote PC audio job"
-    - cp -rf --sparse=always ${TEST_ENV}.yml $NFS_CASE_FOLDER/ || exit 1
-    - test -f $NFS_CASE_FOLDER/${TEST_ENV}.yml || exit 1
-    - echo ""----------Run smoke test start"----------"
-    - |
-        echo "---start to run smoke test in for loop"
-        stime=$(date +'%Y-%m-%d %H:%M:%S')
-        echo "---run smoke test start time: $stime"
-        test_cmd="./bin/airobot -m gitlab -V k230.yml -i smoke k230.robot"
-        for i in {1..3}; do
-          if [ $i -eq 3 ]
-          then
-            echo "ERROR: Max retries reached with run smoke test"
-            exit 1
-          fi
-          starttime=$(date +'%Y-%m-%d %H:%M:%S')
-          echo "---loop $i start time: $starttime"
-          echo "---start to run smoke test in loop $i---"
-          if $test_cmd
-          then
-            echo "---loop $i run smoke test pass---"
-            break
-          else
-            echo "ERROR:loop $i run smoke test failed, ignore Error and try again..."
-            echo "---start to rerun in next loop..."
-            sleep 3
-          fi
-          endtime=$(date +'%Y-%m-%d %H:%M:%S')
-          start_seconds=$(date -d "$starttime" +%s)
-          end_seconds=$(date -d "$endtime" +%s)
-          echo "---loop $i end time: $endtime"
-          echo "---loop $i total cost time：$((end_seconds - start_seconds)) s"
-        done
-        etime=$(date +'%Y-%m-%d %H:%M:%S')
-        s_seconds=$(date -d "$stime" +%s)
-        e_seconds=$(date -d "$etime" +%s)
-        echo "---run smoke test end time: $etime"
-        echo "---run smoke test total cost time：$((e_seconds - s_seconds)) s"
-        echo "---finished run smoke test in loop $i"
-    - echo "---add smoke test script"
-    - git clone ${TEST_SCRIPTS_REPO} k230_testscripts || exit 1
-    - cd k230_testscripts || exit 1
-    - git fetch origin gitlab || exit 1
-    - git checkout gitlab || exit 1
+    - echo "---add test script"
+    - test -d k230_canmv_testscripts || git clone ${TEST_SCRIPTS_REPO} k230_canmv_testscripts || exit 1
+    - cd k230_canmv_testscripts || exit 1
+    - git fetch origin main || exit 1
+    - git checkout main || exit 1
     - cd ../ || exit 1
-    - wget -qc https://ai.b-bug.org/k510/downloads/github/k230_smoke_test.sh -O ./k230_smoke_test.sh
-    - chmod +x ./k230_smoke_test.sh
+    - wget -qc https://ai.b-bug.org/k510/downloads/github/k230_canmv_smoke_test.sh -O ./k230_canmv_smoke_test.sh
+    - chmod +x ./k230_canmv_smoke_test.sh
     - |
-        echo "---start to run k230 smoke test in for loop"
+        echo "---start to run k230 canmv smoke test in for loop"
         stime=$(date +'%Y-%m-%d %H:%M:%S')
         echo "---run k230 smoke test start time: $stime"
-        test_cmd="./k230_smoke_test.sh"
+        test_cmd="./k230_canmv_smoke_test.sh ${TEST_ENV}"
         for i in {1..3}; do
           if [ $i -eq 3 ]
           then
-            echo "ERROR: Max retries reached with run k230 smoke test"
+            echo "ERROR: Max retries reached with run k230 canmv smoke test"
             exit 1
           fi
           starttime=$(date +'%Y-%m-%d %H:%M:%S')
           echo "---loop $i start time: $starttime"
-          echo "---start to run k230 smoke test in loop $i---"
+          echo "---start to run k230 canmv smoke test in loop $i---"
           if $test_cmd
           then
-            echo "---loop $i run k230 smoke test pass---"
+            echo "---loop $i run k230 canmv smoke test pass---"
             break
           else
-            echo "ERROR:loop $i run k230 smoke test failed, ignore Error and try again..."
+            echo "ERROR:loop $i run k230 canmv smoke test failed, ignore Error and try again..."
             echo "---start to rerun in next loop..."
             sleep 3
           fi
@@ -636,10 +601,61 @@ tag_sync:
         etime=$(date +'%Y-%m-%d %H:%M:%S')
         s_seconds=$(date -d "$stime" +%s)
         e_seconds=$(date -d "$etime" +%s)
-        echo "---run k230 smoke test end time: $etime"
-        echo "---run k230 smoke test total cost time：$((e_seconds - s_seconds)) s"
-        echo "---finished run k230 smoke test in loop $i"
+        echo "---run k230 canmv smoke test end time: $etime"
+        echo "---run k230 canmv smoke test total cost time：$((e_seconds - s_seconds)) s"
+        echo "---finished run k230 canmv smoke test in loop $i"
     - echo "----------Run Smoke Test pass----------"
+  daily_test:
+    - echo "----------Run Daily Test start----------"
+    - test -d bin || mkdir ./bin
+    - test -f ./bin/airobot && rm -rf ./bin/airobot
+    - wget -qc https://ai.b-bug.org/k510/downloads/github/airobot -O ./bin/airobot
+    - chmod +x ./bin/airobot
+    - echo "---add test script"
+    - test -d k230_canmv_testscripts || git clone ${TEST_SCRIPTS_REPO} k230_canmv_testscripts || exit 1
+    - cd k230_canmv_testscripts || exit 1
+    - git fetch origin main || exit 1
+    - git checkout main || exit 1
+    - cd ../ || exit 1
+    - wget -qc https://ai.b-bug.org/k510/downloads/github/k230_canmv_daily_test.sh -O ./k230_canmv_daily_test.sh
+    - chmod +x ./k230_canmv_daily_test.sh
+    - |
+        echo "---start to run k230 canmv daily test in for loop"
+        stime=$(date +'%Y-%m-%d %H:%M:%S')
+        echo "---run k230 canmv daily test start time: $stime"
+        test_cmd="./k230_canmv_daily_test.sh $TEST_ENV"
+        for i in {1..3}; do
+          if [ $i -eq 3 ]
+          then
+            echo "ERROR: Max retries reached with run k230 canmv daily test"
+            exit 1
+          fi
+          starttime=$(date +'%Y-%m-%d %H:%M:%S')
+          echo "---loop $i start time: $starttime"
+          echo "---start to run k230 canmv daily test in loop $i---"
+          if $test_cmd
+          then
+            echo "---loop $i run k230 canmv daily test pass---"
+            break
+          else
+            echo "ERROR:loop $i run k230 canmv daily test failed, ignore Error and try again..."
+            echo "---start to rerun in next loop..."
+            sleep 3
+          fi
+          endtime=$(date +'%Y-%m-%d %H:%M:%S')
+          start_seconds=$(date -d "$starttime" +%s)
+          end_seconds=$(date -d "$endtime" +%s)
+          echo "---loop $i end time: $endtime"
+          echo "---loop $i total cost time：$((end_seconds - start_seconds)) s"
+        done
+        etime=$(date +'%Y-%m-%d %H:%M:%S')
+        s_seconds=$(date -d "$stime" +%s)
+        e_seconds=$(date -d "$etime" +%s)
+        echo "---run k230 canmv daily test end time: $etime"
+        echo "---run k230 canmv daily test total cost time：$((e_seconds - s_seconds)) s"
+        echo "---finished run k230 canmv daily test in loop $i"
+    - echo "----------Run Daily Test pass----------"
+
 
 before_script:
   - echo '----------Build ENV Prepare----------'
@@ -679,6 +695,10 @@ before_script:
   - git config --global --add safe.directory $CI_PROJECT_DIR/micropython
   - echo '----------fetch all tags----------'
   - git fetch --tags
+
+after_script:
+  - *show_vars
+  - *get_job_result
 
 # build setup for all jobs
 build_setup:
@@ -740,7 +760,7 @@ build_image:
 
 #test setup for all jobs
 load_image_smoke_test:
-  stage: load_test
+  stage: smoke_test
   variables:
     TEST_ENV: ai
   rules:
@@ -759,7 +779,58 @@ load_image_smoke_test:
     - *show_vars
     - *check_build_result
     - !reference [.test, test_setup]
+    - !reference [.test, copy_test_resource]
     - !reference [.test, load_image]
-    #- !reference [.test, smoke_test]
+    - !reference [.test, smoke_test]
   after_script:
     - !reference [.test, test_teardown]
+    - *show_vars
+    - *get_job_result
+
+# daily build test
+daily_build_test:
+  image: ai.b-bug.org:5000/k230_testscripts:latest
+  tags:
+    - k230_testscripts
+  stage: test
+  rules:
+    # release job
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+    # pre-release job
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+    # manual job
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG !~ /^v\d+\.\d+.*$/
+    # daily build
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  timeout: 60m
+  variables:
+    TEST_ENV: ai
+  script:
+    - *show_vars
+    - *check_build_result
+    - !reference [.test, test_setup]
+    - !reference [.test, copy_test_resource]
+    - !reference [.test, load_image]
+    - !reference [.test, daily_test]
+  after_script:
+    - !reference [.test, test_teardown]
+    - *show_vars
+    - *get_job_result
+
+# senf feishu msg
+senf_feishu_msg:
+  stage: send_msg
+  rules:
+    # release job
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+    #  when: always
+    # pre-release job
+    - if: $CI_PIPELINE_SOURCE == "web"
+    #  when: always
+    # daily build
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    #  when: always
+  timeout: 5m
+  script:
+    - *show_vars
+    - *get_job_result
