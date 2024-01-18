@@ -78,7 +78,7 @@ int mp_machine_soft_i2c_transfer(mp_obj_base_t *self_in, uint16_t addr, size_t n
 
     mp_local_free(data);
     mp_local_free(data->msgs);
-    
+
     return ret;
 }
 
@@ -344,14 +344,17 @@ STATIC int write_mem(mp_obj_t self_in, uint16_t addr, uint32_t memaddr, uint8_t 
     // Create buffer with memory address
     uint8_t memaddr_buf[4];
     size_t memaddr_len = fill_memaddr_buf(&memaddr_buf[0], memaddr, mem_size);
-    int i;
+    int i,ret = 0;
+
+    mp_machine_i2c_buf_t *bufs = mp_local_alloc(sizeof(mp_machine_i2c_buf_t));
+    bufs->buf = mp_local_alloc((memaddr_len + len) * sizeof(uint8_t *));
 
     // Create partial write buffers
     // mp_machine_i2c_buf_t bufs[2] = {
     //     {.len = memaddr_len, .buf = memaddr_buf},
     //     {.len = len, .buf = (uint8_t *)buf},
     // };
-    mp_machine_i2c_buf_t bufs[1];
+    // mp_machine_i2c_buf_t bufs[1];
     bufs[0].len = memaddr_len + len;
     for(i = 0;i < memaddr_len;i++)
         bufs[0].buf[i] = memaddr_buf[i];
@@ -360,7 +363,12 @@ STATIC int write_mem(mp_obj_t self_in, uint16_t addr, uint32_t memaddr, uint8_t 
 
     // Do I2C transfer
     mp_machine_i2c_p_t *i2c_p = (mp_machine_i2c_p_t *)MP_OBJ_TYPE_GET_SLOT(self->type, protocol);
-    return i2c_p->transfer(self, addr, 1, bufs, MP_MACHINE_I2C_FLAG_STOP);
+    ret = i2c_p->transfer(self, addr, 1, bufs, MP_MACHINE_I2C_FLAG_STOP);
+
+    mp_local_free(bufs);
+    mp_local_free(bufs->buf);
+
+    return ret;
 }
 
 STATIC const mp_arg_t machine_i2c_mem_allowed_args[] = {
