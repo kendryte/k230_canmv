@@ -851,7 +851,7 @@ main_thread_exit:
 
     mp_deinit();
 
-    #if MICROPY_ENABLE_GC && !defined(NDEBUG)
+    #if MICROPY_ENABLE_GC
     // We don't really need to free memory since we are about to exit the
     // process, but doing so helps to find memory leaks.
     #if !MICROPY_GC_SPLIT_HEAP
