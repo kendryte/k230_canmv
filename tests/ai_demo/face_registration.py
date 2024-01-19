@@ -4,7 +4,7 @@ import aidemo                            #aidemo模块，封装ai demo相关后�
 import image                             #图像模块，主要用于读取、图像绘制元素（框、点等）等操作
 import time                              #时间统计
 import gc                                #垃圾回收模块
-import os                                #操作系统接口模块
+import os,sys                                #操作系统接口模块
 import math                              #数学模块
 
 #********************for config.py********************
@@ -206,9 +206,13 @@ def fd_kpu_run(kpu_obj,rgb888p_img):
 def fd_kpu_deinit():
     # kpu释放
     with ScopedTiming("fd_kpu_deinit",debug_mode > 0):
-        global fd_ai2d, fd_ai2d_output_tensor
-        del fd_ai2d               #删除人脸检测ai2d变量，释放对它所引用对象的内存引用
-        del fd_ai2d_output_tensor #删除人脸检测ai2d_output_tensor变量，释放对它所引用对象的内存引用
+        if 'fd_ai2d' in globals():     #删除人脸检测ai2d变量，释放对它所引用对象的内存引用
+            global fd_ai2d
+            del fd_ai2d
+        if 'fd_ai2d_output_tensor' in globals():#删除人脸检测ai2d_output_tensor变量，释放对它所引用对象的内存引用
+            global fd_ai2d_output_tensor
+            del fd_ai2d_output_tensor
+
 
 ###############for face recognition###############
 # 标准5官
@@ -408,9 +412,12 @@ def fr_kpu_run(kpu_obj,rgb888p_img,sparse_points):
 def fr_kpu_deinit():
     # 人脸识别kpu相关资源释放
     with ScopedTiming("fr_kpu_deinit",debug_mode > 0):
-        global fr_ai2d,fr_ai2d_output_tensor
-        del fr_ai2d
-        del fr_ai2d_output_tensor
+        if 'fr_ai2d' in globals():
+            global fr_ai2d
+            del fr_ai2d
+        if 'fr_ai2d_output_tensor' in globals():
+            global fr_ai2d_output_tensor
+            del fr_ai2d_output_tensor
 
 #********************for face_detect.py********************
 def image2rgb888array(img):   #4维
@@ -437,6 +444,7 @@ def face_registration_inference():
         # 获取图像列表
         img_list = os.listdir(database_img_dir)
         for img_file in img_list:
+            os.exitpoint()
             with ScopedTiming("total",1):
                 # （1）读取一张图像
                 full_img_file = database_img_dir + img_file
@@ -461,22 +469,26 @@ def face_registration_inference():
                     print('No person detected')
 
                 gc.collect()
-    except Exception as e:
-        print(f"An error occurred during buffer used: {e}")
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+    except BaseException as e:
+        sys.print_exception(e)
     finally:
         # 释放kpu资源
         fd_kpu_deinit()
         fr_kpu_deinit()
-        global current_kmodel_obj
-        del current_kmodel_obj
+        if 'current_kmodel_obj' in globals():
+            global current_kmodel_obj
+            del current_kmodel_obj
         del kpu_face_detect
         del kpu_face_reg
         # 垃圾回收
         gc.collect()
-        time.sleep(1)
+        nn.shrink_memory_pool()
 
     print("face_registration_test end")
     return 0
 
 if __name__ == '__main__':
+    nn.shrink_memory_pool()
     face_registration_inference()

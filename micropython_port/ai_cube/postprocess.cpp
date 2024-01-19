@@ -609,6 +609,7 @@ uint8_t* seg_post_process(float* data, int num_class, FrameSize ori_shape, Frame
     float* output = data;
     cv::Mat images_pred_color = cv::Mat::zeros(ori_shape.height, ori_shape.width, CV_8UC4);
 
+    vector<float> scores(num_class);
     for (int y = 0; y < ori_shape.height; ++y)
     {
         for (int x = 0; x < ori_shape.width; ++x)
@@ -617,28 +618,25 @@ uint8_t* seg_post_process(float* data, int num_class, FrameSize ori_shape, Frame
             int loc = num_class * (x + y * ori_shape.width);
             for (int c = 0; c < num_class; c++)
                 s += exp(output[loc + c]);
-            vector<float> scores(num_class);
-            
-            scores.clear();
             for (int c = 0; c < num_class; c++)
             {
                 output[loc + c] = output[loc + c] / s;
-                scores.push_back(output[loc + c]);
+                scores[c] = output[loc + c];
             }
             cv::Vec4b& color = images_pred_color.at<cv::Vec4b>(cv::Point(x, y));
-            color[0] = 0;
+            color[0] = 128;
             color[1] = 0;
             color[2] = 0;
-            color[3] = 128;
+            color[3] = 0;
             float score0 = scores[0];
             for (int i = 1; i < num_class; ++i)
             {
                 if (scores[i] > score0)
                 {
                     score0 = scores[i];
-                    color[0] = max(255 - i * 60, 0);
-                    color[1] = min(i * 80, 255);
-                    color[2] = max(255 - (num_class - i) * 100, 255);
+                    color[1] = max(255 - (num_class - i) * 100, 255);
+                    color[2] = min(i * 80, 255);
+                    color[3] = max(255 - i * 60, 0);
                 }
             }
         }
