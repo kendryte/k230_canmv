@@ -36,7 +36,7 @@ make prepare_sourcecode
 make
 ```
 
-详情流程建议参考[K230 CanMV 使用说明](https://github.com/kendryte/k230_canmv_docs/blob/main/zh/01_software/K230_CanMV%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E.md)
+详情流程建议参考[K230 CanMV 使用说明](https://github.com/kendryte/k230_canmv_docs/blob/main/zh/userguide/K230_CanMV%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E.md) 或者 [K230 CanMV用户指南](https://developer.canaan-creative.com/k230_canmv/dev/zh/userguide/userguide.html)
 
 ## 贡献指南
 
