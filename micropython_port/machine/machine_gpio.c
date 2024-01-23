@@ -99,6 +99,7 @@ typedef struct _machine_gpio_obj_t {
 } machine_gpio_obj_t;
 
 machine_gpio_obj_t *overall_self;
+static int gpio_fd = -1;
 
 STATIC void sigroutine(int signo)
 {
@@ -207,18 +208,20 @@ STATIC mp_obj_t machine_gpio_obj_init_helper(machine_gpio_obj_t *self, size_t n_
 }
 
 STATIC mp_obj_t mp_machine_gpio_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    
     mp_arg_check_num(n_args, n_kw, 2, 4, true);
- 
+
+    if (gpio_fd < 0) {
+        gpio_fd = open(device_name, O_RDWR);
+        if (gpio_fd < 0)
+            mp_raise_OSError_with_filename(errno, device_name);
+    }
     // get the wanted pin object
     int wanted_pin = mp_obj_get_int(args[0]);
     machine_gpio_obj_t *self = mp_obj_malloc(machine_gpio_obj_t, &machine_gpio_type);
     if (0 <= wanted_pin && wanted_pin < MAX_GPIO_NUM) {
         self->gpio.pin = wanted_pin;
     }
-    self->fd = open(device_name, O_RDWR);
-    if(self->fd < 0)
-        mp_raise_OSError_with_filename(errno, device_name);
+    self->fd = gpio_fd;
     if (n_args > 1 || n_kw > 0) {
         // pin mode given, so configure this GPIO
         mp_map_t kw_args;
