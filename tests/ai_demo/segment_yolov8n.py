@@ -327,7 +327,6 @@ def seg_inference():
 
         camera_start(CAM_DEV_ID_0)
 
-        count = 0
         while True:
             # 设置当前while循环退出点，保证rgb888p_img正确释放
             os.exitpoint()
@@ -340,12 +339,7 @@ def seg_inference():
                     display_draw(seg_res)                           # 将得到的分割结果 绘制到 display
 
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)      # camera 释放图像
-
-                if (count > 5):
-                    gc.collect()
-                    count = 0
-                else:
-                    count += 1
+                gc.collect()
     except KeyboardInterrupt as e:
         print("user stop: ", e)
     except BaseException as e:
