@@ -409,10 +409,11 @@ def ocr_rec_inference():
                         for j in det_results:
                             ocr_result = kpu_run_rec(kpu_ocr_rec,j[0])      # j[0]为检测框的裁剪部分，kpu运行获取OCR识别kmodel的推理输出
                             ocr_results = ocr_results+" ["+ocr_result+"] "
+                            gc.collect()
                     print("\n"+ocr_results)
                     display_draw(det_results)
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)
-                if (gc_count>2):
+                if (gc_count>1):
                     gc.collect()
                     gc_count = 0
                 else:
