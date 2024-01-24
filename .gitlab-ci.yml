@@ -122,7 +122,7 @@ tag_sync:
       if [[ "$SEND" == "TRUE" ]]; then
         test -d bin || mkdir ./bin
         test -f ./bin/send_feishy && rm -rf ./bin/send_feishu
-        wget -qc https://ai.b-bug.org/k510/downloads/github/send_feishu -O ./bin/send_feishu
+        wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/send_feishu -O ./bin/send_feishu
         chmod +x ./bin/send_feishu
         ./bin/send_feishu --msg_type pipeline --gitlab_repo $CI_PROJECT_NAME --pipeline_source $CI_PIPELINE_SOURCE --pipeline_version ${SUB_BASE} --pipeline_seconds $total_seconds --pipeline_stage $CI_JOB_STAGE --pipeline_url $CI_PIPELINE_URL --pipeline_result $CI_JOB_STATUS --sdk_url "$sdk_url" --image_url "$image_url"
         echo "send feishu done"
@@ -369,7 +369,7 @@ tag_sync:
     - - echo "----------Step 1. get available test devices----------"
     - test -d bin || mkdir ./bin
     - test -f ./bin/ailab && rm -rf ./bin/ailab
-    - wget -qc https://ai.b-bug.org/k510/downloads/github/ailab -O ./bin/ailab
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/ailab -O ./bin/ailab
     - chmod +x ./bin/ailab
     - available=$(./bin/ailab show --dest available --domain ${TEST_ENV} --hw_type ${HW_TYPE} --hw_model ${HW_MODEL} --hw_ver ${HW_VER} --format args)
     - echo ${available}
@@ -421,7 +421,7 @@ tag_sync:
     - echo "Release DUT start"
     - test -d bin || mkdir ./bin
     - test -f ./bin/ailab && rm -rf ./bin/ailab
-    - wget -qc https://ai.b-bug.org/k510/downloads/github/ailab -O ./bin/ailab
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/ailab -O ./bin/ailab
     - chmod +x ./bin/ailab
     - result=$(./bin/ailab update --dest=reserved ${reserved})
     - echo $result
@@ -447,7 +447,7 @@ tag_sync:
     - echo "sysimage-sdcard.img.gz md5 ${sysimage_md5}"
     - test -d bin || mkdir ./bin
     - test -f ./bin/aiload && rm -rf ./bin/aiload
-    - wget -qc https://ai.b-bug.org/k510/downloads/github/k230load -O ./bin/aiload
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/k230load -O ./bin/aiload
     - chmod +x ./bin/aiload
     - echo "MR ID ${CI_MERGE_REQUEST_IID}"
     - echo "Pipeline ID ${CI_PIPELINE_ID}"
@@ -559,7 +559,7 @@ tag_sync:
     - echo "----------Run Smoke Test start----------"
     - test -d bin || mkdir ./bin
     - test -f ./bin/airobot && rm -rf ./bin/airobot
-    - wget -qc https://ai.b-bug.org/k510/downloads/github/airobot -O ./bin/airobot
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/airobot -O ./bin/airobot
     - chmod +x ./bin/airobot
     - echo "---add test script"
     - test -d k230_canmv_testscripts || git clone ${TEST_SCRIPTS_REPO} k230_canmv_testscripts || exit 1
@@ -567,7 +567,7 @@ tag_sync:
     - git fetch origin main || exit 1
     - git checkout main || exit 1
     - cd ../ || exit 1
-    - wget -qc https://ai.b-bug.org/k510/downloads/github/k230_canmv_smoke_test.sh -O ./k230_canmv_smoke_test.sh
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/testscripts/k230_canmv_smoke_test.sh -O ./k230_canmv_smoke_test.sh
     - chmod +x ./k230_canmv_smoke_test.sh
     - |
         echo "---start to run k230 canmv smoke test in for loop"
@@ -609,7 +609,7 @@ tag_sync:
     - echo "----------Run Daily Test start----------"
     - test -d bin || mkdir ./bin
     - test -f ./bin/airobot && rm -rf ./bin/airobot
-    - wget -qc https://ai.b-bug.org/k510/downloads/github/airobot -O ./bin/airobot
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/airobot -O ./bin/airobot
     - chmod +x ./bin/airobot
     - echo "---add test script"
     - test -d k230_canmv_testscripts || git clone ${TEST_SCRIPTS_REPO} k230_canmv_testscripts || exit 1
@@ -617,7 +617,7 @@ tag_sync:
     - git fetch origin main || exit 1
     - git checkout main || exit 1
     - cd ../ || exit 1
-    - wget -qc https://ai.b-bug.org/k510/downloads/github/k230_canmv_daily_test.sh -O ./k230_canmv_daily_test.sh
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/testscripts/k230_canmv_daily_test.sh -O ./k230_canmv_daily_test.sh
     - chmod +x ./k230_canmv_daily_test.sh
     - |
         echo "---start to run k230 canmv daily test in for loop"
