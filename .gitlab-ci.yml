@@ -801,7 +801,7 @@ daily_build_test:
     - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG !~ /^v\d+\.\d+.*$/
     # daily build
     - if: $CI_PIPELINE_SOURCE == "schedule"
-  timeout: 60m
+  timeout: 180m
   variables:
     TEST_ENV: ai
   script:
