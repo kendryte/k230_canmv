@@ -53,9 +53,6 @@ void _kd_mpi_struct_test_I(mp_obj_t obj, float *result, size_t *data_size) {
     *data_size = s.size;
 }
 
-
-
-// TODO:
 // interp_method
 STATIC const mp_rom_map_elem_t mp_interp_method_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_tf_nearest), MP_ROM_INT(INTERP_METHOD_TF_NEAREST) },
@@ -249,7 +246,6 @@ STATIC const mp_rom_map_elem_t ai2d_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_ai2d) },
     { MP_ROM_QSTR(MP_QSTR___init__), MP_ROM_PTR(&mp_ai2d_create_obj) },
     { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&mp_ai2d_destroy_obj) },
-    { MP_ROM_QSTR(MP_QSTR_release), MP_ROM_PTR(&mp_ai2d_destroy_obj) },
     { MP_ROM_QSTR(MP_QSTR_build), MP_ROM_PTR(&mp_ai2d_build_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_dtype), MP_ROM_PTR(&mp_ai2d_set_dtype_obj) },
     { MP_ROM_QSTR(MP_QSTR_set_crop_param), MP_ROM_PTR(&mp_ai2d_set_crop_param_obj) },

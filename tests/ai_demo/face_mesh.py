@@ -7,7 +7,7 @@ import aidemo                            # aidemo模块，封装ai demo相关后
 import image                             # 图像模块，主要用于读取、图像绘制元素（框、点等）等操作
 import time                              # 时间统计
 import gc                                # 垃圾回收模块
-import os                                # 操作系统接口模块
+import os,sys                                # 操作系统接口模块
 import math                              # 数学模块
 
 
@@ -219,9 +219,12 @@ def fd_kpu_run(kpu_obj,rgb888p_img):
 def fd_kpu_deinit():
     # kpu释放
     with ScopedTiming("fd_kpu_deinit",debug_mode > 0):
-        global fd_ai2d, fd_ai2d_output_tensor
-        del fd_ai2d               #删除人脸检测ai2d变量，释放对它所引用对象的内存引用
-        del fd_ai2d_output_tensor #删除人脸检测ai2d_output_tensor变量，释放对它所引用对象的内存引用
+        if 'fd_ai2d' in globals():         #删除人脸检测ai2d变量，释放对它所引用对象的内存引用
+            global fd_ai2d
+            del fd_ai2d
+        if 'fd_ai2d_output_tensor' in globals():  #删除人脸检测ai2d_output_tensor变量，释放对它所引用对象的内存引用
+            global fd_ai2d_output_tensor
+            del fd_ai2d_output_tensor
 
 ###############for face recognition###############
 def parse_roi_box_from_bbox(bbox):
@@ -341,9 +344,12 @@ def fm_kpu_run(kpu_obj,rgb888p_img,det):
 def fm_kpu_deinit():
     # 人脸mesh kpu释放
     with ScopedTiming("fm_kpu_deinit",debug_mode > 0):
-        global fm_ai2d,fm_ai2d_output_tensor
-        del fm_ai2d               # 删除fm_ai2d变量，释放对它所引用对象的内存引用
-        del fm_ai2d_output_tensor # 删除fm_ai2d_output_tensor变量，释放对它所引用对象的内存引用
+        if 'fm_ai2d' in globals():         # 删除fm_ai2d变量，释放对它所引用对象的内存引用
+            global fm_ai2d
+            del fm_ai2d
+        if 'fm_ai2d_output_tensor' in globals():  # 删除fm_ai2d_output_tensor变量，释放对它所引用对象的内存引用
+            global fm_ai2d_output_tensor
+            del fm_ai2d_output_tensor
 
 def fmpost_kpu_init(kmodel_file):
     # face mesh post模型初始化
@@ -496,7 +502,7 @@ def media_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
 
-    ret = media.buffer_config(config)
+    media.buffer_config(config)
 
     global media_source, media_sink
     media_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
@@ -504,9 +510,8 @@ def media_init():
     media.create_link(media_source, media_sink)
 
     # 初始化多媒体buffer
-    ret = media.buffer_init()
-    if ret:
-        return ret
+    media.buffer_init()
+
     global buffer, draw_img_ulab,draw_img, osd_img
     buffer = media.request_buffer(4 * DISPLAY_WIDTH * DISPLAY_HEIGHT)
     # 用于画框
@@ -515,16 +520,20 @@ def media_init():
     # 用于拷贝画框结果，防止画框过程中发生buffer搬运
     osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, poolid=buffer.pool_id, alloc=image.ALLOC_VB,
                           phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr)
-    return ret
 
 def media_deinit():
     # meida资源释放
-    global buffer,media_source, media_sink
-    media.release_buffer(buffer)
-    media.destroy_link(media_source, media_sink)
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
+    time.sleep_ms(100)
+    if 'buffer' in globals():
+        global buffer
+        media.release_buffer(buffer)
 
-    ret = media.buffer_deinit()
-    return ret
+    if 'media_source' in globals() and 'media_sink' in globals():
+        global media_source, media_sink
+        media.destroy_link(media_source, media_sink)
+
+    media.buffer_deinit()
 
 #********************for face_detect.py********************
 def face_mesh_inference():
@@ -539,60 +548,45 @@ def face_mesh_inference():
     # 显示初始化
     display_init()
 
-    rgb888p_img = None
     # 注意：将一定要将一下过程包在try中，用于保证程序停止后，资源释放完毕；确保下次程序仍能正常运行
     try:
         # 注意：媒体初始化（注：媒体初始化必须在camera_start之前，确保media缓冲区已配置完全）
-        ret = media_init()
-        if ret:
-            print("face_detect_test, buffer init failed")
-            return ret
-
+        media_init()
         # 启动camera
         camera_start(CAM_DEV_ID_0)
-        time.sleep(5)
         gc_count = 0
         while True:
+            # 设置当前while循环退出点，保证rgb888p_img正确释放
+            os.exitpoint()
             with ScopedTiming("total",1):
                 # （1）读取一帧图像
                 rgb888p_img = camera_read(CAM_DEV_ID_0)
-                # （2）若读取失败，释放当前帧
-                if rgb888p_img == -1:
-                    print("face_detect_test, capture_image failed")
-                    camera_release_image(CAM_DEV_ID_0,rgb888p_img)
-                    rgb888p_img = None
-                    continue
-                # （3）若读取成功，推理当前帧
+                # （2）若读取成功，推理当前帧
                 if rgb888p_img.format() == image.RGBP888:
-                    # （3.1）推理当前图像，并获取人脸检测结果
+                    # （2.1）推理当前图像，并获取人脸检测结果
                     dets = fd_kpu_run(kpu_face_detect,rgb888p_img)
-                    ## （3.2）针对每个人脸框，推理得到对应人脸mesh
+                    ## （2.2）针对每个人脸框，推理得到对应人脸mesh
                     mesh_result = []
                     for det in dets:
                         param = fm_kpu_run(kpu_face_mesh,rgb888p_img,det)
                         fmpost_kpu_run(kpu_face_mesh_post,param)
                         global vertices
                         mesh_result.append(vertices)
-                    ## （3.3）将人脸mesh 画到屏幕上
+                    ## （2.3）将人脸mesh 画到屏幕上
                     display_draw(dets,mesh_result)
 
-                # （4）释放当前帧
+                # （3）释放当前帧
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)
-                rgb888p_img = None
                 if gc_count > 5:
                     gc.collect()
                     gc_count = 0
                 else:
                     gc_count += 1
-    except Exception as e:
-        # 捕捉运行运行中异常，并打印错误
-        print(f"An error occurred during buffer used: {e}")
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+    except BaseException as e:
+        sys.print_exception(e)
     finally:
-        # 释放当前帧
-        if rgb888p_img is not None:
-            #先release掉申请的内存再stop
-            camera_release_image(CAM_DEV_ID_0,rgb888p_img)
-
         # 停止camera
         camera_stop(CAM_DEV_ID_0)
         # 释放显示资源
@@ -600,22 +594,28 @@ def face_mesh_inference():
         # 释放kpu资源
         fd_kpu_deinit()
         fm_kpu_deinit()
-        global current_kmodel_obj
-        del current_kmodel_obj
+        if 'current_kmodel_obj' in globals():
+            global current_kmodel_obj
+            del current_kmodel_obj
         del kpu_face_detect
         del kpu_face_mesh
         del kpu_face_mesh_post
+        if 'draw_img' in globals():
+            global draw_img
+            del draw_img
+        if 'draw_img_ulab' in globals():
+            global draw_img_ulab
+            del draw_img_ulab
         # 垃圾回收
         gc.collect()
-        time.sleep(1)
+        nn.shrink_memory_pool()
         # 释放媒体资源
-        ret = media_deinit()
-        if ret:
-            print("face_mesh_test, buffer_deinit failed")
-            return ret
+        media_deinit()
 
-    #print("face_mesh_test end")
+    print("face_mesh_test end")
     return 0
 
 if __name__ == '__main__':
+    os.exitpoint(os.EXITPOINT_ENABLE)
+    nn.shrink_memory_pool()
     face_mesh_inference()

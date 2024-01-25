@@ -14,3 +14,7 @@ output/
 # Python cache files
 __pycache__
 .vscode/
+
+# lvgl build files
+micropython_port/lextab.py
+micropython_port/yacctab.py

@@ -7,6 +7,7 @@ import image                        #图像模块，主要用于读取、图像�
 import time                         #时间统计
 import gc                           #垃圾回收模块
 import aicube                       #aicube模块，封装检测分割等任务相关后处理
+import os, sys
 
 # display分辨率
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
@@ -55,8 +56,11 @@ class ScopedTiming:
             print(f"{self.info} took {elapsed_time / 1000000:.2f} ms")
 
 # utils 设定全局变量
+# 当前kmodel
 global current_kmodel_obj                                                                       # 设置全局kpu对象
+# 检测阶段预处理应用的ai2d全局变量
 global ai2d_det,ai2d_input_tensor_det,ai2d_output_tensor_det,ai2d_builder_det,ai2d_input_det    # 设置检测模型的ai2d对象，并定义ai2d的输入、输出和builder
+# 识别阶段预处理应用的ai2d全局变量
 global ai2d_rec,ai2d_input_tensor_rec,ai2d_output_tensor_rec,ai2d_builder_rec                   # 设置识别模型的ai2d对象，并定义ai2d的输入、输出和builder
 
 # padding方法，一边padding，右padding或者下padding
@@ -137,14 +141,16 @@ def ai2d_run_rec(rgb888p_img):
 # 检测步骤ai2d释放内存
 def ai2d_release_det():
     with ScopedTiming("ai2d_release_det",debug_mode > 0):
-        global ai2d_input_tensor_det
-        del ai2d_input_tensor_det
+        if "ai2d_input_tensor_det" in globals():
+            global ai2d_input_tensor_det
+            del ai2d_input_tensor_det
 
 # 识别步骤ai2d释放内存
 def ai2d_release_rec():
     with ScopedTiming("ai2d_release_rec",debug_mode > 0):
-        global ai2d_input_tensor_rec
-        del ai2d_input_tensor_rec
+        if "ai2d_input_tensor_rec" in globals():
+            global ai2d_input_tensor_rec
+            del ai2d_input_tensor_rec
 
 # 检测步骤kpu初始化
 def kpu_init_det(kmodel_file):
@@ -261,15 +267,19 @@ def kpu_run_rec(kpu_obj,rgb888p_img):
 def kpu_deinit_det():
     with ScopedTiming("kpu_deinit",debug_mode > 0):
         global ai2d_det,ai2d_output_tensor_det
-        del ai2d_det
-        del ai2d_output_tensor_det
+        if "ai2d_det" in globals():
+            del ai2d_det
+        if "ai2d_output_tensor_det" in globals():
+            del ai2d_output_tensor_det
 
 # 释放识别步骤kpu
 def kpu_deinit_rec():
     with ScopedTiming("kpu_deinit",debug_mode > 0):
         global ai2d_rec,ai2d_output_tensor_rec
-        del ai2d_rec
-        del ai2d_output_tensor_rec
+        if "ai2d_rec" in globals():
+            del ai2d_rec
+        if "ai2d_output_tensor_rec" in globals():
+            del ai2d_output_tensor_rec
 
 
 #********************for media_utils.py********************
@@ -349,7 +359,7 @@ def media_init():
     config.comm_pool[0].blk_cnt = 1
     config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
 
-    ret = media.buffer_config(config)
+    media.buffer_config(config)
 
     global media_source, media_sink
     media_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
@@ -357,26 +367,25 @@ def media_init():
     media.create_link(media_source, media_sink)
 
     # 初始化多媒体buffer
-    ret = media.buffer_init()
-    if ret:
-        return ret
+    media.buffer_init()
     global buffer, draw_img, osd_img
     buffer = media.request_buffer(4 * DISPLAY_WIDTH * DISPLAY_HEIGHT)
     # 图层1，用于画框
-    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_MPGC)
+    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
     # 图层2，用于拷贝画框结果，防止画框过程中发生buffer搬运
     osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, poolid=buffer.pool_id, alloc=image.ALLOC_VB,
                           phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr)
-    return ret
 
 # media 释放buffer，销毁link
 def media_deinit():
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
+    time.sleep_ms(100)
     global buffer,media_source, media_sink
-    media.release_buffer(buffer)
-    media.destroy_link(media_source, media_sink)
-
-    ret = media.buffer_deinit()
-    return ret
+    if "buffer" in globals():
+        media.release_buffer(buffer)
+    if 'media_source' in globals() and 'media_sink' in globals():
+        media.destroy_link(media_source, media_sink)
+    media.buffer_deinit()
 
 def ocr_rec_inference():
     print("ocr_rec_test start")
@@ -384,24 +393,14 @@ def ocr_rec_inference():
     kpu_ocr_rec = kpu_init_rec(kmodel_file_rec)     # 创建OCR识别kpu对象
     camera_init(CAM_DEV_ID_0)                       # camera初始化
     display_init()                                  # display初始化
-    rgb888p_img = None
     try:
-        ret = media_init()
-        if ret:
-            print("ocr_rec_test, buffer init failed")
-            return ret
-
+        media_init()
         camera_start(CAM_DEV_ID_0)
-        time.sleep(5)
-        count=0
+        gc_count=0
         while True:
+            os.exitpoint()
             with ScopedTiming("total",1):
                 rgb888p_img = camera_read(CAM_DEV_ID_0)     # 读取一帧图像
-                if rgb888p_img == -1:
-                    print("ocr_rec_test, capture_image failed")
-                    camera_release_image(CAM_DEV_ID_0,rgb888p_img)
-                    rgb888p_img = None
-                    continue
                 # for rgb888planar
                 if rgb888p_img.format() == image.RGBP888:
                     det_results = kpu_run_det(kpu_ocr_det,rgb888p_img)      # kpu运行获取OCR检测kmodel的推理输出
@@ -410,40 +409,36 @@ def ocr_rec_inference():
                         for j in det_results:
                             ocr_result = kpu_run_rec(kpu_ocr_rec,j[0])      # j[0]为检测框的裁剪部分，kpu运行获取OCR识别kmodel的推理输出
                             ocr_results = ocr_results+" ["+ocr_result+"] "
+                            gc.collect()
                     print("\n"+ocr_results)
                     display_draw(det_results)
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)
-                rgb888p_img = None
-                # gc.collect()
-                if (count>2):
+                if (gc_count>1):
                     gc.collect()
-                    count = 0
+                    gc_count = 0
                 else:
-                    count += 1
-    except Exception as e:
-        print(f"An error occurred during buffer used: {e}")
+                    gc_count += 1
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+    except BaseException as e:
+        sys.print_exception(e)
     finally:
-        if rgb888p_img is not None:
-            #先release掉申请的内存再stop
-            camera_release_image(CAM_DEV_ID_0,rgb888p_img)
-
         camera_stop(CAM_DEV_ID_0)                                           # 停止camera
         display_deinit()                                                    # 释放display
         kpu_deinit_det()                                                    # 释放OCR检测步骤kpu
         kpu_deinit_rec()                                                    # 释放OCR识别步骤kpu
-        global current_kmodel_obj
-        del current_kmodel_obj
+        if "current_kmodel_obj" in globals():
+            global current_kmodel_obj
+            del current_kmodel_obj
         del kpu_ocr_det
         del kpu_ocr_rec
         gc.collect()
-        time.sleep(1)
-        ret = media_deinit()                                                # 释放整个media
-        if ret:
-            print("ocr_rec_test, buffer_deinit failed")
-            return ret
-
+        nn.shrink_memory_pool()
+        media_deinit()                                                # 释放整个media
     print("ocr_rec_test end")
     return 0
 
 if __name__ == '__main__':
+    os.exitpoint(os.EXITPOINT_ENABLE)
+    nn.shrink_memory_pool()
     ocr_rec_inference()

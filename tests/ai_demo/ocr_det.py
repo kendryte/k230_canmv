@@ -6,7 +6,7 @@ from media.media import *           #软件抽象模块，主要封装媒体数�
 import image                        #图像模块，主要用于读取、图像绘制元素（框、点等）等操作
 import time                         #时间统计
 import gc                           #垃圾回收模块
-import os                           #操作系统接口模块
+import os,sys                       #操作系统接口模块
 import aicube                       #aicube模块，封装检测分割等任务相关后处理
 
 # display分辨率
@@ -28,7 +28,7 @@ box_threshold = 0.3                         # 检测框分数阈值
 # 文件配置
 root_dir = '/sdcard/app/tests/'
 kmodel_file_det = root_dir + 'kmodel/ocr_det_int16.kmodel'    # kmodel加载路径
-debug_mode = 0                                          # 调试模式 大于0（调试）、 反之 （不调试）
+debug_mode = 0                                                # 调试模式 大于0（调试）、 反之 （不调试）
 
 # scoped_timing.py 用于debug模式输出程序块运行时间
 class ScopedTiming:
@@ -47,7 +47,13 @@ class ScopedTiming:
             print(f"{self.info} took {elapsed_time / 1000000:.2f} ms")
 
 # ai utils
-global current_kmodel_obj                                                                       # 定义全局kpu对象
+# 当前kmodel
+global current_kmodel_obj                                                                  # 定义全局kpu对象
+# ai2d_det: ai2d实例
+# ai2d_input_tensor_det: ai2d输入
+# ai2d_output_tensor_det: ai2d输出
+# ai2d_builder_det: 根据ai2d参数，构建的ai2d_builder_det对象
+# ai2d_input_det: ai2d输入的numpy数据
 global ai2d_det,ai2d_input_tensor_det,ai2d_output_tensor_det,ai2d_builder_det,ai2d_input_det    # 定义全局 ai2d 对象，并且定义 ai2d 的输入、输出 以及 builder
 
 # padding方法，一边padding，右padding或者下padding
@@ -81,27 +87,34 @@ def get_pad_one_side_param(out_img_size,input_img_size):
 # ai2d 初始化，用于实现输入的预处理
 def ai2d_init_det():
     with ScopedTiming("ai2d_init",debug_mode > 0):
+        # 创建ai2d对象
         global ai2d_det
         ai2d_det = nn.ai2d()
+        # 设置ai2d参数
         ai2d_det.set_dtype(nn.ai2d_format.NCHW_FMT,
                                        nn.ai2d_format.NCHW_FMT,
                                        np.uint8, np.uint8)
         ai2d_det.set_pad_param(True, get_pad_one_side_param([kmodel_input_shape_det[3],kmodel_input_shape_det[2]], [OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGH]), 0, [0, 0, 0])
         ai2d_det.set_resize_param(True, nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
+        # 创建ai2d_output_tensor_det，用于保存ai2d的输出
         global ai2d_output_tensor_det
         data = np.ones(kmodel_input_shape_det, dtype=np.uint8)
         ai2d_output_tensor_det = nn.from_numpy(data)
+
+        # ai2d_builder_det，根据ai2d参数、输入输出大小创建ai2d_builder_det对象
         global ai2d_builder_det
         ai2d_builder_det = ai2d_det.build([1, 3, OUT_RGB888P_HEIGH, OUT_RGB888P_WIDTH], [1, 3, kmodel_input_shape_det[2], kmodel_input_shape_det[3]])
 
 
 # ai2d 运行，完成ai2d_init_det设定的预处理
 def ai2d_run_det(rgb888p_img):
+    # 对原图rgb888p_img进行预处理
     with ScopedTiming("ai2d_run",debug_mode > 0):
-        global ai2d_input_tensor_det,ai2d_builder_det,ai2d_input_det
+        # 根据原图构建ai2d_input_tensor_det
+        global ai2d_input_tensor_det,ai2d_builder_det,ai2d_input_det,ai2d_output_tensor_det
         ai2d_input_det = rgb888p_img.to_numpy_ref()
         ai2d_input_tensor_det = nn.from_numpy(ai2d_input_det)
-        global ai2d_output_tensor_det
+        # 运行ai2d_builder_det，将结果保存到ai2d_output_tensor_det
         ai2d_builder_det.run(ai2d_input_tensor_det, ai2d_output_tensor_det)
 
 
@@ -113,10 +126,13 @@ def ai2d_release_det():
 
 # kpu 初始化
 def kpu_init_det(kmodel_file):
-    # init kpu and load kmodel
+    # 初始化kpu对象，并加载kmodel
     with ScopedTiming("kpu_init",debug_mode > 0):
+        # 初始化kpu对象
         kpu_obj = nn.kpu()
+        # 加载kmodel
         kpu_obj.load_kmodel(kmodel_file)
+        # 初始化ai2d
         ai2d_init_det()
         return kpu_obj
 
@@ -126,7 +142,7 @@ def kpu_pre_process_det(rgb888p_img):
     ai2d_run_det(rgb888p_img)
     with ScopedTiming("kpu_pre_process",debug_mode > 0):
         global current_kmodel_obj,ai2d_output_tensor_det
-        # set kpu input
+        # 将ai2d的输出设置为kmodel的输入
         current_kmodel_obj.set_input_tensor(0, ai2d_output_tensor_det)
 
 # 获取kmodel的推理输出
@@ -134,6 +150,7 @@ def kpu_get_output():
     with ScopedTiming("kpu_get_output",debug_mode > 0):
         global current_kmodel_obj
         results = []
+        # 获取模型输出，并将结果转换为numpy,以便后续处理
         for i in range(current_kmodel_obj.outputs_size()):
             data = current_kmodel_obj.get_output_tensor(i)
             result = data.to_numpy()
@@ -185,9 +202,10 @@ def kpu_run_det(kpu_obj,rgb888p_img):
 def kpu_deinit_det():
     with ScopedTiming("kpu_deinit",debug_mode > 0):
         global ai2d_det,ai2d_output_tensor_det,ai2d_input_tensor_det
-        del ai2d_det
-        del ai2d_output_tensor_det
-        #del ai2d_input_tensor_det
+        if "ai2d" in globals():
+            del ai2d_det
+        if "ai2d_output_tensor_det" in globals():
+            del ai2d_output_tensor_det
 
 #********************for media_utils.py********************
 
@@ -196,7 +214,7 @@ global buffer,media_source,media_sink                       #for media
 
 #display 初始化
 def display_init():
-    # use hdmi for display
+    # hdmi显示初始化
     display.init(LT9611_1920X1080_30FPS)
     display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
 
@@ -274,13 +292,11 @@ def media_init():
     media.create_link(media_source, media_sink)
 
     # 初始化多媒体buffer
-    ret = media.buffer_init()
-    if ret:
-        return ret
+    media.buffer_init()
     global buffer, draw_img, osd_img
     buffer = media.request_buffer(4 * DISPLAY_WIDTH * DISPLAY_HEIGHT)
     # 图层1，用于画框
-    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_MPGC)
+    draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
     # 图层2，用于拷贝画框结果，防止画框过程中发生buffer搬运
     osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, poolid=buffer.pool_id, alloc=image.ALLOC_VB,
                           phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr)
@@ -288,72 +304,66 @@ def media_init():
 
 # media 释放buffer，销毁link
 def media_deinit():
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
+    time.sleep_ms(100)
     global buffer,media_source, media_sink
-    media.release_buffer(buffer)
-    media.destroy_link(media_source, media_sink)
+    if "buffer" in globals():
+        media.release_buffer(buffer)
+    if 'media_source' in globals() and 'media_sink' in globals():
+        media.destroy_link(media_source, media_sink)
+    media.buffer_deinit()
 
-    ret = media.buffer_deinit()
-    return ret
 
-#
 def ocr_det_inference():
     print("ocr_det_test start")
     kpu_ocr_det = kpu_init_det(kmodel_file_det)     # 创建ocr检测任务的kpu对象
     camera_init(CAM_DEV_ID_0)                       # 初始化 camera
     display_init()                                  # 初始化 display
-    rgb888p_img = None
+
+    # 注意：将一定要将一下过程包在try中，用于保证程序停止后，资源释放完毕；确保下次程序仍能正常运行
     try:
-        ret = media_init()
-        if ret:
-            print("ocr_det_test, buffer init failed")
-            return ret
-
+        # 注意：媒体初始化（注：媒体初始化必须在camera_start之前，确保media缓冲区已配置完全）
+        media_init()
+        # 启动camera
         camera_start(CAM_DEV_ID_0)
-        time.sleep(5)
-        count=0
+        gc_count=0
         while True:
+            # 设置当前while循环退出点，保证rgb888p_img正确释放
+            os.exitpoint()
             with ScopedTiming("total",1):
+                # 读取一帧图像
                 rgb888p_img = camera_read(CAM_DEV_ID_0) # 读取一帧图像
-                if rgb888p_img == -1:
-                    print("ocr_det_test, capture_image failed")
-                    camera_release_image(CAM_DEV_ID_0,rgb888p_img)
-                    rgb888p_img = None
-                    continue
-
-                # for rgb888planar
+                # 若图像获取成功，推理当前帧
                 if rgb888p_img.format() == image.RGBP888:
                     det_results = kpu_run_det(kpu_ocr_det,rgb888p_img)  # kpu运行获取kmodel的推理输出
                     display_draw(det_results)                           # 绘制检测结果，并显示
+                # 释放当前帧
                 camera_release_image(CAM_DEV_ID_0,rgb888p_img)          # 释放内存
-                rgb888p_img = None
-                # gc.collect()
-                if (count>5):
+                if (gc_count>2):
                     gc.collect()
-                    count = 0
+                    gc_count = 0
                 else:
-                    count += 1
-    except Exception as e:
-        print(f"An error occurred during buffer used: {e}")
+                    gc_count += 1
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+    except BaseException as e:
+        sys.print_exception(e)
     finally:
-        if rgb888p_img is not None:
-            #先release掉申请的内存再stop
-            camera_release_image(CAM_DEV_ID_0,rgb888p_img)
-
         camera_stop(CAM_DEV_ID_0)                                       # 停止camera
         display_deinit()                                                # 释放display
         kpu_deinit_det()                                                # 释放kpu
-        global current_kmodel_obj
-        del current_kmodel_obj
+        if "current_kmodel_obj" in globals():
+            global current_kmodel_obj
+            del current_kmodel_obj
         del kpu_ocr_det
         gc.collect()
+        nn.shrink_memory_pool()
         time.sleep(1)
-        ret = media_deinit()                                            # 释放整个media
-        if ret:
-            print("ocr_det_test, buffer_deinit failed")
-            return ret
-
+        media_deinit()                                                  # 释放整个media
     print("ocr_det_test end")
     return 0
 
 if __name__ == '__main__':
+    os.exitpoint(os.EXITPOINT_ENABLE)
+    nn.shrink_memory_pool()
     ocr_det_inference()

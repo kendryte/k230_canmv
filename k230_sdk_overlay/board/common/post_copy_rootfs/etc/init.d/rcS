@@ -40,5 +40,7 @@ mkdir /sharefs -p
 #	mount /dev/mmcblk1p4 /sharefs
 #fi
 micropython_socket_server &
-#./sharefs &
+/mnt/sharefs &
 cd -
+/sbin/ifup -a  || (sleep 4; /sbin/ifup -a) 
+echo ""

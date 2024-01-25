@@ -10,6 +10,7 @@
  */
 #include "fmath.h"
 #include "omv_common.h"
+#pragma GCC diagnostic ignored "-Wuninitialized"
 
 #define M_PI      3.14159265f
 #define M_PI_2    1.57079632f

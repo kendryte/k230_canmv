@@ -25,9 +25,11 @@ rtapp_data_file="${BUILD_DIR}/images/big-core/fastboot_app.elf"
 shrink_rootfs()
 {
 	#�ü�С��rootfs
+	local KERNELRELEASE="$(cat ${LINUX_BUILD_DIR}/include/config/kernel.release 2> /dev/null)"
+	local lib_mod="lib/modules/${KERNELRELEASE}/"
 	cd ${BUILD_DIR}/images/little-core/rootfs/; 
 	#rm -rf lib/modules/;
-	rm -rf lib/modules/5.10.4+/kernel/drivers/mtd lib/modules/5.10.4+/kernel/drivers/usb lib/modules/5.10.4+/kernel/fs/efivarfs
+	rm -rf ${lib_mod}/kernel/drivers/mtd  ${lib_mod}/kernel/drivers/usb ${lib_mod}/kernel/fs/efivarfs
 	rm -rf  mnt/backchannel_client
 	#rm -rf  #mnt/k_ipcm.ko
 	rm -rf  mnt/libsharefs.a
@@ -68,9 +70,9 @@ shrink_rootfs()
 	rm -rf app/;
 	rm -rf lib/tuning-server;	
 	rm -rf usr/bin/stress-ng  bin/bash usr/sbin/sshd usr/bin/trace-cmd usr/bin/lvgl_demo_widgets;
-	rm -rf usr/lib/libcrypto.so.1.1 usr/bin/ssh  etc/ssh/moduli  usr/lib/libssl.so.1.1 usr/bin/ssh-keygen \
+	rm -rf    etc/ssh/moduli  usr/bin/ssh-keygen \
 		usr/libexec/ssh-keysign  usr/bin/ssh-keyscan  usr/bin/ssh-add usr/bin/ssh-agent usr/libexec/ssh-pkcs11-helper\
-		  usr/lib/libncurses.so.6.1 usr/lib/libvg_lite_util.so  usr/bin/par_ops usr/bin/sftp  usr/libexec/lzo/examples/lzotest;
+		   usr/lib/libvg_lite_util.so  usr/bin/par_ops usr/bin/sftp  usr/libexec/lzo/examples/lzotest;
 	#find . -name *.ko | xargs rm -rf ;	
 	fakeroot -- ${K230_SDK_ROOT}/tools/mkcpio-rootfs.sh;
 	cd ../;  tar -zcf rootfs-final.tar.gz rootfs;

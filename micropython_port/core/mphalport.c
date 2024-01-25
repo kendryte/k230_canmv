@@ -127,7 +127,7 @@ void mp_hal_stdio_mode_orig(void) {
 #endif
 
 int mp_hal_stdin_rx_chr(void) {
-    char c;
+    int c;
     extern int usb_rx(void);
     while (1) {
         MP_THREAD_GIL_EXIT();
@@ -142,6 +142,11 @@ int mp_hal_stdin_rx_chr(void) {
 
 void mp_hal_stdout_tx_strn(const char *str, size_t len) {
     extern bool ide_dbg_attach(void);
+    extern bool command_line_mode;
+    if (command_line_mode) {
+        fwrite(str, 1, len, stdout);
+        return;
+    }
     if (ide_dbg_attach()) {
         extern void mpy_stdout_tx(const char* data, size_t size);
         mpy_stdout_tx(str, len);

@@ -7,7 +7,7 @@ import aidemo                                   # aidemo模块，封装ai demo�
 import time                                     # 时间统计
 import struct                                   # 字节字符转换模块
 import gc                                       # 垃圾回收模块
-import os                                       # 操作系统接口模块
+import os,sys                                   # 操作系统接口模块
 
 # key word spotting任务
 # 检测阈值
@@ -40,6 +40,7 @@ class ScopedTiming:
             elapsed_time = time.time_ns() - self.start_time
             print(f"{self.info} took {elapsed_time / 1000000:.2f} ms")
 
+# 当前kmodel
 global current_kmodel_obj                                                               # 定义全局kpu对象
 global p,cache_np,fp,input_stream,output_stream,audio_input_tensor,cache_input_tensor   # 定义全局音频流对象，输入输出流对象，并且定义kws处理接口FeaturePipeline对象fp,输入输出tensor和缓冲cache_np
 
@@ -55,9 +56,7 @@ def init_kws():
         # 初始化音频流
         p = PyAudio()
         p.initialize(CHUNK)
-        ret = media.buffer_init()
-        if ret:
-            print("record_audio, buffer_init failed")
+        media.buffer_init()
         # 用于采集实时音频数据
         input_stream = p.open(
                         format=FORMAT,
@@ -89,9 +88,12 @@ def kpu_deinit():
     # kpu释放
     with ScopedTiming("kpu_deinit",debug_mode > 0):
         global current_kmodel_obj,audio_input_tensor,cache_input_tensor
-        del current_kmodel_obj
-        del audio_input_tensor
-        del cache_input_tensor
+        if "current_kmodel_obj" in globals():
+            del current_kmodel_obj
+        if "audio_input_tensor" in globals():
+            del audio_input_tensor
+        if "cache_input_tensor" in globals():
+            del cache_input_tensor
 
 # kws音频预处理
 def kpu_pre_process_kws(pcm_data_list):
@@ -144,13 +146,15 @@ def kpu_run_kws(kpu_obj,pcm_data_list):
 # kws推理过程
 def kws_inference():
     # 记录音频帧帧数
-    global p,fp,input_stream,output_stream
+    global p,fp,input_stream,output_stream,current_kmodel_obj
     # 初始化
     init_kws()
     kpu_kws=kpu_init_kws()
     pcm_data_list = []
     try:
+        gc_count=0
         while True:
+            os.exitpoint()
             with ScopedTiming("total", 1):
                 pcm_data_list.clear()
                 # 对实时音频流进行推理
@@ -163,6 +167,15 @@ def kws_inference():
                     pcm_data_list.append(float_pcm_data)
                 # kpu运行和后处理
                 kpu_run_kws(kpu_kws,pcm_data_list)
+                if gc_count > 10:
+                    gc.collect()
+                    gc_count = 0
+                else:
+                    gc_count += 1
+    except KeyboardInterrupt as e:
+        print("user stop: ", e)
+    except BaseException as e:
+        sys.print_exception(e)
     finally:
         input_stream.stop_stream()
         output_stream.stop_stream()
@@ -173,6 +186,12 @@ def kws_inference():
         aidemo.kws_fp_destroy(fp)
         kpu_deinit()
         del kpu_kws
+        if "current_kmodel_obj" in globals():
+            del current_kmodel_obj
+        gc.collect()
+        nn.shrink_memory_pool()
 
 if __name__=="__main__":
+    os.exitpoint(os.EXITPOINT_ENABLE)
+    nn.shrink_memory_pool()
     kws_inference()

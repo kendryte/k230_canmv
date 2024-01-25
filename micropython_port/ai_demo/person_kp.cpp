@@ -83,8 +83,6 @@ void nms_pose(std::vector<BoxInfo> &input_boxes, float nms_thresh,std::vector<in
             else
             {
                 j++;
-                if(j== int(input_boxes.size()))
-                    nms_result.push_back(input_boxes[i].idx);
             }
         }
     }
@@ -174,8 +172,8 @@ bool BatchDetect(float* all_data, std::vector<std::vector<OutputPose>>& output,c
 
     // 对一张图片：依据NMS处理得到的索引，得到类别id、confidence、box，并置于结构体OutputDet的容器中
     std::vector<OutputPose> temp_output;
-    for (size_t i=0; i<nms_result.size(); ++i){
-        int idx = nms_result[i];
+    for (size_t i=0; i<boxinfo_results.size(); ++i){
+        int idx = boxinfo_results[i].idx;
         OutputPose result;
  
         result.confidence = confidences[idx];
