@@ -3,10 +3,6 @@ name: K230 CanMV Release
 on:
   release:
     types: [released]
-  push:
-    branches:
-      - dev
-      - main
 
 defaults:
   run:
@@ -16,7 +12,7 @@ jobs:
   build_image:
     name: Build
     runs-on: [ubuntu-latest]
-    timeout-minutes: 120
+    timeout-minutes: 180
     container:
       image: ghcr.io/kendryte/k230_sdk:latest
       env:
@@ -28,8 +24,8 @@ jobs:
     steps:
       - name: Check for dockerenv
         run: (ls /.dockerenv && echo Found dockerenv) || (echo No dockerenv)
-     
-      - name: Install nvm/node for actions checkout env
+
+      - name: Install Nvm/Node for Actions Checkout Env
         run: |
           pwd
           ls -alht
@@ -41,13 +37,14 @@ jobs:
           nvm install node || exit 1
           node --version || exit 1
 
-      - uses: actions/checkout@v4
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           clean: true
           submodules: true
 
-      - name: Download toolchain and build env
+      - name: Download Toolchain and Setup Build Env
         run: |
           ls -alht micropython
           ls -alht k230_sdk
@@ -85,7 +82,50 @@ jobs:
           echo "---show output---"
           ls -alht output/${CONF}/images || exit 1
 
-      - name: Save image
+      - name: Show Output Directory For Debug Purpose
         run: |
           pwd
-          echo "upload image to release[TO BE done]"
+          ls -alht
+          ls -alht output/${CONF}/images/
+          # Copy compiled files to /github/workspace/artifacts
+          mkdir -p /github/workspace/artifacts
+          cp output/${CONF}/images/*.img.gz /github/workspace/artifacts/
+          ls -alht /github/workspace/artifacts/
+        shell: bash
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.cfg }}
+          path: /github/workspace/artifacts
+
+  upload_release:
+    needs: build_image
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: artifacts-*
+          merge-multiple: true
+
+      - name: Display Structure of Artifacts Files
+        run: ls -R
+
+      - name: Show Working Directory For Debug Purpose
+        run: |
+          pwd
+          ls -alht
+          ls -alht artifacts || exit 0
+        shell: bash
+
+      - name: Upload images to Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.CR_PAT }}
+
