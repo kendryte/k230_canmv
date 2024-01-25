@@ -656,7 +656,6 @@ tag_sync:
         echo "---finished run k230 canmv daily test in loop $i"
     - echo "----------Run Daily Test pass----------"
 
-
 before_script:
   - echo '----------Build ENV Prepare----------'
   - echo 'Add SSH KEY for Multiple repo clone in Makefile'
@@ -704,8 +703,8 @@ after_script:
 build_setup:
   stage: build_setup
   rules:
-    # MR job
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # MR job to dev branch
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev"
     # release job
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
     # pre-release job
@@ -731,8 +730,8 @@ build_setup:
 build_image:
   stage: build_src
   rules:
-    # MR job
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # MR job to dev branch
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"  && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev"
     # release job
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
     # pre-release job
@@ -764,8 +763,8 @@ load_image_smoke_test:
   variables:
     TEST_ENV: ai
   rules:
-    # MR job
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # MR job to dev branch
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"  && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev"
     # release job
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
     # pre-release job
@@ -816,6 +815,41 @@ daily_build_test:
     - !reference [.test, test_teardown]
     - *show_vars
     - *get_job_result
+
+# sync dev branch to main branch
+dev_to_main:
+  stage: publish
+  rules:
+    # MR job to main branch
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+  timeout: 30m
+  script:
+    - echo "----------Step 1, Check Merge Request Title, k230 canmv release v*.* MUST bt exist----------"
+    - echo "$CI_MERGE_REQUEST_TITLE"
+    - >
+      if [[ "$CI_MERGE_REQUEST_TITLE" =~ "^k230 canmv release v[0-9]+\.[0-9]+".*$ ]];
+      then
+        echo "Merge Request title check PASS, continue get release version from merge request title";
+      else
+        echo "Merge Request title check FAILED, please EDIT title name with release tag";
+        echo "Title MUST be end with tag like: k230 canmv release v0.4";
+        exit 1;
+      fi
+    - RELEASE_TAG=$(echo $CI_MERGE_REQUEST_TITLE |grep -Eo "v[0-9]+\.[0-9]+.*?$")
+    - >
+      if [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+.*$ ]];
+      then
+        echo "Release TAG/version will be " $RELEASE_TAG;
+      else
+        echo "Release TAG/version check FAILED, please EDIT title name with release tag";
+        echo "Title MUST be end with tag like: k230 canmv release v1.4";
+        exit 1;
+      fi
+    - echo "----------sync dev branch to main branch for canmv repo----------"
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/release/k230_canmv_release.sh -O ./k230_canmv_release
+    - chmod +x ./k230_canmv_release
+    - ./k230_canmv_release canmv $RELEASE_TAG "k230 canmv release $RELEASE_TAG" || exit 1
+    - echo "----------sync dev to main branch pass for canmv repo----------"
 
 # senf feishu msg
 senf_feishu_msg:
