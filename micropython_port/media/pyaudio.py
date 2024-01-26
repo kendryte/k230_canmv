@@ -292,9 +292,9 @@ class Read_stream(Stream):
             self._start_stream = False
             Read_stream.dev_chn_enable[self._ai_chn] = False
 
-    def read(self):
+    def read(self,block=True):
         if (self._start_stream):
-            ret = kd_mpi_ai_get_frame(self._ai_dev, self._ai_chn, self._audio_frame, 1000)
+            ret = kd_mpi_ai_get_frame(self._ai_dev, self._ai_chn, self._audio_frame, 1000 if block else 1)
             if (0 == ret):
                 vir_data = kd_mpi_sys_mmap(self._audio_frame.phys_addr, self._audio_frame.len)
                 data = uctypes.bytes_at(vir_data,self._audio_frame.len)
