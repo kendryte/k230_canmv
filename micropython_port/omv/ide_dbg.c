@@ -39,6 +39,7 @@
 #define CONFIG_CANMV_IDE_SUPPORT 1
 
 #include "ide_dbg.h"
+#include "version.h"
 #include <stdio.h>
 
 #if CONFIG_CANMV_IDE_SUPPORT
@@ -356,9 +357,9 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     case USBDBG_FW_VERSION: {
                         pr("cmd: USBDBG_FW_VERSION");
                         uint32_t resp[3] = {
-                            MICROPY_VERSION_MAJOR,
-                            MICROPY_VERSION_MINOR,
-                            MICROPY_VERSION_MICRO
+                            FIRMWARE_VERSION_MAJOR,
+                            FIRMWARE_VERSION_MINOR,
+                            FIRMWARE_VERSION_MICRO
                         };
                         usb_tx(&resp, sizeof(resp));
                         break;
