@@ -26,18 +26,33 @@ stages:
   - send_msg
 
 # MR merged
-push_sync:
+main_release:
   stage: publish
   rules:
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"
+  variables:
+    BRANCH: main
   extends:
     - .sync_github_gitee
 
 # tag push
-tag_sync:
+tag_release:
   stage: publish
   rules:
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
+  variables:
+    BRANCH: main
+  extends:
+    - .sync_github_gitee
+
+# schedule daily build sync
+dev_release:
+  stage: publish
+  rules:
+    # daily build
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  variables:
+    BRANCH: dev
   extends:
     - .sync_github_gitee
 
@@ -50,11 +65,11 @@ tag_sync:
     - git clone ${GITLAB_REPO} k230_canmv || exit 1
     - cd k230_canmv || exit 1
     - pwd
-    - git checkout main
+    - git checkout ${BRANCH}
     - git branch -a
     - git status
-    - echo '---pull latest main branch---'
-    - git pull origin main
+    - echo '---pull latest ${BRANCH} branch---'
+    - git pull origin ${BRANCH}
     - echo '---fetch all tags---'
     - git fetch --tags
     - git remote add github ${GITHUB_REPO}
@@ -63,9 +78,9 @@ tag_sync:
     - git branch -a
     - git status
     - echo "---push to gitee---"
-    - git push --atomic --tags -u -f gitee main || git push --atomic --tags -u -f gitee main
+    - git push --atomic --tags -u -f gitee ${BRANCH} || git push --atomic --tags -u -f gitee ${BRANCH} || git push --atomic --tags -u -f gitee ${BRANCH}
     - echo "---push to github---"
-    - git push --atomic --tags -u -f github main || git push --atomic --tags -u -f github main || git push --atomic --tags -u -f github main
+    - git push --atomic --tags -u -f github ${BRANCH} || git push --atomic --tags -u -f github ${BRANCH} || git push --atomic --tags -u -f github ${BRANCH}
 
 .show_vars: &show_vars
   - echo "${JOB_TYPE}"
@@ -557,18 +572,19 @@ tag_sync:
     - test -f $NFS_CASE_FOLDER/${TEST_ENV}.yml || exit 1
   smoke_test:
     - echo "----------Run Smoke Test start----------"
-    - test -d bin || mkdir ./bin
-    - test -f ./bin/airobot && rm -rf ./bin/airobot
-    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/airobot -O ./bin/airobot
-    - chmod +x ./bin/airobot
     - echo "---add test script"
     - test -d k230_canmv_testscripts || git clone ${TEST_SCRIPTS_REPO} k230_canmv_testscripts || exit 1
     - cd k230_canmv_testscripts || exit 1
     - git fetch origin main || exit 1
     - git checkout main || exit 1
-    - cd ../ || exit 1
+    - pwd
+    - test -d bin || mkdir ./bin
+    - test -f ./bin/airobot && rm -rf ./bin/airobot
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/airobot -O ./bin/airobot
+    - chmod +x ./bin/airobot
     - wget -qc https://ai.b-bug.org/k230/test_resources/ci/testscripts/k230_canmv_smoke_test.sh -O ./k230_canmv_smoke_test.sh
     - chmod +x ./k230_canmv_smoke_test.sh
+    - ls -alht
     - |
         echo "---start to run k230 canmv smoke test in for loop"
         stime=$(date +'%Y-%m-%d %H:%M:%S')
@@ -607,16 +623,15 @@ tag_sync:
     - echo "----------Run Smoke Test pass----------"
   daily_test:
     - echo "----------Run Daily Test start----------"
-    - test -d bin || mkdir ./bin
-    - test -f ./bin/airobot && rm -rf ./bin/airobot
-    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/airobot -O ./bin/airobot
-    - chmod +x ./bin/airobot
     - echo "---add test script"
     - test -d k230_canmv_testscripts || git clone ${TEST_SCRIPTS_REPO} k230_canmv_testscripts || exit 1
     - cd k230_canmv_testscripts || exit 1
     - git fetch origin main || exit 1
     - git checkout main || exit 1
-    - cd ../ || exit 1
+    - test -d bin || mkdir ./bin
+    - test -f ./bin/airobot && rm -rf ./bin/airobot
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/airobot -O ./bin/airobot
+    - chmod +x ./bin/airobot
     - wget -qc https://ai.b-bug.org/k230/test_resources/ci/testscripts/k230_canmv_daily_test.sh -O ./k230_canmv_daily_test.sh
     - chmod +x ./k230_canmv_daily_test.sh
     - |
@@ -788,9 +803,6 @@ load_image_smoke_test:
 
 # daily build test
 daily_build_test:
-  image: ai.b-bug.org:5000/k230_testscripts:latest
-  tags:
-    - k230_testscripts
   stage: test
   rules:
     # release job
@@ -801,7 +813,7 @@ daily_build_test:
     - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG !~ /^v\d+\.\d+.*$/
     # daily build
     - if: $CI_PIPELINE_SOURCE == "schedule"
-  timeout: 180m
+  timeout: 300m
   variables:
     TEST_ENV: ai
   script:
@@ -851,8 +863,8 @@ dev_to_main:
     - ./k230_canmv_release canmv $RELEASE_TAG "k230 canmv release $RELEASE_TAG" || exit 1
     - echo "----------sync dev to main branch pass for canmv repo----------"
 
-# senf feishu msg
-senf_feishu_msg:
+# send feishu msg
+send_feishu_msg:
   stage: send_msg
   rules:
     # release job
