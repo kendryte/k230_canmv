@@ -472,8 +472,8 @@ dev_release:
         echo "---load image start time: $stime"
         power_reset="./bin/ailab power --type=cycle ${available}"
         load_cmd="./bin/aiload --pr_id ${CI_MERGE_REQUEST_IID} --job_id ${CI_PIPELINE_ID} --md5_sysimage ${sysimage_md5} ${available}"
-        for i in {1..4}; do
-          if [ $i -eq 4 ]
+        for i in {1..6}; do
+          if [ $i -eq 6 ]
           then
             echo "ERROR: Max retries reached with load image"
             exit 1
