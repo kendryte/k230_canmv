@@ -69,7 +69,7 @@ class Mp4Container:
     def Create(self, mp4Cfg):
         if mp4Cfg.type == K_MP4_CONFIG_MUXER:
             camera.set_outbufs(CAM_DEV_ID_0, CAM_CHN_ID_0, 6)
-            camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, mp4Cfg.muxerCfg.pic_width, mp4Cfg.muxerCfg.pic_height)
+            camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, mp4Cfg.muxerCfg.pic_width, mp4Cfg.muxerCfg.pic_height, alignment=12)
             camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
             self.venc.SetOutBufs(VENC_CHN_ID_0, 15, mp4Cfg.muxerCfg.pic_width, mp4Cfg.muxerCfg.pic_height)
             # audio init
