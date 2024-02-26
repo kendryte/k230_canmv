@@ -450,16 +450,8 @@ void finsh_thread_entry(void *parameter)
 #endif
 
     rt_kprintf(FINSH_PROMPT);
-static int shell_thread_first_run = 1;
     while (1)
     {
-        if(shell_thread_first_run) {
-            shell_thread_first_run = 0;
-            // due to SD card probe slow
-            sleep(2);
-            msh_exec("/bin/init.sh", 13);
-            continue;
-        }
         ch = finsh_getchar();
         if (ch < 0)
         {

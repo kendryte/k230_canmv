@@ -1,1 +1,0 @@
-/sdcard/app/micropython

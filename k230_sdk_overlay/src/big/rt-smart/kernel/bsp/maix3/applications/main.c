@@ -11,28 +11,30 @@
 #include <rthw.h>
 #include <stdio.h>
 #include <string.h>
+#include <dfs_fs.h>
 
 #if CONFIG_ENABLE_USB_DEVICE
 #include "usbd_core.h"
 #include "cdc_acm_msc_template.c"
 #endif
 
-extern rt_device_t sdcard_device;
-
 int main(void)
 {
     printf("RT-SMART Hello RISC-V\n");
+#ifdef RT_USING_SDIO
+    while (mmcsd_wait_cd_changed(100) != MMCSD_HOST_PLUGED);
+    if (dfs_mount("sd", "/sdcard", "elm", 0, 0) != 0)
+        rt_kprintf("Dir /sdcard mount failed!\n");
+#endif
 #if CONFIG_ENABLE_USB_DEVICE
-    printf("CherryUSB device cdc msc example\n");
-
     extern void cdc_acm_msc_init(void);
     cdc_acm_msc_init();
-
     // Wait until configured
     while (!usb_device_is_configured())
     {
         rt_thread_delay(10);
     }
 #endif
+    msh_exec("/sdcard/app/micropython", 32);
     return 0;
 }
