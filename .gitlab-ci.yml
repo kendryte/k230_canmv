@@ -755,7 +755,7 @@ build_image:
     - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG !~ /^v\d+\.\d+.*$/
     # daily build
     - if: $CI_PIPELINE_SOURCE == "schedule"
-  timeout: 30m
+  timeout: 45m
   parallel:
     matrix:
       - CONF: [k230_canmv_defconfig]
