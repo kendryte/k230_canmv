@@ -68,7 +68,7 @@ uint32_t mtp_op_GetObjectHandles(mtp_ctx * ctx,MTP_PACKET_HEADER * mtp_packet_hd
 
 	if(!mtp_get_storage_root(ctx,storageid))
 	{
-		PRINT_WARN("MTP_OPERATION_GET_OBJECT_HANDLES : INVALID STORAGE ID!");
+		PRINT_DEBUG("MTP_OPERATION_GET_OBJECT_HANDLES : INVALID STORAGE ID!");
 
 		pthread_mutex_unlock( &ctx->inotify_mutex );
 
