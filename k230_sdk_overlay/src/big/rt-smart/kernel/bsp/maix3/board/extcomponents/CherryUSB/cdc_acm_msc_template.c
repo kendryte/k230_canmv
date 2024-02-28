@@ -47,55 +47,40 @@ static const uint8_t cdc_msc_descriptor[] = {
     ///////////////////////////////////////
     /// string1 descriptor
     ///////////////////////////////////////
-    0x14,                       /* bLength */
+    0x12,                       /* bLength */
     USB_DESCRIPTOR_TYPE_STRING, /* bDescriptorType */
-    'C', 0x00,                  /* wcChar0 */
-    'h', 0x00,                  /* wcChar1 */
-    'e', 0x00,                  /* wcChar2 */
-    'r', 0x00,                  /* wcChar3 */
+    'K', 0x00,                  /* wcChar0 */
+    'e', 0x00,                  /* wcChar1 */
+    'n', 0x00,                  /* wcChar2 */
+    'd', 0x00,                  /* wcChar3 */
     'r', 0x00,                  /* wcChar4 */
     'y', 0x00,                  /* wcChar5 */
-    'U', 0x00,                  /* wcChar6 */
-    'S', 0x00,                  /* wcChar7 */
-    'B', 0x00,                  /* wcChar8 */
+    't', 0x00,                  /* wcChar6 */
+    'e', 0x00,                  /* wcChar7 */
     ///////////////////////////////////////
     /// string2 descriptor
     ///////////////////////////////////////
-    0x26,                       /* bLength */
+    0x0C,                       /* bLength */
     USB_DESCRIPTOR_TYPE_STRING, /* bDescriptorType */
     'C', 0x00,                  /* wcChar0 */
-    'h', 0x00,                  /* wcChar1 */
-    'e', 0x00,                  /* wcChar2 */
-    'r', 0x00,                  /* wcChar3 */
-    'r', 0x00,                  /* wcChar4 */
-    'y', 0x00,                  /* wcChar5 */
-    'U', 0x00,                  /* wcChar6 */
-    'S', 0x00,                  /* wcChar7 */
-    'B', 0x00,                  /* wcChar8 */
-    ' ', 0x00,                  /* wcChar9 */
-    'C', 0x00,                  /* wcChar10 */
-    '-', 0x00,                  /* wcChar11 */
-    'M', 0x00,                  /* wcChar12 */
-    ' ', 0x00,                  /* wcChar13 */
-    'D', 0x00,                  /* wcChar14 */
-    'E', 0x00,                  /* wcChar15 */
-    'M', 0x00,                  /* wcChar16 */
-    'O', 0x00,                  /* wcChar17 */
+    'a', 0x00,                  /* wcChar1 */
+    'n', 0x00,                  /* wcChar2 */
+    'M', 0x00,                  /* wcChar3 */
+    'V', 0x00,                  /* wcChar4 */
     ///////////////////////////////////////
     /// string3 descriptor
     ///////////////////////////////////////
-    0x16,                       /* bLength */
+    0x14,                       /* bLength */
     USB_DESCRIPTOR_TYPE_STRING, /* bDescriptorType */
-    '2', 0x00,                  /* wcChar0 */
+    '0', 0x00,                  /* wcChar0 */
     '0', 0x00,                  /* wcChar1 */
-    '2', 0x00,                  /* wcChar2 */
-    '2', 0x00,                  /* wcChar3 */
-    '1', 0x00,                  /* wcChar4 */
-    '2', 0x00,                  /* wcChar5 */
-    '3', 0x00,                  /* wcChar6 */
-    '4', 0x00,                  /* wcChar7 */
-    '5', 0x00,                  /* wcChar8 */
-    '6', 0x00,                  /* wcChar9 */
+    '1', 0x00,                  /* wcChar2 */
+    '0', 0x00,                  /* wcChar3 */
+    '0', 0x00,                  /* wcChar4 */
+    '0', 0x00,                  /* wcChar5 */
+    '0', 0x00,                  /* wcChar6 */
+    '0', 0x00,                  /* wcChar7 */
+    '0', 0x00,                  /* wcChar8 */
 #ifdef CONFIG_USB_HS
     ///////////////////////////////////////
     /// device qualifier descriptor
