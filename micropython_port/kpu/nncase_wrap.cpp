@@ -6,6 +6,7 @@
 #include "nncase/runtime/k230/gnne_tile_utils.h"
 #include "nncase/runtime/util.h"
 #include "nncase/runtime/result.h"
+#include "nncase/version.h"
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -408,4 +409,9 @@ void ai2d_release(m_builder *p)
     p->builder = nullptr;
     delete p;
     p = nullptr;
+}
+
+char* version()
+{
+    return NNCASE_VERSION;
 }

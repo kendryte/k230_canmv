@@ -51,6 +51,8 @@ extern "C" {
     void runtime_tensor_release(runtime_tensor *tensor);
     void ai2d_release(m_builder *p);
     void shrink_memory_pool();
+    
+    char* version();
 #ifdef __cplusplus
 }
 #endif
