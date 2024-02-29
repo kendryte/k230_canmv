@@ -6,12 +6,12 @@
 
 /*!< endpoint address */
 #define CDC_IN_EP  0x81
-#define CDC_OUT_EP 0x02
+#define CDC_OUT_EP 0x01
 #define CDC_INT_EP 0x82
 
 /*!< endpoint address */
 #define MTP_IN_EP  0x83
-#define MTP_OUT_EP 0x04
+#define MTP_OUT_EP 0x03
 #define MTP_INT_EP 0x84
 
 // OpenMV Cam
