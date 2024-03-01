@@ -33,8 +33,8 @@ static void dcd_int_handler_wrap(int irq, void *param)
 }
 
 #define CDC_IN_EP  0x81
-#define CDC_OUT_EP 0x02
-#define CDC_INT_EP 0x83
+#define CDC_OUT_EP 0x01
+#define CDC_INT_EP 0x82
 
 #define DEV_NAME "ttyUSB1"
 
