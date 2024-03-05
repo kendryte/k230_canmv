@@ -69,6 +69,7 @@ class __camera_device:
         # set the default value
         self.dev_attr.buffer_num = CAM_DEFAULT_INPUT_BUF_NUM
         self.dev_attr.mode = VICAP_WORK_ONLINE_MODE
+        # self.dev_attr.mode = VICAP_WORK_OFFLINE_MODE
         self.dev_attr.input_type = VICAP_INPUT_TYPE_SENSOR
 
         for i in range(0, VICAP_CHN_ID_MAX):
@@ -109,9 +110,17 @@ class camera:
         cls.cam_dev[dev_num].dev_attr.acq_win.height = cls.cam_dev[dev_num].dev_attr.sensor_info.height
 
         cls.cam_dev[dev_num].dev_attr.mode = VICAP_WORK_ONLINE_MODE
+        # cls.cam_dev[dev_num].dev_attr.mode = VICAP_WORK_OFFLINE_MODE
+        # cls.cam_dev[dev_num].dev_attr.buffer_num = CAM_DEFAULT_INPUT_BUF_NUM
+        # cls.set_inbufs(dev_num, CAM_DEFAULT_INPUT_BUF_NUM)
         cls.cam_dev[dev_num].dev_attr.input_type = VICAP_INPUT_TYPE_SENSOR
         cls.cam_dev[dev_num].dev_attr.dev_enable = True
-
+        cls.cam_dev[dev_num].dev_attr.pipe_ctrl.data = 0xffffffff
+        cls.cam_dev[dev_num].dev_attr.pipe_ctrl.bits.af_enable = 0
+        cls.cam_dev[dev_num].dev_attr.pipe_ctrl.bits.ahdr_enable = 0
+        cls.cam_dev[dev_num].dev_attr.pipe_ctrl.bits.dnr3_enable = 0
+        cls.cam_dev[dev_num].dev_attr.dw_enable = 0
+        cls.cam_dev[dev_num].dev_attr.cpature_frame = 0
 
     # set_inbufs
     @classmethod
@@ -265,6 +274,46 @@ class camera:
 
     # start_stream
     @classmethod
+    def start_mcm_stream(cls):
+        for dev_num in range(0, CAM_DEV_ID_MAX):
+            if not cls.cam_dev[dev_num].dev_attr.dev_enable:
+                continue
+            cls.set_inbufs(dev_num, CAM_DEFAULT_INPUT_BUF_NUM)
+            print("kd_mpi_vicap_set_dev_attr : ", dev_num)
+            ret = kd_mpi_vicap_set_dev_attr(dev_num, cls.cam_dev[dev_num].dev_attr)
+            if ret:
+                raise OSError(f"start_stream({dev_num}), set dev attr failed({ret})")
+
+            # vicap channel attr set
+            for chn_num in range(0, VICAP_CHN_ID_MAX):
+                if not cls.cam_dev[dev_num].chn_attr[chn_num].chn_enable:
+                    continue
+                print("kd_mpi_vicap_set_chn_attr : ", dev_num, chn_num)
+                ret = kd_mpi_vicap_set_chn_attr(dev_num, chn_num, cls.cam_dev[dev_num].chn_attr[chn_num])
+                if ret:
+                    raise OSError("start_stream({dev_num}), set chn attr failed({ret})")
+
+        for dev_num in range(0, CAM_DEV_ID_MAX):
+            if not cls.cam_dev[dev_num].dev_attr.dev_enable:
+                continue
+            print("kd_mpi_vicap_init : ", dev_num)
+            ret = kd_mpi_vicap_init(dev_num)
+            if ret:
+                raise OSError(f"start_stream({dev_num}), vicap init failed({ret})")
+
+        for dev_num in range(0, CAM_DEV_ID_MAX):
+            if not cls.cam_dev[dev_num].dev_attr.dev_enable:
+                continue
+            print("kd_mpi_vicap_start_stream : ", dev_num)
+            print("cls.cam_dev[dev_num].dev_attr.mode ", cls.cam_dev[dev_num].dev_attr.mode)
+            print("cls.cam_dev[dev_num].dev_attr.buffer_num ", cls.cam_dev[dev_num].dev_attr.buffer_num)
+            print("cls.cam_dev[dev_num].dev_attr.buffer_size ", cls.cam_dev[dev_num].dev_attr.buffer_size)
+            ret = kd_mpi_vicap_start_stream(dev_num)
+            if ret:
+                raise OSError(f"start_stream({dev_num}), start stream failed({ret})")
+
+    # start_stream
+    @classmethod
     def start_stream(cls, dev_num):
         if (dev_num > CAM_DEV_ID_MAX - 1):
             raise ValueError(f"invalid param, dev_num({dev_num}")
@@ -290,6 +339,19 @@ class camera:
         if ret:
             raise OSError(f"start_stream({dev_num}), start stream failed({ret})")
 
+    # stop_stream
+    @classmethod
+    def stop_mcm_stream(cls):
+        for dev_num in range(0, CAM_DEV_ID_MAX):
+            if not cls.cam_dev[dev_num].dev_attr.dev_enable:
+                continue
+            ret = kd_mpi_vicap_stop_stream(dev_num)
+            if ret:
+                raise OSError(f"stop_stream({dev_num}), stop stream failed({ret})")
+
+            ret = kd_mpi_vicap_deinit(dev_num)
+            if ret:
+                raise OSError(f"stop_stream({dev_num}), deinit failed({ret})")
 
     # stop_stream
     @classmethod
@@ -304,7 +366,6 @@ class camera:
         ret = kd_mpi_vicap_deinit(dev_num)
         if ret:
             raise OSError(f"stop_stream({dev_num}), deinit failed({ret})")
-
 
     # capture_image
     @classmethod
