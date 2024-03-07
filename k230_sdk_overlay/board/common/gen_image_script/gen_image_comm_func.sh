@@ -95,7 +95,7 @@ gen_version()
 
 
 	set +e; commitid=$(awk -F- '/^[^#]/ { print $6}' ${post_copy_rootfs_dir}/${ver_file});set -e;
-	set +e; last_tag=$(awk -F- '/^[^#]/ { print $1}' ${post_copy_rootfs_dir}/${ver_file}) ;set -e;
+	set +e; last_tag=$(awk -F- '/^[^#]/ { print $1}' ${post_copy_rootfs_dir}/${ver_file} | head -1 ) ;set -e;
 	
 
 	[ "${commitid}" != "" ] || commitid="unkonwn"
