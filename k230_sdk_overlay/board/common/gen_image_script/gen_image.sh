@@ -162,6 +162,7 @@ gen_image ${GENIMAGE_CFG_SD}   sysimage-sdcard.img
 cd  ${BUILD_DIR}/images/
 rm -rf  sysimage-sdcard_aes.img  sysimage-sdcard_sm.img  *.vfat
 cp sysimage-sdcard.img*  ${K230_CANMV_BUILD_DIR}/images/
+cp  -P CanMV-K230_micropython*  ${K230_CANMV_BUILD_DIR}/images/
 
 
 
