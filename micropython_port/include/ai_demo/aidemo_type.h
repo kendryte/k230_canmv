@@ -126,4 +126,13 @@ struct Tracker_box_center
     float center_xy_wh[4];
     bool exist;
 };
+
+//*****************************for tts_zh*****************************
+struct TtsZhOutput
+{
+    float* data;
+    size_t size;
+    int* len_data;
+    size_t len_size;
+};
 #endif // _AIDEMO_TYPE_H_

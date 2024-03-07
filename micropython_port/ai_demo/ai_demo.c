@@ -768,6 +768,72 @@ STATIC mp_obj_t aidemo_nanotracker_postprocess(size_t n_args, const mp_obj_t *ar
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(aidemo_nanotracker_postprocess_obj, 7, 7, aidemo_nanotracker_postprocess);
 
+//*****************************for tts_zh*****************************
+STATIC mp_obj_t tts_zh_create(mp_obj_t dictfile,mp_obj_t phasefile,mp_obj_t mapfile) {
+    TtsZh *ttszh_=ttszh_create();
+    const char* dictfile_=mp_obj_str_get_str(dictfile);
+    const char* phasefile_=mp_obj_str_get_str(phasefile);
+    const char* mapfile_=mp_obj_str_get_str(mapfile);
+    ttszh_init(ttszh_,dictfile_,phasefile_,mapfile_);
+    return MP_OBJ_FROM_PTR(ttszh_);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_3(aidemo_tts_zh_create_obj, tts_zh_create);
+
+STATIC mp_obj_t tts_zh_destroy(mp_obj_t ttszh) {
+    TtsZh *ttszh_ = MP_OBJ_TO_PTR(ttszh);
+    ttszh_destroy(ttszh_);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(aidemo_tts_zh_destroy_obj, tts_zh_destroy);
+
+STATIC mp_obj_t tts_zh_preprocess(mp_obj_t ttszh,mp_obj_t text) {
+    TtsZh* ttszh_=MP_OBJ_TO_PTR(ttszh);
+    const char* text_=mp_obj_str_get_str(text);
+    TtsZhOutput* tts_zh_out=tts_zh_frontend_preprocess(ttszh_,text_); 
+    mp_obj_list_t *result_mp_list=mp_obj_new_list(0, NULL);
+    // 创建 MicroPython 浮点数数组对象
+    mp_obj_list_t *floats_array = mp_obj_new_list(0, NULL);
+    mp_obj_list_t *int_array = mp_obj_new_list(0, NULL);
+    // 将 C++ 函数的浮点数数据逐个转换并存储在 MicroPython 浮点数数组中
+    for (size_t i = 0; i < tts_zh_out->size; i++) {
+        mp_obj_list_append(floats_array, mp_obj_new_float(tts_zh_out->data[i]));
+    }
+    for (size_t i = 0; i < tts_zh_out->len_size; i++) {
+        mp_obj_list_append(int_array, mp_obj_new_float(tts_zh_out->len_data[i]));
+    }
+    mp_obj_list_append(result_mp_list,floats_array);
+    mp_obj_list_append(result_mp_list,int_array);
+    return MP_OBJ_FROM_PTR(result_mp_list);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(aidemo_tts_zh_preprocess_obj, tts_zh_preprocess);
+
+
+STATIC mp_obj_t save_wav(size_t n_args, const mp_obj_t *args){
+    mp_obj_list_t *wav_list = MP_OBJ_TO_PTR(args[0]);
+    size_t wav_length = mp_obj_get_int(args[1]);
+    const char* wav_path=mp_obj_str_get_str(args[2]);
+    size_t sample_rate_ = mp_obj_get_int(args[4]);
+    if (wav_list == NULL || wav_length <= 0) {
+        mp_raise_msg(&mp_type_ValueError, "Invalid input");
+        return mp_const_none;
+    }
+    // 分配内存来存储 wav 数组
+    float* wav = (float *)malloc(wav_length * sizeof(float));
+    if (wav == NULL) {
+        mp_raise_msg(&mp_type_MemoryError, "Memory allocation failed");
+        return mp_const_none;
+    }
+    // 将 MicroPython 的列表转换为 C 数组
+    for (size_t i = 0; i < wav_length; i++) {
+        wav[i] =  mp_obj_get_float(wav_list->items[i]);
+    }
+    tts_save_wav(wav,wav_length,wav_path,sample_rate_);
+    // 释放 wav 数组内存
+    free(wav);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(aidemo_save_wav_obj, 4, 4, save_wav);
+
 
 STATIC const mp_rom_map_elem_t aidemo_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_aidemo) },
@@ -787,7 +853,11 @@ STATIC const mp_rom_map_elem_t aidemo_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_kws_fp_destroy), MP_ROM_PTR(&aidemo_kws_feature_pipeline_destroy_obj) },
     { MP_ROM_QSTR(MP_QSTR_kws_preprocess), MP_ROM_PTR(&aidemo_kws_preprocess_obj) },
     { MP_ROM_QSTR(MP_QSTR_eye_gaze_post_process), MP_ROM_PTR(&aidemo_eye_gaze_post_process_obj) },
-    { MP_ROM_QSTR(MP_QSTR_nanotracker_postprocess), MP_ROM_PTR(&aidemo_nanotracker_postprocess_obj) }
+    { MP_ROM_QSTR(MP_QSTR_nanotracker_postprocess), MP_ROM_PTR(&aidemo_nanotracker_postprocess_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tts_zh_create), MP_ROM_PTR(&aidemo_tts_zh_create_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tts_zh_destroy), MP_ROM_PTR(&aidemo_tts_zh_destroy_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tts_zh_preprocess), MP_ROM_PTR(&aidemo_tts_zh_preprocess_obj) },
+    { MP_ROM_QSTR(MP_QSTR_save_wav), MP_ROM_PTR(&aidemo_save_wav_obj) },
 
 };
 

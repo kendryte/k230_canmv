@@ -53,6 +53,9 @@ typedef struct processed_feat processed_feat;
 // for nanotracker
 typedef struct Tracker_box Tracker_box;
 typedef struct Tracker_box_center Tracker_box_center;
+// for tts_zh
+typedef struct TtsZh TtsZh;
+typedef struct TtsZhOutput TtsZhOutput;
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,6 +91,12 @@ extern "C" {
     void eye_gaze_post_process(float** p_outputs_,float* pitch,float* yaw);
     //for nanotracker
     Tracker_box_center nanotracker_post_process(float* output_0, float* output_1, FrameSize sensor_size, float thresh, float* center_xy_wh, int crop_size, float CONTEXT_AMOUNT);
+    //for tts_zh
+    TtsZh *ttszh_create();
+    void ttszh_destroy(TtsZh* ttszh_);
+    void ttszh_init(TtsZh* ttszh_,const char* dictfile,const char* phasefile,const char* mapfile);
+    TtsZhOutput* tts_zh_frontend_preprocess(TtsZh* ttszh_,const char* text);
+    void tts_save_wav(float* wav_data,int wav_len,const char* wav_filename,int sample_rate);
 #ifdef __cplusplus
 }
 #endif

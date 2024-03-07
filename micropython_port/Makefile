@@ -18,7 +18,7 @@ PROG ?= micropython
 USER_C_MODULES = ulab
 
 # include py core make definitions
-include $(TOP)/py/py.mk
+include $(TOP)/py/py.mk 
 include $(TOP)/extmod/extmod.mk
 
 INC += -I.
@@ -37,6 +37,7 @@ INC += -Iinclude/omv
 INC += -Iinclude/ai_cube
 INC += -Iinclude/ai_demo
 INC += -Iinclude/ai_demo/kws
+INC += -Iinclude/ai_demo/tts_zh
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/utils/lib/opencv/include/opencv4
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/comm
@@ -173,6 +174,8 @@ AIDEMO_SRC_CXX = $(wildcard ai_demo/*.cpp)
 SRC_CXX += ${AIDEMO_SRC_CXX}
 AIDEMO_KWS_SRC_CXX = $(wildcard ai_demo/kws/*.cpp)
 SRC_CXX += ${AIDEMO_KWS_SRC_CXX}
+AIDEMO_TTS_ZH_SRC_CXX = $(wildcard ai_demo/tts_zh/*.cpp)
+SRC_CXX += ${AIDEMO_TTS_ZH_SRC_CXX}
 
 OBJ = $(PY_O)
 OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
