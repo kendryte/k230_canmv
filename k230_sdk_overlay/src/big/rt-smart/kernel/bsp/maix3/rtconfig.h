@@ -133,6 +133,7 @@
 #define RT_USING_I2C
 #define RT_USING_I2C0
 #define RT_USING_I2C1
+#define RT_USING_I2C2
 #define RT_USING_I2C3
 #define RT_USING_I2C4
 #define RT_USING_I2C_DUMP
