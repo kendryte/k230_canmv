@@ -157,12 +157,6 @@ void kd_pin_write(rt_base_t pin, rt_base_t value)
     int ret = check_pin_valid(pin);
     if(ret == -1)   return;
 
-    if(kd_get_drive_mode(pin) == 0)
-    {
-        LOG_E("pin %d is input mode, not write it", pin);
-        return;
-    }
-
     if(pin < 32)
         kd_gpio_reg_writel(kd_gpio[0] + DATA_OUTPUT, pin, value == KD_GPIO_HIGH ? GPIO_PV_HIGH : GPIO_PV_LOW);
     else {
