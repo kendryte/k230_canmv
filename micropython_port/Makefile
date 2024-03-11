@@ -86,10 +86,7 @@ CDK_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/common/cdk/user/component/ipcmsg/
 
 MPP_LIBS = $(addprefix -l, $(subst lib, ,$(basename $(notdir $(foreach dir, $(MPP_LIB_PATH) $(CDK_LIB_PATH), $(wildcard $(dir)/*))))))
 
-LIBPATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/lib/risc-v/rv64
-MPP_LIBS += -lrtthread
-
-LDFLAGS_MPP = -L$(MPP_LIB_PATH) -L$(CDK_LIB_PATH)  -L$(LIBPATH) -Wl,--start-group $(MPP_LIBS) -Wl,--end-group
+LDFLAGS_MPP = -L$(MPP_LIB_PATH) -L$(CDK_LIB_PATH) -Wl,--start-group $(MPP_LIBS) -Wl,--end-group
 
 LDFLAGS += $(LDFLAGS_MPP)
 LDFLAGS += -L${K230_CANMV_ROOT}/k230_sdk/src/big/nncase/riscv64/nncase/lib -lNncase.Runtime.Native -lnncase.rt_modules.k230 -lfunctional_k230 -lstdc++

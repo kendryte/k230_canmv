@@ -82,7 +82,7 @@ STATIC void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_p
     config.channel = self->channel;
     if (ioctl(k230_pwm_obj.fd, KD_PWM_CMD_GET, &config))
         mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("PWM channel %u get config error"), self->channel);
-    mp_printf(print, "pwm chanel %d: period = %u ns, pulse = %u ns, %s", self->channel,
+    mp_printf(print, "pwm chanel %u: period = %u ns, pulse = %u ns, %s", self->channel,
         config.period, config.pulse, self->active ? "enabled" : "disabled");
 }
 

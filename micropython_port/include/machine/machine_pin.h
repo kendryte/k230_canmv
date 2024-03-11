@@ -23,11 +23,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MACHINE_GPIO_H_
-#define _MACHINE_GPIO_H_
+#ifndef _MACHINE_PIN_H_
+#define _MACHINE_PIN_H_
 
 #include "py/obj.h"
 
-extern const mp_obj_type_t machine_gpio_type;
+extern const mp_obj_type_t machine_pin_type;
 
 #endif
