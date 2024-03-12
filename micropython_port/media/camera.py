@@ -66,6 +66,7 @@ class __camera_device:
         self.dev_attr = k_vicap_dev_attr()
         self.chn_attr = [k_vicap_chn_attr() for i in range(0, VICAP_CHN_ID_MAX)]
         self.buf_init = [False for i in range(0, VICAP_CHN_ID_MAX)]
+        self.buf_in_init = False
         # set the default value
         self.dev_attr.buffer_num = CAM_DEFAULT_INPUT_BUF_NUM
         self.dev_attr.mode = VICAP_WORK_ONLINE_MODE
@@ -121,6 +122,16 @@ class camera:
         cls.cam_dev[dev_num].dev_attr.pipe_ctrl.bits.dnr3_enable = 0
         cls.cam_dev[dev_num].dev_attr.dw_enable = 0
         cls.cam_dev[dev_num].dev_attr.cpature_frame = 0
+
+        if ((cls.cam_dev[0].dev_attr.dev_enable + cls.cam_dev[1].dev_attr.dev_enable + cls.cam_dev[2].dev_attr.dev_enable) > 1):
+            for num in range(0, CAM_DEV_ID_MAX):
+                if not cls.cam_dev[num].dev_attr.dev_enable:
+                    continue
+                if cls.cam_dev[num].buf_in_init:
+                    continue
+                cls.set_inbufs(num, CAM_DEFAULT_INPUT_BUF_NUM)
+                cls.cam_dev[num].buf_in_init = True
+                print("MCM Device: ", num)
 
     # set_inbufs
     @classmethod
@@ -278,7 +289,6 @@ class camera:
         for dev_num in range(0, CAM_DEV_ID_MAX):
             if not cls.cam_dev[dev_num].dev_attr.dev_enable:
                 continue
-            cls.set_inbufs(dev_num, CAM_DEFAULT_INPUT_BUF_NUM)
             print("kd_mpi_vicap_set_dev_attr : ", dev_num)
             ret = kd_mpi_vicap_set_dev_attr(dev_num, cls.cam_dev[dev_num].dev_attr)
             if ret:
