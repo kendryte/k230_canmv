@@ -139,7 +139,7 @@ class Mp4Container:
             audio_track_info = k_mp4_track_info_s()
             audio_track_info.track_type = K_MP4_STREAM_AUDIO
             audio_track_info.time_scale = 1000
-            audio_track_info.audio_info.channels = 2
+            audio_track_info.audio_info.channels = CHANNELS
             if mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711U:
                 audio_track_info.audio_info.codec_id = K_MP4_CODEC_ID_G711U
             elif mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711A:
