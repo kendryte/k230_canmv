@@ -15,7 +15,6 @@ def camera_test():
     # use hdmi for display
     display.init(LT9611_1920X1080_30FPS)
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
-    camera.set_inbufs(CAM_DEV_ID_0, 4)
     out_width = 640
     out_height = 480
     # set camera out width align up with 16Bytes
@@ -35,7 +34,6 @@ def camera_test():
 
 
     camera.sensor_init(CAM_DEV_ID_1, CAM_OV5647_1920X1080_CSI1_30FPS_10BIT_USEMCLK_LINEAR)
-    camera.set_inbufs(CAM_DEV_ID_1, 4)
     out_width = 640
     out_height = 480
     # set camera out width align up with 16Bytes
