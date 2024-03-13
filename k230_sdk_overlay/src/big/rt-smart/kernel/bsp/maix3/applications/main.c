@@ -29,11 +29,7 @@ int main(void)
 #if CONFIG_ENABLE_USB_DEVICE
     extern void cdc_acm_msc_init(void);
     cdc_acm_msc_init();
-    // Wait until configured
-    while (!usb_device_is_configured())
-    {
-        rt_thread_delay(10);
-    }
+    rt_thread_delay(10);
 #endif
     msh_exec("/sdcard/app/micropython", 32);
     return 0;
