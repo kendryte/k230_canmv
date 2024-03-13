@@ -204,8 +204,8 @@ extern void mp_hal_stdout_tx_str_cooked(const char* str);
 volatile bool repl_script_running = false;
 
 STATIC int do_repl(void) {
-    mp_hal_stdout_tx_str_cooked(MICROPY_BANNER_NAME_AND_VERSION);
-    mp_hal_stdout_tx_str_cooked("; " MICROPY_BANNER_MACHINE);
+    mp_hal_stdout_tx_str_cooked("CanMV version: "CANMV_VER);
+    // mp_hal_stdout_tx_str_cooked("; " MICROPY_BANNER_MACHINE);
     mp_hal_stdout_tx_str_cooked("\nUse Ctrl-D to exit, Ctrl-E for paste mode\n");
 
     #if MICROPY_USE_READLINE == 1

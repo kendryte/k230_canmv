@@ -50,11 +50,19 @@ INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/inc
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/components/drivers
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/middleware/mp4_format/include
 
+-include $(BUILD)/CANMV_VER
+CANMV_VER = $(shell git describe --tags `git rev-list --tags --max-count=1`)-$(shell git rev-parse --short HEAD)
+ifneq ($(CANMV_VER),$(CANMV_VER_OLD))
+$(shell echo CANMV_VER_OLD=$(CANMV_VER) > $(BUILD)/CANMV_VER)
+$(shell touch core/main.c)
+endif
+CDEF = -DCANMV_VER="\"$(CANMV_VER)\""
+
 # compiler settings
 CWARN = -Wall -Werror
 CWARN += -Wno-int-conversion
 CFLAGS += -fopenmp -march=rv64imafdcv -mabi=lp64d -mcmodel=medany
-CFLAGS += $(INC) -std=gnu99 $(COPT) $(CFLAGS_EXTRA)
+CFLAGS += $(INC) -std=gnu99 $(COPT) $(CFLAGS_EXTRA) $(CDEF)
 
 NNCASEINC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/nncase/riscv64
 NNCASEINC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/nncase/riscv64/nncase/include
