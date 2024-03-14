@@ -18,6 +18,7 @@ class MuxerCfgStr:
         self.pic_width = 0
         self.pic_height = 0
         self.audio_payload_type = 0
+        self.video_start_timestamp = 0
         self.fmp4_flag = 0
 
 class Mp4CfgStr:
@@ -68,19 +69,19 @@ class Mp4Container:
     def Create(self, mp4Cfg):
         if mp4Cfg.type == K_MP4_CONFIG_MUXER:
             camera.set_outbufs(CAM_DEV_ID_0, CAM_CHN_ID_0, 6)
-            camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, mp4Cfg.muxerCfg.pic_width, mp4Cfg.muxerCfg.pic_height)
+            camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, mp4Cfg.muxerCfg.pic_width, mp4Cfg.muxerCfg.pic_height, alignment=12)
             camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
             self.venc.SetOutBufs(VENC_CHN_ID_0, 15, mp4Cfg.muxerCfg.pic_width, mp4Cfg.muxerCfg.pic_height)
             # audio init
             FORMAT = paInt16
-            CHANNELS = 2
-            RATE = 44100
+            CHANNELS = 1
+            RATE = 8000
             CHUNK = RATE//25
             self.pyaudio = PyAudio()
             self.pyaudio.initialize(CHUNK)
 
             if mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711U:
-                self.aenc = g711.Encoder(K_PT_G711A,CHUNK)
+                self.aenc = g711.Encoder(K_PT_G711U,CHUNK)
             elif mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711A:
                 self.aenc = g711.Encoder(K_PT_G711A,CHUNK)
 
@@ -138,7 +139,7 @@ class Mp4Container:
             audio_track_info = k_mp4_track_info_s()
             audio_track_info.track_type = K_MP4_STREAM_AUDIO
             audio_track_info.time_scale = 1000
-            audio_track_info.audio_info.channels = 2
+            audio_track_info.audio_info.channels = CHANNELS
             if mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711U:
                 audio_track_info.audio_info.codec_id = K_MP4_CODEC_ID_G711U
             elif mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711A:
@@ -181,25 +182,31 @@ class Mp4Container:
                 frame_data.data_length = self.idr_size
                 frame_data.time_stamp = self.idr_pts
                 self.get_idr = 1
+                self.video_start_timestamp = frame_data.time_stamp
             else:
                 self.venc.ReleaseStream(VENC_CHN_ID_0, self.stream_data)
                 return
 
+        frame_data.time_stamp = frame_data.time_stamp - self.video_start_timestamp
+        #print("video timestamp:",frame_data.time_stamp)
         ret = kd_mp4_write_frame(self.mp4_handle, self.mp4_video_track_handle, frame_data)
         if ret:
             raise OSError("Mp4Container, kd_mp4_write_frame failed.")
 
         self.venc.ReleaseStream(VENC_CHN_ID_0, self.stream_data)
 
-        # enc_data = self.aenc.encode(self.audio_stream.read())
-        # frame_data.codec_id = self.audio_payload_type
-        # frame_data.data = uctypes.addressof(enc_data)
-        # frame_data.data_length = len(enc_data)
-        # self.audio_timestamp += 40*1000
-        # frame_data.time_stamp = self.audio_timestamp
-        # ret = kd_mp4_write_frame(self.mp4_handle, self.mp4_audio_track_handle, frame_data)
-        # if ret:
-        #     raise OSError("Mp4Container, write audio stream failed.")
+        audio_data = self.audio_stream.read(block=False)
+        if (audio_data):
+            enc_data = self.aenc.encode(audio_data)
+            frame_data.codec_id = self.audio_payload_type
+            frame_data.data = uctypes.addressof(enc_data)
+            frame_data.data_length = len(enc_data)
+            frame_data.time_stamp = self.audio_timestamp
+            self.audio_timestamp += 40*1000
+            #print("audio timestamp:",frame_data.time_stamp)
+            ret = kd_mp4_write_frame(self.mp4_handle, self.mp4_audio_track_handle, frame_data)
+            if ret:
+                raise OSError("Mp4Container, write audio stream failed.")
 
     def Stop(self):
         camera.stop_stream(CAM_DEV_ID_0)
@@ -223,5 +230,4 @@ class Mp4Container:
             raise OSError("Mp4Container, kd_mp4_destroy failed.")
 
         self.venc.Destroy(VENC_CHN_ID_0)
-        kd_mpi_aenc_destroy_chn(0)
         media.buffer_deinit()

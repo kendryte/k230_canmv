@@ -37,13 +37,14 @@
 #include "machine_uart.h"
 #include "machine_pwm.h"
 #include "machine_wdt.h"
-#include "machine_gpio.h"
+#include "machine_pin.h"
 #include "machine_i2c.h"
 #include "machine_timer.h"
 #include "machine_adc.h"
 #include "machine_fft.h"
-#include "machine_iomux_fpioa.h"
+#include "machine_fpioa.h"
 #include "machine_spi.h"
+#include "machine_rtc.h"
 
 #if MICROPY_PY_MACHINE
 
@@ -104,13 +105,14 @@ STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_UART), MP_ROM_PTR(&machine_uart_type) },
     { MP_ROM_QSTR(MP_QSTR_PWM), MP_ROM_PTR(&machine_pwm_type) },
     { MP_ROM_QSTR(MP_QSTR_WDT), MP_ROM_PTR(&machine_wdt_type) },
-    { MP_ROM_QSTR(MP_QSTR_GPIO), MP_ROM_PTR(&machine_gpio_type) },
+    { MP_ROM_QSTR(MP_QSTR_Pin), MP_ROM_PTR(&machine_pin_type) },
     { MP_ROM_QSTR(MP_QSTR_FPIOA), MP_ROM_PTR(&machine_fpioa_type) },
     { MP_ROM_QSTR(MP_QSTR_I2C), MP_ROM_PTR(&machine_i2c_type) },
     { MP_ROM_QSTR(MP_QSTR_Timer), MP_ROM_PTR(&machine_timer_type) },
     { MP_ROM_QSTR(MP_QSTR_ADC), MP_ROM_PTR(&machine_adc_type) },
     { MP_ROM_QSTR(MP_QSTR_FFT), MP_ROM_PTR(&machine_fft_type) },
     { MP_ROM_QSTR(MP_QSTR_SPI), MP_ROM_PTR(&machine_spi_type) },
+    { MP_ROM_QSTR(MP_QSTR_RTC), MP_ROM_PTR(&machine_rtc_type) },
 };
 
 STATIC MP_DEFINE_CONST_DICT(machine_module_globals, machine_module_globals_table);

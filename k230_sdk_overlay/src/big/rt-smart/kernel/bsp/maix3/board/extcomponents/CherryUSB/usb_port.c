@@ -2,7 +2,6 @@
 
 #include "dfs_file.h"
 #include "dfs_poll.h"
-#include "rtdef.h"
 #include "rtthread.h"
 #include "rthw.h"
 
@@ -13,7 +12,6 @@
 #include "usb_config.h"
 #include "core/usbd_core.h"
 #include "usb_dc.h"
-#include "usb_log.h"
 #include <string.h>
 #include <unistd.h>
 
@@ -35,8 +33,8 @@ static void dcd_int_handler_wrap(int irq, void *param)
 }
 
 #define CDC_IN_EP  0x81
-#define CDC_OUT_EP 0x02
-#define CDC_INT_EP 0x83
+#define CDC_OUT_EP 0x01
+#define CDC_INT_EP 0x82
 
 #define DEV_NAME "ttyUSB1"
 
@@ -130,7 +128,6 @@ volatile rt_device_t sdcard_device = RT_NULL;
 
 void usb_dc_low_level_init(void)
 {
-    USB_LOG_WRN("Built %s %s\n", __DATE__, __TIME__);
     rt_device_t device = &g_cdc_rt_device;
     uint32_t *hs_reg = (uint32_t *)rt_ioremap((void *)(0x91585000 + 0x9C), 0x1000);
     *hs_reg = 0;
@@ -148,76 +145,7 @@ void usb_dc_low_level_init(void)
         return;
     }
     device->fops = &cdc_ops;
-
-#define MEMORY_MSC 1
-#if !MEMORY_MSC
-    // wait sdcard ready
-    //while (rt_device_find("sd") == RT_NULL) {
-    //    rt_thread_delay(10);
-    //}
-    sdcard_device = rt_device_find("sd");
-    if (sdcard_device == RT_NULL) {
-        rt_kprintf("[usb] find sdcard error\n");
-        goto skipsdcard;
-    }
-    if (rt_device_open(sdcard_device, RT_DEVICE_OFLAG_RDWR) != RT_EOK) {
-        rt_kprintf("[usb] open sdcard error\n");
-        goto skipsdcard;
-    }
-    struct rt_device_blk_geometry geometry;
-    if (rt_device_control(sdcard_device, RT_DEVICE_CTRL_BLK_GETGEOME, &geometry) != RT_EOK) {
-        rt_kprintf("[usb] sdcard RT_DEVICE_CTRL_BLK_GETGEOME error\n");
-        rt_device_close(sdcard_device);
-        goto skipsdcard;
-    }
-    rt_kprintf("[usb] sdcard sector: %u, bytes/sector: %u, block size: %u\n",
-        geometry.sector_count,
-        geometry.bytes_per_sector,
-        geometry.block_size
-    );
-skipsdcard:
-#endif
 }
-
-#if !MEMORY_MSC
-#define BLOCK_NUM 1024
-#define BLOCK_SIZE 512
-static uint8_t memory_msc[BLOCK_NUM][BLOCK_SIZE];
-
-void usbd_msc_get_cap(uint8_t lun, uint32_t *block_num, uint16_t *block_size)
-{
-    struct rt_device_blk_geometry geometry;
-    if (sdcard_device == RT_NULL) {
-        *block_num = 0;
-        *block_size = 0;
-    }
-    else if (rt_device_control(sdcard_device, RT_DEVICE_CTRL_BLK_GETGEOME, &geometry) == RT_EOK) {
-        // should be block_size?
-        *block_num = geometry.sector_count;
-        *block_size = geometry.bytes_per_sector;
-    } else {
-        *block_num = 0;
-        *block_size = 0;
-    }
-    rt_kprintf("[usb] MSC block num: %u, block size: %u\n", *block_num, *block_size);
-}
-
-int usbd_msc_sector_read(uint32_t sector, uint8_t *buffer, uint32_t length)
-{
-    if (sdcard_device == RT_NULL) {
-        return RT_EOK;
-    }
-    return rt_device_read(sdcard_device, sector, buffer, length);
-}
-
-int usbd_msc_sector_write(uint32_t sector, uint8_t *buffer, uint32_t length)
-{
-    if (sdcard_device == RT_NULL) {
-        return RT_EOK;
-    }
-    return rt_device_write(sdcard_device, sector, buffer, length);
-}
-#endif
 
 void usb_dc_low_level_deinit(void)
 {
@@ -225,11 +153,6 @@ void usb_dc_low_level_deinit(void)
     rt_sem_detach(&cdc_read_sem);
     rt_sem_detach(&cdc_write_sem);
     rt_mutex_detach(&cdc_write_mutex);
-}
-
-void usb_hc_low_level_init(void)
-{
-    usb_dc_low_level_init();
 }
 
 int usb_init(void)
@@ -251,6 +174,5 @@ int usb_init(void)
 #endif
 
     g_usb_otg_base = (uintptr_t)rt_ioremap_nocache((void *)0x91500000UL, 0x10000);
-
-    rt_kprintf("usb_init end\n");
+    return 0;
 }

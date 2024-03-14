@@ -106,8 +106,8 @@ prepare_sourcecode:prepare_toolchain
 #ai
 	@echo "download nncase sdk"
 	@rm -rf src/big/utils/; rm -rf src/big/ai;
-	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/kmodel/kmodel_v2.7.0.tgz -O - | tar -xzC src/big/
-	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/nncase/nncase_k230_v2.7.0.tgz -O - | tar -xzC src/big/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/kmodel/kmodel_v2.8.0.1.tgz -O - | tar -xzC src/big/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/nncase/nncase_k230_v2.8.0.tgz -O - | tar -xzC src/big/
 
 #big utils
 	@echo "download big utils"
@@ -125,7 +125,7 @@ prepare_sourcecode:prepare_toolchain
 	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/tunning_server/tuning-server-package_v0.1.1.tar.bz2 -O ${BUILDROOT_EXT_SRC_PATH}/package/tuning-server/tuning-server-package_v0.1.1.tar.bz2
 	@tar -jxf ${BUILDROOT_EXT_SRC_PATH}/package/tuning-server/tuning-server-package_v0.1.1.tar.bz2 -C ${POST_COPY_ROOTFS_PATH}/
 	@mkdir -p tools/tuning-tool-client/
-	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/tunning_tools/tunning_client/Kendyte_ISP_Tool_TuningClient_RC22.5_Pre_596062-20221116.7z -P tools/tuning-tool-client/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/tunning_tools/tunning_client/Kendyte_ISP_Tool_TuningClient-6.2.23.5-Win32-x86_64-10-26-2023-09.28.16.7z -P tools/tuning-tool-client/
 
 #buildroot
 	@echo "download buildroot dl"
@@ -511,7 +511,7 @@ build-image: defconfig  prepare_memory  check_src
 	cd $(K230_SDK_ROOT);
 
 .PHONY: clean
-clean: uboot-clean little-core-opensbi-clean linux-clean rt-smart-clean
+clean: uboot-clean little-core-opensbi-clean linux-clean rt-smart-clean buildroot-clean
 	@rm -rf defconfig
 	@rm -rf prepare_memory
 	@rm -rf $(BUILD_DIR)

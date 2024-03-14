@@ -197,7 +197,7 @@ def camera_init(dev_id):
 
     # set chn2 output rgb88planar
     camera.set_outsize(dev_id, CAM_CHN_ID_2, OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGHT)
-    camera.set_outfmt(dev_id, CAM_CHN_ID_2, PIXEL_FORMAT_BGR_888_PLANAR)
+    camera.set_outfmt(dev_id, CAM_CHN_ID_2, PIXEL_FORMAT_RGB_888_PLANAR)
 
 # camera 开启
 def camera_start(dev_id):

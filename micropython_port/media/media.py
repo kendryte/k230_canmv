@@ -186,6 +186,8 @@ class media:
         cls.buf_config.comm_pool[cls.config_index].blk_cnt = 4
         cls.buf_config.comm_pool[cls.config_index].mode = VB_REMAP_MODE_NOCACHE
         cls.config_index += 1
+
+        print("buffer pool : ", cls.config_index)
         ret = kd_mpi_vb_set_config(cls.buf_config)
         if ret:
             raise OSError(f"buffer_init, vb config failed({ret})")

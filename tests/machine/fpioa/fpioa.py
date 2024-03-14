@@ -1,27 +1,18 @@
 from machine import FPIOA
-a = FPIOA()
 
-
-a.help()
-for i in range(63):
-    a.help(i)
-
-for i in range(221):
-    a.get_Pin_num(i)
-
-a.help(60)
-a.set_function(60,a.GPIO60)
-a.help(60)
-
-a.set_function(60,set_sl=1,set_ie=0,set_oe=0,set_pd=1,set_pu=0,set_ds=6,set_st=0,set_di=1)
-a.help(60)
-try :
-    print(a.set_function(60,set_msc=0))
-
-except Exception as e:
-        print("set error ", e)
-
-a.help(60)
-
-
-
+# 实例化FPIOA
+fpioa = FPIOA()
+# 打印所有引脚配置
+fpioa.help()
+# 打印指定引脚详细配置
+fpioa.help(0)
+# 打印指定功能所有可用的配置引脚
+fpioa.help(FPIOA.IIC0_SDA, func=True)
+# 设置Pin0为GPIO0
+fpioa.set_function(0, FPIOA.GPIO0)
+# 设置Pin2为GPIO2, 同时配置其它项
+fpioa.set_function(2, FPIOA.GPIO2, ie=1, oe=1, pu=0, pd=0, st=1, sl=0, ds=7)
+# 获取指定功能当前所在的引脚
+fpioa.get_pin_num(FPIOA.UART0_TXD)
+# 获取指定引脚当前功能
+fpioa.get_pin_func(0)

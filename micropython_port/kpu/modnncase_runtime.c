@@ -38,6 +38,8 @@
 #include "ndarray.h"
 #include "ulab.h"
 
+#include <string.h>
+
 #if MICROPY_PY_NNCASE_RUNTIME
 
 
@@ -68,6 +70,15 @@ STATIC mp_obj_t mp_shrink_memory_pool()
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(mp_shrink_memory_pool_obj, mp_shrink_memory_pool);
 
+STATIC mp_obj_t mp_version()
+{
+    char* v = version();
+    mp_obj_t mp_v_string;
+    mp_v_string = mp_obj_new_str(v, strlen(v));
+    return MP_OBJ_TO_PTR(mp_v_string);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(mp_version_obj, mp_version);
+
 STATIC const mp_rom_map_elem_t nncase_runtime_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_nncase_runtime) },
     { MP_ROM_QSTR(MP_QSTR_kpu), MP_ROM_PTR(&kpu_type) },
@@ -77,6 +88,7 @@ STATIC const mp_rom_map_elem_t nncase_runtime_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_ai2d_format), MP_ROM_PTR(&ai2d_format_type) },
     { MP_ROM_QSTR(MP_QSTR_from_numpy), MP_ROM_PTR(&mp_from_numpy_obj) },
     { MP_ROM_QSTR(MP_QSTR_shrink_memory_pool), MP_ROM_PTR(&mp_shrink_memory_pool_obj) },
+    { MP_ROM_QSTR(MP_QSTR_version), MP_ROM_PTR(&mp_version_obj) },
 };
 
 STATIC MP_DEFINE_CONST_DICT(nncase_runtime_module_globals, nncase_runtime_module_globals_table);

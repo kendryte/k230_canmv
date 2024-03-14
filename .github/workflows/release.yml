@@ -3,6 +3,13 @@ name: K230 CanMV Release
 on:
   release:
     types: [released]
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
 
 defaults:
   run:
@@ -10,20 +17,92 @@ defaults:
 
 jobs:
   build_image:
-    name: Build
+    name: CanMV Build
     runs-on: [ubuntu-latest]
     timeout-minutes: 180
-    container:
-      image: ghcr.io/kendryte/k230_sdk:latest
-      env:
-        CONF: k230_${{ matrix.cfg }}_defconfig
-      options: --hostname release --user root
     strategy:
       matrix:
         cfg: ["canmv"]
+    env:
+        CONF: k230_${{ matrix.cfg }}_defconfig
     steps:
       - name: Check for dockerenv
         run: (ls /.dockerenv && echo Found dockerenv) || (echo No dockerenv)
+
+      - name: show runner file and release runner disk space
+        run: |
+          echo “show runner hostname”
+          hostname
+          echo “show runner user”
+          whoami
+          echo “show runner pwd”
+          pwd
+          echo “show runner kernel”
+          uname -a
+          echo "show runner disk usage BEFORE delete"
+          df -h /
+          echo "show disk usage BEFORE delete"
+          du -h -d 1 /usr/local | grep G || echo "skip error"
+          du -h -d 1 /usr/local/lib | grep G || echo "skip error"
+          du -h -d 1 /usr/share | grep G || echo "skip error"
+          du -h -d 1 /opt/ | grep G || echo "skip error"
+          du -h -d 1 /opt/hostedtoolcache | grep G || echo "skip error"
+          echo "show disk usage BEFORE delete"
+          echo "show removed directories disk usage"
+          du -h -d 0 /usr/share/dotnet/   || echo "dir not exist"
+          du -h -d 0 /usr/share/swift/  || echo "dir not exist"
+          du -h -d 0 /usr/local/.ghcup/  || echo "dir not exist"
+          du -h -d 0 /usr/local/share/powershell/  || echo "dir not exist"
+          du -h -d 0 /usr/local/share/chromium/  || echo "dir not exist"
+          du -h -d 0 /usr/local/lib/android/  || echo "dir not exist"
+          du -h -d 0 /usr/local/lib/node_modules/  || echo "dir not exist"
+          du -h -d 0 /opt/hostedtoolcache/  || echo "dir not exist"
+          ls  /opt/hostedtoolcache  || echo "dir not exist"
+          ls  /opt/microsoft  || echo "dir not exist"
+          echo “show /home/ dir in runner”
+          ls /home/
+          echo “show /home/runner/ dir in runner”
+          ls -alht /home/runner/  || echo "dir not exist"
+          echo “show /home/runner/work/ dir in runner”
+          ls -alht /home/runner/work/  || echo "dir not exist"
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+          # all of these default to true, but feel free to set to
+          # "false" if necessary for your workflow
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
+      - name: Delete file and release runner disk space
+        run: |
+          echo “show runner hostname”
+          hostname
+          echo “show runner user”
+          whoami
+          echo “show runner pwd”
+          pwd
+          echo “show runner kernel”
+          uname -a
+          echo "show disk usage BEFORE delete"
+          df -h /
+          echo "Removing large directories"
+          sudo rm -rf /usr/share/dotnet/ || echo "remove dotnet failed"
+          sudo rm -rf /usr/share/swift/ || echo "remove dotnet failed"
+          sudo rm -rf /usr/local/.ghcup/ || echo "remove ghcup failed"
+          sudo rm -rf /usr/local/share/powershell || echo "remove powershell failed"
+          sudo rm -rf /usr/local/share/chromium || echo "remove chromium failed"
+          sudo rm -rf /usr/local/lib/android || echo "remove android failed"
+          sudo rm -rf /usr/local/lib/node_modules || echo "remove node_modules failed"
+          sudo rm -rf /opt/hostedtoolcache || echo "remove hostedtoolcache failed"
+          echo "show disk usage AFTER delete"
+          df -h /
 
       - name: Install Nvm/Node for Actions Checkout Env
         run: |
@@ -42,7 +121,7 @@ jobs:
         with:
           fetch-depth: 0
           clean: true
-          submodules: true
+          submodules: recursive
 
       - name: Download Toolchain and Setup Build Env
         run: |
@@ -53,10 +132,14 @@ jobs:
           cd micropython || exit 1
           git submodule update --recursive --init || exit 1
           cd ../ || exit 1
+          cd micropython_port || exit 1
+          git submodule update --recursive --init || exit 1
+          cd ../ || exit 1
           echo "add safe dir for prepare_sourcecode use git command with permission error"
           git config --global --add safe.directory $PWD
           git config --global --add safe.directory $PWD/k230_sdk
           git config --global --add safe.directory $PWD/micropython
+          git config --global --add safe.directory $PWD/micropython_port/lvgl/lv_binding_micropython
           git config --global --list
           ls -alht
           echo "download toolchain and build env"
@@ -73,23 +156,58 @@ jobs:
           ls -alht /opt/toolchain/Xuantie-900-gcc-linux* || exit 1
           ls -alht /opt/toolchain/riscv64-linux* || exit 1
 
-      - name: Build image
+      - name: Build with docker
         run: |
+          echo “show runner hostname”
+          hostname
+          echo “show runner user”
+          whoami
+          echo “show runner pwd”
           pwd
-          ls -alht
-          echo "start to build k230 canmv image"
-          time make CONF=$CONF || exit 1
-          echo "---show output---"
-          ls -alht output/${CONF}/images || exit 1
+          echo “show runner kernel”
+          uname -a
+          docker run \
+            --workdir $PWD \
+            --name k230_sdk \
+            --hostname release \
+            --user root \
+            --volume /home/:/home \
+            --volume /opt:/opt \
+            ghcr.io/kendryte/k230_sdk:latest \
+            /bin/bash  -c "pwd; ls -alht; \
+              (ls /.dockerenv && echo Found dockerenv) || (echo No dockerenv); \
+              echo 'show docker hostname';hostname;  \
+              echo 'show docker user';whoami;  \
+              echo 'start to build k230 canmv image'; \
+              git config --global --add safe.directory $PWD; \
+              git config --global --add safe.directory $PWD/k230_sdk; \
+              git config --global --add safe.directory $PWD/micropython; \
+              git config --global --add safe.directory $PWD/micropython_port/lvgl/lv_binding_micropython; \
+              time make CONF=$CONF || exit 1; \
+              echo '---show docker build output---'; \
+              ls -alht output/${CONF}/images || exit 1"
 
       - name: Show Output Directory For Debug Purpose
         run: |
+          echo “show runner hostname”
+          hostname
+          echo “show runner user”
+          whoami
+          echo “show runner pwd”
           pwd
-          ls -alht
+          echo “show runner kernel”
+          uname -a
+          echo “show runner pwd file list”
+          ls
           ls -alht output/${CONF}/images/
+          echo "k230 sdk version:"
+          cat output/${CONF}/images/little-core/rootfs/etc/version/release_version || echo "k230 sdk version file not exist"
           # Copy compiled files to /github/workspace/artifacts
-          mkdir -p /github/workspace/artifacts
-          cp output/${CONF}/images/*.img.gz /github/workspace/artifacts/
+          sudo mkdir -p /github/workspace/artifacts
+          sudo chown -R $(id -u):$(id -g) /github/workspace/artifacts
+          sudo chmod -R 755 /github/workspace/artifacts
+          cp output/${CONF}/images/CanMV*.img.gz /github/workspace/artifacts/
+          cp output/${CONF}/images/little-core/rootfs/etc/version/release_version /github/workspace/artifacts/k230_sdk_version.txt || echo "k230 sdk version file not exist"
           ls -alht /github/workspace/artifacts/
         shell: bash
 
@@ -101,7 +219,8 @@ jobs:
 
   upload_release:
     needs: build_image
-    name: Release
+    name: CanMV Release
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     steps:
 
@@ -117,15 +236,101 @@ jobs:
 
       - name: Show Working Directory For Debug Purpose
         run: |
+          echo “show runner hostname”
+          hostname
+          echo “show runner user”
+          whoami
+          echo “show runner pwd”
           pwd
+          echo “show runner kernel”
+          uname -a
+          echo “show runner pwd file list”
+          ls
           ls -alht
+          echo “show runner artifacts”
           ls -alht artifacts || exit 0
-        shell: bash
+          echo "github.ref: ${{github.ref}} "
 
       - name: Upload images to Release Asset
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.CR_PAT }}
 
+  pre_release:
+    needs: build_image
+    name: CanMV PreRelease
+    if: ${{ github.ref_name == 'dev' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: artifacts-*
+          merge-multiple: true
+
+      - name: Display Structure of Artifacts Files
+        run: ls -R
+
+      - name: Show Working Directory For Debug Purpose
+        run: |
+          echo “show runner hostname”
+          hostname
+          echo “show runner user”
+          whoami
+          echo “show runner pwd”
+          pwd
+          echo “show runner kernel”
+          uname -a
+          echo “show runner pwd file list”
+          ls
+          ls -alht
+          echo “show runner artifacts”
+          ls -alht artifacts || exit 0
+
+      - name: Delete current prerelease assets
+        uses: andreaswilli/delete-release-assets-action@main
+        with:
+          github_token: ${{ secrets.CR_PAT }}
+          tagPrefix: 'PreRelease-'
+          tag: ${{ github.ref_name }}
+          deleteOnlyFromDrafts: false
+
+      - name: Set Env
+        run: |
+          echo "BUILDTIME=$(TZ=Asia/Shanghai date)" >> $GITHUB_ENV
+
+      - name: Tag Repo
+        uses: richardsimko/update-tag@v1
+        with:
+          tag_name: PreRelease-${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.CR_PAT }}
+
+      - name: Set Relese Txt
+        run: |
+          cat > prerelease.txt << 'EOF'
+          Pre Release基于最新的开发分支dev branch自动编译，并会自动删除旧的编译，只保留当前最新镜像，仅供测试使用
+          Pre Release build with  latest ${{ github.ref_name }} branch, it will delete old build and only keeping the latest version.
+          Current ${{ github.ref_name }} branch build at ${{ env.BUILDTIME }} , Current build git commit id ${{ github.sha }}
+          <br>
+          [k230_canmv](https://github.com/kendryte/k230_canmv)
+          [k230_canmv_docs](https://github.com/kendryte/k230_canmv_docs)
+          [k230_sdk](https://github.com/kendryte/k230_sdk)
+          [k230_sdk_docs](https://github.com/kendryte/k230_sdk_docs)
+          EOF
+
+      - name: Upload images to PreRelease Asset
+        uses: softprops/action-gh-release@v2
+        if: ${{  success() }}
+        with:
+          tag_name: PreRelease-${{ github.ref_name }}
+          files: |
+            artifacts/*
+          prerelease: true
+          generate_release_notes: true
+          body_path: prerelease.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.CR_PAT }}

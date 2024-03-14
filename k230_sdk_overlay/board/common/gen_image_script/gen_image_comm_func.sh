@@ -2,6 +2,31 @@
 source ${K230_SDK_ROOT}/.config
 source ${K230_SDK_ROOT}/.last_conf
 
+gz_file_add_ver()
+{
+	[ $# -lt 1 ] && return
+	local f="$1"
+	
+	local sdk_ver="v0.0.0";
+	local nncase_ver="0.0.0";
+	local sdk_ver_file="${K230_SDK_ROOT}/board/common/post_copy_rootfs/etc/version/release_version"
+	local nncase_ver_file="${K230_SDK_ROOT}/src/big/nncase/riscv64/nncase/include/nncase/version.h"
+	local storage="$(echo "$f" | sed -nE "s#[^-]*-([^\.]*).*#\1#p")"
+	local conf_name="${CONF%%_defconfig}"
+	local micropython_ver="v0.4";
+	cd ${K230_CANMV_ROOT};
+	git describe --tags `git rev-list --tags --max-count=1` && micropython_ver=$(git describe --tags `git rev-list --tags --max-count=1`)
+	git describe --tags --exact-match  && micropython_ver=$(git describe --tags --exact-match)
+	cd - 
+
+	cat ${sdk_ver_file} | grep v | cut -d- -f 1 > /dev/null && \
+	 	sdk_ver=$(cat ${sdk_ver_file} | grep v | cut -d- -f 1)
+	cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2 > /dev/null && \
+		 nncase_ver=$(cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2)
+	rm -rf  ${conf_name}_${storage}_${sdk_ver}_nncase_v${nncase_ver}.img.gz;
+	rm -rf CanMV-K230_micropython_*;
+	ln -s  $f CanMV-K230_micropython_${micropython_ver}_sdk_${sdk_ver}_nncase_v${nncase_ver}.img.gz;
+}
 
 #依赖 BUILD_DIR，K230_SDK_ROOT
 copye_file_to_images()
@@ -59,6 +84,10 @@ gen_version()
 
 	local ver_file="etc/version/release_version"
 	local post_copy_rootfs_dir="${K230_SDK_ROOT}/board/common/post_copy_rootfs"
+	local nncase_ver="0.0.0";
+	local nncase_ver_file="${K230_SDK_ROOT}/src/big/nncase/riscv64/nncase/include/nncase/version.h"
+	cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2 > /dev/null && \
+		 nncase_ver=$(cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2)
 	
 
 	cd  "${BUILD_DIR}/images/little-core/rootfs" ; 
@@ -66,7 +95,7 @@ gen_version()
 
 
 	set +e; commitid=$(awk -F- '/^[^#]/ { print $6}' ${post_copy_rootfs_dir}/${ver_file});set -e;
-	set +e; last_tag=$(awk -F- '/^[^#]/ { print $1}' ${post_copy_rootfs_dir}/${ver_file}) ;set -e;
+	set +e; last_tag=$(awk -F- '/^[^#]/ { print $1}' ${post_copy_rootfs_dir}/${ver_file} | head -1 ) ;set -e;
 	
 
 	[ "${commitid}" != "" ] || commitid="unkonwn"
@@ -74,10 +103,12 @@ gen_version()
 
 	git rev-parse --short HEAD  &&  commitid=$(git rev-parse --short HEAD) 
 	git describe --tags `git rev-list --tags --max-count=1` && last_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+	git describe --tags --exact-match  && last_tag=$(git describe --tags --exact-match)
 
 	ver="${last_tag}-$(date "+%Y%m%d-%H%M%S")-$(whoami)-$(hostname)-${commitid}"
 	echo -e "#############SDK VERSION######################################" >${ver_file}
 	echo -e ${ver} >> ${ver_file}
+	echo -e "nncase:${nncase_ver}" >> ${ver_file}
 	echo -e "##############################################################" >>${ver_file}
 	echo "build version: ${ver}"
 
@@ -197,7 +228,7 @@ gen_linux_bin ()
 	ROOTFS_END=`printf "0x%x" $ROOTFS_END`
 	sed -i "s/linux,initrd-end = <0x0 .*/linux,initrd-end = <0x0 $ROOTFS_END>;/g" hw/k230.dts.txt
 
-	${LINUX_BUILD_DIR}/scripts/dtc/dtc -I dts -O dtb hw/k230.dts.txt  >k230.dtb;		
+	${LINUX_BUILD_DIR}/scripts/dtc/dtc -I dts -q -O dtb hw/k230.dts.txt  >k230.dtb;		
 	k230_gzip fw_payload.bin;
 	echo a>rd;
 	${mkimage} -A riscv -O linux -T multi -C gzip -a ${CONFIG_MEM_LINUX_SYS_BASE} -e ${CONFIG_MEM_LINUX_SYS_BASE} -n linux -d fw_payload.bin.gz:rd:k230.dtb  ulinux.bin;
@@ -269,6 +300,7 @@ gen_image()
 	rm -rf "${GENIMAGE_TMP}"  
 	gzip -k -f ${image_name}
 	chmod a+rw ${image_name} ${image_name}.gz;
+	gz_file_add_ver ${image_name}.gz
 }
 
 gen_image_spinor_proc_ai_mode()
@@ -384,9 +416,16 @@ shrink_rootfs_common()
 	rm -rf usr/bin/otp_test_demo;
 	rm -rf usr/bin/iotwifi*;
 	rm -rf usr/bin/i2c-tools.sh;
+	rm -rf usr/bin/hostapd_cli
+	rm -rf usr/bin/*test*
+	rm -rf usr/bin/k230_timer_demo
+	rm -rf usr/bin/gpio_keys_demo
 	rm -rf mnt/*;
 	rm -rf app/;
 	rm -rf lib/tuning-server;	
+	rm -rf usr/sbin/wpa_supplicant usr/sbin/hostapd;
+	rm -rf usr/bin/wdt_test_demo;
+    rm -rf usr/bin/swupdate
 	rm -rf usr/bin/stress-ng  bin/bash usr/sbin/sshd usr/bin/trace-cmd usr/bin/lvgl_demo_widgets;
 	rm -rf usr/lib/libcrypto.so.1.1 usr/bin/ssh  etc/ssh/moduli  usr/lib/libssl.so.1.1 usr/bin/ssh-keygen \
 		usr/libexec/ssh-keysign  usr/bin/ssh-keyscan  usr/bin/ssh-add usr/bin/ssh-agent usr/libexec/ssh-pkcs11-helper\

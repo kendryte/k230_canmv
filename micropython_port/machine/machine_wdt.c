@@ -58,7 +58,7 @@ STATIC uint8_t used[WDT_DEVICE_MAX];
 
 STATIC void mp_machine_wdt_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     machine_wdt_obj_t *self = self_in;
-    mp_printf(print, "WDT: id=%d, timeout=%ds", self->id, self->timeout);
+    mp_printf(print, "WDT %u: timeout=%ds", self->id, self->timeout);
 }
 
 STATIC mp_obj_t mp_machine_wdt_make_new(const mp_obj_type_t *type_in, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
