@@ -296,7 +296,7 @@ jobs:
           github_token: ${{ secrets.CR_PAT }}
           tagPrefix: 'PreRelease-'
           tag: ${{ github.ref_name }}
-          deleteOnlyFromDrafts: true
+          deleteOnlyFromDrafts: false
 
       - name: Set Env
         run: |
