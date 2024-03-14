@@ -56,6 +56,15 @@ dev_release:
   extends:
     - .sync_github_gitee
 
+# schedule daily build sync
+download_release:
+  stage: publish
+  rules:
+    # daily build
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  extends:
+    - .sync_download_dir
+
 .sync_github_gitee:
   timeout: 30m
   script:
@@ -81,6 +90,16 @@ dev_release:
     - git push --atomic --tags -u -f gitee ${BRANCH} || git push --atomic --tags -u -f gitee ${BRANCH} || git push --atomic --tags -u -f gitee ${BRANCH}
     - echo "---push to github---"
     - git push --atomic --tags -u -f github ${BRANCH} || git push --atomic --tags -u -f github ${BRANCH} || git push --atomic --tags -u -f github ${BRANCH}
+
+.sync_download_dir:
+  timeout: 60m
+  script:
+    - cd $CI_PROJECT_DIR
+    - ls -alht
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/release/sync_file.sh -O ./sync_file.sh
+    - chmod +x ./sync_file.sh
+    - time ./sync_file.sh || time ./sync_file.sh
+    - echo "all file synced"
 
 .show_vars: &show_vars
   - echo "${JOB_TYPE}"
