@@ -137,7 +137,7 @@ STATIC mp_obj_t machine_fft_run(size_t n_args, const mp_obj_t *pos_args, mp_map_
     mp_obj_list_t* ret_list = (mp_obj_list_t*)m_new(mp_obj_list_t,sizeof(mp_obj_list_t));//m_new
     mp_obj_list_init(ret_list, 0);
     mp_obj_t tuple_1[2];
-    for (int i = 0; i < self->points / 2; i++)
+    for (int i = 0; i < self->points ; i++)
     {
         tuple_1[0] = mp_obj_new_int(self->o_h_real[i]);
         tuple_1[1] = mp_obj_new_int(self->o_h_imag[i]);
@@ -183,7 +183,7 @@ MP_DEFINE_CONST_FUN_OBJ_KW(machine_fft_freq_obj,1, machine_fft_freq);
 
 STATIC mp_obj_t machine_fft_amplitude(mp_obj_t self_o,const mp_obj_t list_obj)
  {
-    // machine_gpio_obj_t *self = MP_OBJ_TO_PTR(self_o);
+    machine_fft_obj_t *self = MP_OBJ_TO_PTR(self_o);
     if(&mp_type_list != mp_obj_get_type(list_obj))
     {
         mp_raise_ValueError("[CANMV]FFT:obj is not a list");
@@ -201,8 +201,22 @@ STATIC mp_obj_t machine_fft_amplitude(mp_obj_t self_o,const mp_obj_t list_obj)
         uint32_t r_val = MP_OBJ_SMALL_INT_VALUE(tuple->items[0]);
         uint32_t i_val = MP_OBJ_SMALL_INT_VALUE(tuple->items[1]);
         uint32_t amplitude = sqrt(r_val * r_val + i_val * i_val);
+        uint32_t hard_power = 0;
         //Convert to power
-        uint32_t hard_power = 2*amplitude/list->len;
+        if(index == 0)
+            hard_power = amplitude/list->len;            
+        else 
+            hard_power = 2*amplitude/list->len;
+
+        if(self->shift){
+            uint32_t num_one = 0;
+            uint32_t i = 0;
+            for (i=0;i < log2(self->points); i++ )
+                if(self->shift & (1<<i) )
+                    num_one++;            
+            hard_power = hard_power<<num_one;
+            
+        }            
         mp_obj_list_append(ret_list,mp_obj_new_int(hard_power));
     }
     return MP_OBJ_FROM_PTR(ret_list);
