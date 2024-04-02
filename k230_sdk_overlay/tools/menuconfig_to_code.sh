@@ -412,8 +412,12 @@ function modify_uboot_file()
 		echo "Modify file: ${UBOOT_DTS_PATH}"
 
         sed -i "s/.*0x.*MEM_LINUX_SYS.*$/\/\*0x0 ${OPENSBI_LINUX_BASE} 0x0 ${OPENSBI_LINUX_SIZE} \*\/ \/\*MEM_LINUX_SYS\*\//g" ${UBOOT_DTS_PATH}
-        sed -i "s/.*0x.*MEM_RTT_SYS.*$/0x0 ${OPENSBI_RTT_BASE} 0x0 ${OPENSBI_RTT_SIZE}  \/\*MEM_RTT_SYS\*\//g" ${UBOOT_DTS_PATH}
-
+        if (( ${OPENSBI_RTT_SIZE}  < 0x6000000 ))  ; then             
+            sed -i "s/.*0x.*MEM_RTT_SYS.*$/0x0 ${OPENSBI_RTT_BASE} 0x0 0x8000000  \/\*MEM_RTT_SYS\*\//g" ${UBOOT_DTS_PATH};
+        else
+            sed -i "s/.*0x.*MEM_RTT_SYS.*$/0x0 ${OPENSBI_RTT_BASE} 0x0 ${OPENSBI_RTT_SIZE}  \/\*MEM_RTT_SYS\*\//g" ${UBOOT_DTS_PATH}            
+        fi;       
+        
 
 		echo "Modify file: ${UBOOT_DEFCONFIG}"
 		sed -i "s/CONFIG_SYS_TEXT_BASE=.*$/CONFIG_SYS_TEXT_BASE=${OPENSBI_LINUX_BASE}/g" ${K230_SDK_ROOT}/src/little/uboot/configs/${UBOOT_DEFCONFIG}
@@ -461,6 +465,7 @@ function modify_big_code()
 		##define RT_HW_HEAP_END      ((void *)(((rt_size_t)RT_HW_HEAP_BEGIN) + 4 * 1024 * 1024))
 		#((void *)(((rt_size_t)RT_HW_HEAP_BEGIN) + ${RT_HW_HEAP_END_SIZE} ))
 		RT_HW_HEAP_END_SIZE="0x2000000"
+        if(( $CONFIG_MEM_RTT_SYS_SIZE <= 0x4000000 )) ;then RT_HW_HEAP_END_SIZE="0x400000"; fi;
 		if [ "${CONFIG_BOARD_K230D}" = "y" ]; then RT_HW_HEAP_END_SIZE="0x400000"; fi;
 		if [ "${CONFIG_BOARD_NAME}" = "k230_evb_doorlock" ]; then RT_HW_HEAP_END_SIZE="0x400000"; fi;       
 		if [ "${CONFIG_BOARD_NAME}" = "k230_evb_peephole_device" ]; then RT_HW_HEAP_END_SIZE="0x400000"; fi;       
@@ -470,7 +475,8 @@ function modify_big_code()
 		# ipc 
 		MEM_CFG_IPCM_RTT="${RTSMART_SRC_DIR}/kernel/bsp/maix3/board/board.c"
 		IPCM_BASE="$( printf '0x%x\n' $[${CONFIG_MEM_IPCM_BASE}+0])"
-		IPCM_SIZE="$( printf '0x%x\n' $[${CONFIG_MEM_IPCM_SIZE}-${CONFIG_MEM_BOUNDARY_RESERVED_SIZE}])"
+        IPCM_SIZE="0"
+        if (( ${CONFIG_MEM_IPCM_SIZE} > ${CONFIG_MEM_BOUNDARY_RESERVED_SIZE} ))  ; then IPCM_SIZE="$( printf '0x%x\n' $[${CONFIG_MEM_IPCM_SIZE}-${CONFIG_MEM_BOUNDARY_RESERVED_SIZE}])";fi;
 		
 		echo "Modify file: ${MEM_CFG_IPCM_RTT}"
 		sed -i "s/#define MEM_IPCM_BASE.*$/#define MEM_IPCM_BASE ${IPCM_BASE}/g" ${MEM_CFG_IPCM_RTT}

@@ -103,10 +103,16 @@ unsigned long get_CONFIG_PLAIN_ADDR(void)
 sysctl_boot_mode_e g_bootmod = SYSCTL_BOOT_MAX;
 
 #ifdef USE_UBOOT_BOOTARGS
+__weak char *fdt_chosen_bootargs(void)
+{
+	return NULL;
+}
 //weak function
 char *board_fdt_chosen_bootargs(void){
     char *bootargs = env_get("bootargs");
     if(NULL == bootargs) {
+        if((bootargs = fdt_chosen_bootargs())!=NULL)
+            return bootargs;
         if(g_bootmod == SYSCTL_BOOT_SDIO0)
             bootargs = "root=/dev/mmcblk0p3 loglevel=8 rw rootdelay=4 rootfstype=ext4 console=ttyS0,115200 crashkernel=256M-:128M earlycon=sbi";
         else if(g_bootmod == SYSCTL_BOOT_SDIO1)
@@ -139,9 +145,9 @@ static int k230_boot_decomp_to_load_addr(image_header_t *pUh, ulong des_len, ulo
     K230_dbg("imge: %s load to %x  compress =%x  src %lx len=%lx  \n", image_get_name(pUh), image_get_load(pUh), image_get_comp(pUh), data, *plen);    
     return ret;
 }
-void dereset_core1(ulong addr)
+static int  de_reset_big_core(ulong core_run_addr)
 {
-     /*
+    /*
     p/x *(uint32_t*)0x9110100c
     set  *(uint32_t*)0x9110100c=0x10001000    //清 done bit
     set *(uint32_t*)0x9110100c=0x10001       //设置 reset bit
@@ -149,7 +155,7 @@ void dereset_core1(ulong addr)
     set   *(uint32_t*)0x9110100c=0x10000       //清 reset bit
     p/x *(uint32_t*)0x9110100c
     */
-    writel(addr, (void*)0x91102104ULL);//cpu1_hart_rstvec 设置大核的解复位向量，复位后程序执行位置；
+    writel(core_run_addr, (void*)0x91102104ULL);//cpu1_hart_rstvec 设置大核的解复位向量，复位后程序执行位置；
     //printf("0x91102104 =%x 0x9110100c=%x\n", readl( (void*)0x91102104ULL), readl( (void*)0x9110100cULL));
 
     //writel(0x80199805, (void*)0x91100004); //1.6Ghz
@@ -160,7 +166,7 @@ void dereset_core1(ulong addr)
     writel(0x10000, (void *)0x9110100cULL); ////清 reset bit  
     //printf("0x9110100c =%x\n", readl( (void*)0x9110100cULL));
     //printf("reset big hart\n");
-
+    return 0;
 }
 
 
@@ -181,8 +187,8 @@ static int k230_boot_rtt_uimage(image_header_t *pUh)
     ret = k230_boot_decomp_to_load_addr(pUh, 0x6000000, data, &len );
     g_big_core_reset_add = image_get_load(pUh);
     if( ret == 0){
-        #ifndef DELAY_DE_RESET_CORE1
-        dereset_core1(g_big_core_reset_add);
+        #if (!defined (CONFIG_SUPPORT_LINUX)) ||  (!defined (DELAY_DE_RESET_CORE1))
+        de_reset_big_core(g_big_core_reset_add);
         #endif 
     }
     return 0;
@@ -227,8 +233,8 @@ static int k230_boot_linux_uimage(image_header_t *pUh)
 
         cleanup_before_linux();//flush cache，
         kernel = (void (*)(ulong, void *))img_load_addr;
-        #ifdef DELAY_DE_RESET_CORE1
-        dereset_core1(g_big_core_reset_add);
+        #if defined( DELAY_DE_RESET_CORE1) && defined (CONFIG_SUPPORT_RTSMART)
+        de_reset_big_core(g_big_core_reset_add);
         #endif 
         //do_timeinfo(0,0,0,0); 
         kernel(0, (void*)OPENSBI_DTB_ADDR);
@@ -274,6 +280,13 @@ static int k230_boot_uboot_uimage(image_header_t *pUh)
 
         uboot = (void (*)(ulong, void *))(ulong)image_get_load(pUh);
         //do_timeinfo(0,0,0,0); 
+        #if defined(CONFIG_LINUX_RUN_CORE_ID) && (CONFIG_LINUX_RUN_CORE_ID == 1)
+        de_reset_big_core(image_get_load(pUh));
+        while(1)
+        {
+            asm volatile("wfi");
+        }
+        #endif 
         uboot(0, (void*)OPENSBI_DTB_ADDR);
     }
     return 0;
@@ -487,7 +500,7 @@ static int k230_check_and_get_plain_data(firmware_head_s *pfh, ulong *pplain_add
 
 
 #ifdef SUPPORT_MMC_LOAD_BOOT
-static ulong get_blk_start_by_boot_firmre_type(en_boot_sys_t sys)
+__weak ulong get_blk_start_by_boot_firmre_type(en_boot_sys_t sys)
 {
     ulong blk_s = IMG_PART_NOT_EXIT;
     switch (sys){
@@ -552,7 +565,7 @@ static int k230_load_sys_from_mmc_or_sd(en_boot_sys_t sys, ulong buff)//(ulong o
 }
 
 #endif  //SUPPORT_MMC_LOAD_BOOT
-static ulong get_flash_offset_by_boot_firmre_type(en_boot_sys_t sys)
+__weak ulong get_flash_offset_by_boot_firmre_type(en_boot_sys_t sys)
 {
     ulong offset = 0xffffffff;
     switch (sys){
@@ -640,7 +653,9 @@ static int k230_load_sys_from_spi_nor( en_boot_sys_t sys, ulong buff)
      }
     return ret;
 }
-static ulong get_nand_start_by_boot_firmre_type(en_boot_sys_t sys)
+#ifdef CONFIG_ENV_SPINAND_NAME
+#define SPINAND_NAME CONFIG_ENV_SPINAND_NAME
+__weak ulong get_nand_start_by_boot_firmre_type(en_boot_sys_t sys)
 {
     ulong blk_s = IMG_PART_NOT_EXIT;
     switch (sys){
@@ -657,49 +672,98 @@ static ulong get_nand_start_by_boot_firmre_type(en_boot_sys_t sys)
 	} 
     return blk_s;
 }
+static struct mtd_info *get_mtd_by_name(const char *name)
+{
+	struct mtd_info *mtd;
+	mtd_probe_devices();
+	mtd = get_mtd_device_nm(name);
+	if (IS_ERR_OR_NULL(mtd))
+		printf("MTD device %s not found, ret %ld\n", name,
+		       PTR_ERR(mtd));
+	return mtd;
+}
 static int k230_load_sys_from_spi_nand( en_boot_sys_t sys, ulong buff)
 {
     //g_bootmod
     int ret = 0;
     static struct mtd_info *boot_flash=NULL;
     struct udevice *new, *bus_dev;
-
+    u_char *buf = (u_char *)buff;
     firmware_head_s *pfh = (firmware_head_s *)buff;
     ulong off = get_nand_start_by_boot_firmre_type(sys); //(sys == BOOT_SYS_LINUX) ? LINUX_SYS_IN_SPI_NAND_OFF : RTT_SYS_IN_SPI_NAND_OFF;
+    size_t end = 0;
     size_t len = sizeof(*pfh);
     size_t lenth ;
 
     if( IMG_PART_NOT_EXIT == off)
         return IMG_PART_NOT_EXIT;
 
-    if(boot_flash == NULL){
-        /* speed and mode will be read from DT */
-        ret = spi_flash_probe_bus_cs(CONFIG_SF_DEFAULT_BUS, CONFIG_SF_DEFAULT_CS,
-                        &new);
-        if (ret) {
-            env_set_default("spi_flash_probe_bus_cs() failed", 0);
-            return ret;
-        }
-        boot_flash = dev_get_uclass_priv(new);
+    size_t amount_loaded = 0;
+	size_t blocksize;
+	static struct mtd_info *mtd;
+	u_char *char_ptr;
+	struct mtd_oob_ops io_op = {};
+
+	mtd = get_mtd_by_name(SPINAND_NAME);
+	if (IS_ERR_OR_NULL(mtd)){
+        printf("k230_load_sys_from_spi_nand error \n");
+        return 1;
     }
 
-    ret = nand_read(boot_flash, off, &len, (void *)pfh);
+	blocksize = mtd->erasesize;
+	io_op.mode = MTD_OPS_AUTO_OOB;
+	io_op.len = mtd->writesize;;
+	io_op.ooblen = 0;
+	io_op.oobbuf = NULL;
+    end = off+len;
+	while (off < end) {
+		if (mtd_block_isbad(mtd, off)) {
+			off += blocksize;
+		} else {
+			io_op.datbuf = &buf[amount_loaded];
+			if (mtd_read_oob(mtd, off, &io_op)){
+                printf("read firmware head error\n");
+                ret = 2;
+				goto out_put_mtd;
+            }
 
-    if(ret || (pfh->magic != MAGIC_NUM) ){
+			off += io_op.retlen;
+			amount_loaded += io_op.retlen;
+		}
+	}
+    if(pfh->magic != MAGIC_NUM){
         K230_dbg("pfh->magic 0x%x != 0x%x off=0x%lx buff=0x%lx ", pfh->magic, MAGIC_NUM, off, buff);
-        return 5;
+        ret = 5;
+        goto out_put_mtd;
+    }
+    if(pfh->length > mtd->writesize - sizeof(*pfh))
+    {
+        end = off+pfh->length - (mtd->writesize - sizeof(*pfh));
+        while (off < end) {
+            if (mtd_block_isbad(mtd, off)) {
+                off += blocksize;
+            } else {
+                io_op.datbuf = &buf[amount_loaded];
+                if (mtd_read_oob(mtd, off, &io_op)){
+                    printf("read firmware error\n");
+                    goto out_put_mtd;
+                }
+                off += io_op.retlen;
+                amount_loaded += io_op.retlen;
+            }
+        }
     }
 
-    lenth = round_up(pfh->length,2);
-    ret = nand_read(boot_flash, off+sizeof(*pfh), &lenth, (void*)(buff+sizeof(*pfh)));
-    if(sys== BOOT_SYS_LINUX){
-        ret = spi_find_bus_and_cs(CONFIG_SF_DEFAULT_BUS, CONFIG_SF_DEFAULT_CS, &bus_dev, &new);
-        device_remove(new, DM_REMOVE_NORMAL);
-        boot_flash = NULL;
-     }
-
+out_put_mtd:
+	put_mtd_device(mtd);
     return ret;
 }
+#else
+static int k230_load_sys_from_spi_nand( en_boot_sys_t sys, ulong buff)
+{
+    return IMG_PART_NOT_EXIT;
+}
+#endif
 int k230_img_load_sys_from_dev(en_boot_sys_t sys, ulong buff)
 {
     int ret = 0;
@@ -714,7 +778,7 @@ int k230_img_load_sys_from_dev(en_boot_sys_t sys, ulong buff)
 
     return ret;
 }
-static int k230_img_load_boot_sys_auot_boot(en_boot_sys_t sys)
+__weak int k230_img_load_boot_sys_auot_boot(en_boot_sys_t sys)
 {
     int ret = 0;
     #if defined(CONFIG_SPI_NOR_SUPPORT_CFG_PARAM)
@@ -734,7 +798,12 @@ static int k230_img_load_boot_sys_auot_boot(en_boot_sys_t sys)
     
     #if  defined(CONFIG_SUPPORT_RTSMART) && !defined(CONFIG_SUPPORT_LINUX)
     if(ret == 0)
-        while(1) udelay(100);
+    {
+        while(1)
+        {
+            asm volatile("wfi");
+        }
+    }
     #endif 
 
 
