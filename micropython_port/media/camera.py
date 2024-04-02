@@ -2,6 +2,7 @@ from mpp.vicap import *
 from mpp import *
 from media.media import *
 import image
+import sys
 
 CAM_CHN0_OUT_WIDTH_MAX = 3072
 CAM_CHN0_OUT_HEIGHT_MAX = 2160
@@ -52,9 +53,12 @@ CAM_SENSOR_TYPE_MAX = SENSOR_TYPE_MAX
 
 # the default sensor type
 CAM_DEFAULT_SENSOR = CAM_OV5647_1920X1080_30FPS_10BIT_USEMCLK_LINEAR
+if "K230d_canmv" in sys.implementation[2] :  CAM_DEFAULT_SENSOR = CAM_OV5647_1920X1080_30FPS_10BIT_LINEAR
 
 #
 CAM_DEFAULT_OUTPUT_BUF_NUM = 6
+if "_outbuf4" in sys.implementation[2] : CAM_DEFAULT_OUTPUT_BUF_NUM = 4
+
 CAM_DEFAULT_INPUT_BUF_NUM = 4
 
 

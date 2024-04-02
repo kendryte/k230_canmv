@@ -16,6 +16,9 @@ import gc, os, sys
 
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
+if "K230d_canmv" in sys.implementation[2] : 
+    DISPLAY_WIDTH = ALIGN_UP(800, 16)  
+    DISPLAY_HEIGHT = 480
 
 OUT_RGB888P_WIDTH = ALIGN_UP(1024, 16)
 OUT_RGB888P_HEIGH = 624
