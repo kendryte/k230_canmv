@@ -90,7 +90,7 @@ gen_version()
 		 nncase_ver=$(cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2)
 	
 
-	cd  "${BUILD_DIR}/images/little-core/rootfs" ; 
+	pushd  ${BUILD_DIR}/images/little-core/rootfs
 	mkdir -p etc/version/
 
 
@@ -101,9 +101,11 @@ gen_version()
 	[ "${commitid}" != "" ] || commitid="unkonwn"
 	[ "${last_tag}" != "" ] || last_tag="unkonwn"
 
+	pushd ${K230_CANMV_ROOT}
 	git rev-parse --short HEAD  &&  commitid=$(git rev-parse --short HEAD) 
 	git describe --tags `git rev-list --tags --max-count=1` && last_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
 	git describe --tags --exact-match  && last_tag=$(git describe --tags --exact-match)
+	popd
 
 	ver="${last_tag}-$(date "+%Y%m%d-%H%M%S")-$(whoami)-$(hostname)-${commitid}"
 	echo -e "#############SDK VERSION######################################" >${ver_file}
@@ -115,7 +117,7 @@ gen_version()
 	mkdir -p ${post_copy_rootfs_dir}/etc/version/
 	cp -f ${ver_file}  ${post_copy_rootfs_dir}/${ver_file}
 
-	cd -;
+	popd;
 }
 
 #增加外设的固件到文件系统
