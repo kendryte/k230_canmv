@@ -8,19 +8,17 @@ choice BOARD
         bool "k230 evb"
     config K230_CANMV
         bool "k230 pi canmv"
+    config K230_CANMV_01studio
+        bool "k230 canmv 01studio"
     config K230D_CANMV
-        bool "k230d  canmv 128M ddr"
-    config K230_CANMV_ONLY_RTT
-        bool "k230  canmv 128M ddr only rtt "
+        bool "k230d canmv 128M ddr"
 endchoice
 
 config BOARD
     string
     default "k230_evb" if K230_EVB
     default "k230_canmv" if K230_CANMV
+    default "k230_canmv_01studio" if K230_CANMV_01studio
     default "k230d_canmv" if K230D_CANMV
-    default "k230_canmv_only_rtt" if K230_CANMV_ONLY_RTT
-
-
 
 # source "micropython_port/Kconfig"

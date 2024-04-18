@@ -55,7 +55,7 @@ class display:
             osd_attr.stride = (width * 4) // 8
         elif (pixelformat == PIXEL_FORMAT_RGB_888 or pixelformat == PIXEL_FORMAT_BGR_888):
             osd_attr.stride = (width * 3) // 8
-        elif (pixelformat == PIXEL_FORMAT_RGB_565 or pixelformat == PIXEL_FORMAT_BGR_565):
+        elif (pixelformat == PIXEL_FORMAT_RGB_565_LE or pixelformat == PIXEL_FORMAT_BGR_565_LE):
             osd_attr.stride = (width * 2) // 8
         elif (pixelformat == PIXEL_FORMAT_RGB_MONOCHROME_8BPP):
             osd_attr.stride = (width) // 8
@@ -119,7 +119,7 @@ class display:
         elif img.format() == image.RGB888:
             pixelformat = PIXEL_FORMAT_RGB_888
         elif img.format() == image.RGB565:
-            pixelformat = PIXEL_FORMAT_RGB_565
+            pixelformat = PIXEL_FORMAT_RGB_565_LE
         elif img.format() == image.GRAYSCALE:
             pixelformat = PIXEL_FORMAT_RGB_MONOCHROME_8BPP
         elif img.format() == image.YUV420:

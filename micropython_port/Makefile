@@ -48,7 +48,7 @@ INC += -I$(K230_CANMV_ROOT)/micropython_port/ulab
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/components/drivers
-INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/middleware/mp4_format/include
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/mp4_format/include
 
 -include $(BUILD)/CANMV_VER
 CANMV_VER = $(shell git describe --tags `git rev-list --tags --max-count=1`)-$(shell git rev-parse --short HEAD)
@@ -98,7 +98,7 @@ LDFLAGS_MPP = -L$(MPP_LIB_PATH) -L$(CDK_LIB_PATH) -Wl,--start-group $(MPP_LIBS) 
 
 LDFLAGS += $(LDFLAGS_MPP)
 LDFLAGS += -L${K230_CANMV_ROOT}/k230_sdk/src/big/nncase/riscv64/nncase/lib -lNncase.Runtime.Native -lnncase.rt_modules.k230 -lfunctional_k230 -lstdc++
-MP4_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/middleware/mp4_format/lib
+MP4_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/mp4_format/lib
 LDFLAGS_MP4 += -L$(MP4_LIB_PATH) -lmp4
 
 LDFLAGS += $(LDFLAGS_MPP) $(LDFLAGS_MP4)

@@ -11,7 +11,6 @@
 #include "k_vb_comm.h"
 #include "k_video_comm.h"
 #include "mpconfig.h"
-#include "mpconfigboard.h"
 #include "mpi_connector_api.h"
 #include "mpi_vb_api.h"
 #include "mpi_vo_api.h"
