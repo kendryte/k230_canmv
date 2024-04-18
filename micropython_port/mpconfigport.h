@@ -73,7 +73,6 @@ typedef long long mp_off_t;
 #define MICROPY_READER_VFS          (1)
 #define MICROPY_HELPER_LEXER_UNIX   (1)
 #define MICROPY_VFS_POSIX           (1)
-#define MICROPY_PY_OS_STATVFS       (0)
 #define MICROPY_READER_POSIX        (1)
 #define MICROPY_TRACKED_ALLOC       (0)
 // Assume that select() call, interrupted with a signal, and erroring
@@ -89,7 +88,6 @@ typedef long long mp_off_t;
 #define MICROPY_PY_HASHLIB_SHA256   (1)
 #define MICROPY_PY_SELECT           (1)
 #define MICROPY_PY_THREAD           (1)
-#define MICROPY_PY_OS_DUPTERM       (1)
 #define MICROPY_SCHEDULER_DEPTH     (8)
 
 #define MICROPY_PY_NETWORK_CANMV (1)
@@ -217,6 +215,9 @@ extern const struct _mp_print_t mp_stderr_print;
 #define MICROPY_PY_OS_SEP              (1)
 #define MICROPY_PY_OS_SYSTEM           (1)
 #define MICROPY_PY_OS_URANDOM          (0)
+#define MICROPY_PY_OS_UNAME            (1)
+#define MICROPY_PY_OS_STATVFS          (0)
+#define MICROPY_PY_OS_DUPTERM          (1)
 
 // Enable the unix-specific "time" module.
 #define MICROPY_EPOCH_IS_1970          (1)

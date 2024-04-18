@@ -28,14 +28,14 @@
 	};
 };
 &ddr {
-	reg = <0x0 0x8300000 0x0 0x7dff000>;  /*linux memory config*/
-};
-
-&uart0 {
-	status = "okay";
+	reg = <0x0 0x8200000 0x0 0x7dff000>;  /*linux memory config*/
 };
 
 &usbotg1 {
 	dr_mode = "host";
+	status = "okay";
+};
+
+&uart0 {
 	status = "okay";
 };
