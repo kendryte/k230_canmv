@@ -216,7 +216,8 @@ STATIC mp_obj_t machine_timer_make_new(const mp_obj_type_t *type, size_t n_args,
 
 STATIC mp_obj_t machine_timer_deinit(mp_obj_t self_in) {
     machine_timer_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    machine_timer_obj_check(self);
+    if (self->status == 0)
+        return mp_const_none;
 
     if (self->index == -1) {
         if (timer_delete(self->timerid)) {
