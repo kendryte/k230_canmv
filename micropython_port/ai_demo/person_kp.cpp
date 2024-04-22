@@ -51,7 +51,7 @@ struct  OutputPose {
     std::vector<float> kps; // 关键点向量
 };
 
-#define BOXNUM 8400 
+#define BOXNUM 2100 
 #define ANCHORLENGTH 56
 
 void nms_pose(std::vector<BoxInfo> &input_boxes, float nms_thresh,std::vector<int> &nms_result)
