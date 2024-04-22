@@ -57,7 +57,7 @@ class sensor:
     # sensor_init
     @classmethod
     def reset(cls, dev_num, type):
-        if (dev_num > CAM_DEV_ID_MAX - 1) or (type > CAM_SENSOR_TYPE_MAX - 1):
+        if (dev_num > CAM_DEV_ID_MAX - 1) or (type > SENSOR_TYPE_MAX - 1):
             raise ValueError(f"sensor_init, invalid param, dev_num({dev_num}, sensor type({type}))")
 
         ret = kd_mpi_vicap_get_sensor_info(type, cls.cam_dev[dev_num].dev_attr.sensor_info)
