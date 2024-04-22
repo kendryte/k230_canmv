@@ -221,19 +221,9 @@ STATIC void mp_machine_pwm_enable(machine_pwm_obj_t *self, bool enable) {
             self->channel, self->active ? "enabled" : "disabled");
 }
 
-STATIC mp_obj_t machine_pwm_del(mp_obj_t self_in) {
-    machine_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
-
-    mp_machine_pwm_deinit(self);
-
-    return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(machine_pwm_del_obj, machine_pwm_del);
-
 STATIC mp_obj_t machine_pwm_deinit(mp_obj_t self_in) {
     machine_pwm_obj_t *self = MP_OBJ_TO_PTR(self_in);
 
-    mp_machine_pwm_obj_check(self);
     mp_machine_pwm_deinit(self);
 
     return mp_const_none;
@@ -280,7 +270,7 @@ STATIC mp_obj_t machine_pwm_enable(mp_obj_t self_o, mp_obj_t enable) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(machine_pwm_enable_obj, machine_pwm_enable);
 
 STATIC const mp_rom_map_elem_t machine_pwm_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&machine_pwm_del_obj) },
+    { MP_ROM_QSTR(MP_QSTR___del__), MP_ROM_PTR(&machine_pwm_deinit_obj) },
     { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&machine_pwm_deinit_obj) },
     { MP_ROM_QSTR(MP_QSTR_freq), MP_ROM_PTR(&machine_pwm_freq_obj) },
     { MP_ROM_QSTR(MP_QSTR_duty), MP_ROM_PTR(&machine_pwm_duty_obj) },
