@@ -155,7 +155,7 @@ class sensor:
 
     # set_outsize
     @classmethod
-    def set_framesize(cls, dev_num, chn_num, width, height):
+    def set_framesize(cls, dev_num, chn_num, width, height, alignment=0):
         if (dev_num > CAM_DEV_ID_MAX - 1) or (chn_num > CAM_CHN_ID_MAX - 1):
             raise ValueError(f"invalid param, dev_num({dev_num}, chn_num({chn_num}))")
 
@@ -170,7 +170,7 @@ class sensor:
         cls.cam_dev[dev_num].chn_attr[chn_num].out_win.v_start = 0
         cls.cam_dev[dev_num].chn_attr[chn_num].out_win.width = ALIGN_UP(width, 16)
         cls.cam_dev[dev_num].chn_attr[chn_num].out_win.height = height
-        cls.cam_dev[dev_num].chn_attr[chn_num].alignment = 0
+        cls.cam_dev[dev_num].chn_attr[chn_num].alignment = alignment
 
         if cls.cam_dev[dev_num].chn_attr[chn_num].pix_format:
             buf_size = 0

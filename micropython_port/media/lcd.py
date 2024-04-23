@@ -16,10 +16,10 @@ DISPLAY_CHN_OSD2 = K_VO_DISPLAY_CHN_ID5
 DISPLAY_CHN_OSD3 = K_VO_DISPLAY_CHN_ID6
 
 # define VO mirror
-# DISPLAY_MIRROR_NONE = K_VO_MIRROR_NONE
-# DISPLAY_MIRROR_HOR = K_VO_MIRROR_HOR
-# DISPLAY_MIRROR_VER = K_VO_MIRROR_VER
-# DISPLAY_MIRROR_BOTH = K_VO_MIRROR_BOTH
+DISPLAY_MIRROR_NONE = K_VO_MIRROR_NONE
+DISPLAY_MIRROR_HOR = K_VO_MIRROR_HOR
+DISPLAY_MIRROR_VER = K_VO_MIRROR_VER
+DISPLAY_MIRROR_BOTH = K_VO_MIRROR_BOTH
 
 class lcd:
     plane_array = [0] * 7
@@ -88,9 +88,9 @@ class lcd:
         cls.plane_array[chn] = 1
 
     @classmethod
-    def set_plane(cls, x, y, width, height, pixelformat, chn):
+    def set_plane(cls, x, y, width, height, pixelformat, chn, mirror=K_VO_MIRROR_NONE):
         if (DISPLAY_CHN_VIDEO1 <= chn <= DISPLAY_CHN_VIDEO2):
-            cls.set_video_plane(x, y, width, height, pixelformat, K_VO_MIRROR_NONE, chn)
+            cls.set_video_plane(x, y, width, height, pixelformat, mirror, chn)
         elif (DISPLAY_CHN_OSD0 <= chn <= DISPLAY_CHN_OSD3):
             cls.set_osd_plane(x, y, width, height, pixelformat, chn)
         else:
