@@ -19,7 +19,7 @@ OUT_RGB888P_WIDTH = ALIGN_UP(1920, 16)
 OUT_RGB888P_HEIGHT = 1080
 
 #人体关键点检测 kmodel 输入参数配置
-kmodel_input_shape = (1,3,640,640)          # kmodel输入分辨率
+kmodel_input_shape = (1,3,320,320)          # kmodel输入分辨率
 rgb_mean = [114,114,114]                    # ai2d padding 值
 
 #人体关键点 相关参数设置
