@@ -125,8 +125,8 @@ gen_linux_bin_ramdisk ()
 	rm -rf rd;
 }
 copye_file_to_images;
-if [ "${CONFIG_SUPPORT_LINUX}" = "y" ]; then
-	gen_version;
+gen_version;
+if [ "${CONFIG_SUPPORT_LINUX}" = "y" ]; then	
 	add_dev_firmware;
 	shrink_rootfs;
 	gen_linux_bin_ramdisk;
