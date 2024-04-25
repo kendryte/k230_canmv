@@ -80,7 +80,7 @@ STATIC sem_t thread_signal_done;
 #endif
 
 void mp_thread_unix_begin_atomic_section(void) {
-    pthread_mutex_lock(&thread_mutex);
+    while (pthread_mutex_lock(&thread_mutex) != 0);
 }
 
 void mp_thread_unix_end_atomic_section(void) {
@@ -305,10 +305,8 @@ void mp_thread_mutex_init(mp_thread_mutex_t *mutex) {
 int mp_thread_mutex_lock(mp_thread_mutex_t *mutex, int wait) {
     int ret;
     if (wait) {
-        ret = pthread_mutex_lock(mutex);
-        if (ret == 0) {
-            return 1;
-        }
+        while (pthread_mutex_lock(mutex) != 0);
+        return 1;
     } else {
         ret = pthread_mutex_trylock(mutex);
         if (ret == 0) {
