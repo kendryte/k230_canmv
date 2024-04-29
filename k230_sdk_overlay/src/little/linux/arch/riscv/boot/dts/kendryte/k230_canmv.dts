@@ -31,61 +31,9 @@
 	reg = <0x0 0x8200000 0x0 0x7dff000>;  /*linux memory config*/
 };
 
-&spi0 {
-	spi-flash@0 {
-		compatible = "jedec,spi-nor";
-		//compatible = "spi-nand";
-		//compatible = "rohm,dh2228fv";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		reg = <0>;
-		spi-max-frequency = <100000000>;
-		spi-tx-bus-width = <8>;
-		spi-rx-bus-width = <8>;
-		status = "okay";
-		partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			partition@0 {
-			/* spl boot */
-			reg = <0x0 0x00080000>;
-			label = "spl_boot";
-			};
-			partition@2000000 {
-			/* 32MB for  update image*/
-			reg = <0 0x2000000>;
-			label = "all_flash";
-			};
-		};
-	};
-
-};
-
-&usbotg0 {
-	status = "disabled";
-};
-
 &usbotg1 {
 	dr_mode = "host";
 	status = "okay";
-};
-
-&gpio_key {
-	S2 {
-		label = "gpio-key-52";
-		linux,code = <106>;
-		gpios = <&port52 0 GPIO_ACTIVE_LOW>;
-		debounce-interval = <3>;
-	};
-
-	S1 {
-		label = "gpio-key-53";
-		linux,code = <105>;
-		gpios = <&port53 0 GPIO_ACTIVE_HIGH>;
-		debounce-interval = <3>;
-	};
 };
 
 &mmc_sd0{
@@ -96,36 +44,6 @@
     bcmdhd_wlan {
         compatible = "android,bcmdhd_wlan";
         gpio_wl_reg_on = <&port1 0 GPIO_ACTIVE_HIGH>;
-    };
-};
-
-&mmc_sd1{
-    status = "disabled";
-    no-1-8-v;
-    cap-sd-highspeed;
-    mshc_ctrl_r = <0x00>;
-};
-
-&dsi {
-    status = "disabled";
-
-    panel@0 {
-        compatible = "canaan,hx8399";
-        reg = <0>;
-
-        display-timings {
-            timing-0 {
-                clock-frequency = <74250000>;
-                hactive = <1920>;
-                vactive = <1080>;
-                hfront-porch = <88>;
-                hback-porch = <148>;
-                hsync-len = <44>;
-                vfront-porch = <36>;
-                vback-porch = <4>;
-                vsync-len = <5>;
-            };
-        };
     };
 };
 

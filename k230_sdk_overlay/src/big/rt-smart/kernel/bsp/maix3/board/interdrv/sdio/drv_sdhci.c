@@ -28,7 +28,6 @@
 #define DBG_LVL               DBG_WARNING
 #endif /* RT_SDIO_DEBUG */
 #include <rtdbg.h>
-#define RT_USING_SDIO1
 
 #if defined(RT_USING_SDIO0) || defined(RT_USING_SDIO1)
 
@@ -240,8 +239,12 @@ static void _mmcsd_clk_init(struct sdhci_host *mmcsd)
     sdhci_writew(mmcsd,sdhci_readw(mmcsd, SDHCI_HOST_CONTROL)|SDHCI_CTRL_HISPD, SDHCI_HOST_CONTROL);
     if (mmcsd->mapbase == (void *)emmc0_base)
     {
+#ifdef RT_SDIO0_SD
+        pwr |= SDHCI_POWER_ON | SDHCI_POWER_330;
+#else
         sdhci_writew(mmcsd,SDHCI_CTRL_VDD_180, SDHCI_HOST_CONTROL2);
         pwr |= SDHCI_POWER_ON | SDHCI_POWER_180;
+#endif
     }
     else
     {
@@ -937,13 +940,19 @@ rt_int32_t kd_sdhci_init(void)
     mmcsd1->sdhci_data = RT_NULL;
     mmcsd1->sdhci_command = RT_NULL;
     mmcsd1->max_clk = 200000000;
-    strncpy(host1->name, "emmc", sizeof(host1->name)-1);
+    strncpy(host1->name, "sd", sizeof(host1->name)-1);
     host1->ops = &ops;
     host1->freq_min = 400000;
-    host1->freq_max = 200000000;
-    host1->valid_ocr = VDD_165_195;//VDD_32_33 | VDD_33_34 ;
+    host1->freq_max = 50000000;
+#ifdef RT_SDIO0_SD
+    host1->valid_ocr = VDD_32_33 | VDD_33_34 ;
+    host1->flags = MMCSD_BUSWIDTH_4 | MMCSD_MUTBLKWRITE | \
+                  MMCSD_SUP_HIGHSPEED | MMCSD_SUP_SDIO_IRQ;
+#else
+    host1->valid_ocr = VDD_165_195;
     host1->flags = MMCSD_BUSWIDTH_8 | MMCSD_MUTBLKWRITE | \
                   MMCSD_SUP_HIGHSPEED | MMCSD_SUP_SDIO_IRQ;
+#endif
     host1->max_seg_size = 65535;
     host1->max_dma_segs = 1;
     host1->max_blk_size = 512;

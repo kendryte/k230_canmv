@@ -6,6 +6,8 @@
 
 /* RT-Thread Kernel */
 
+#include "k_autoconf_comm.h"
+
 #define RT_NAME_MAX 20
 #define RT_USING_SMART
 #define RT_ALIGN_SIZE 8
@@ -144,7 +146,12 @@
 #define RT_USING_AES
 #define RT_USING_SM4
 #define RT_USING_SDIO
+#if defined CONFIG_BOARD_K230_CANMV_01STUDIO
+#define RT_USING_SDIO0
+#define RT_SDIO0_SD
+#else
 #define RT_USING_SDIO1
+#endif
 #define RT_USING_HARDLOCK
 #define RT_USING_GPIO
 #define RT_USING_SPI
@@ -277,7 +284,8 @@
 
 
 /* touch drivers */
-
+#define RT_USING_TOUCH
+#define RT_USING_FT5316
 
 /* Kendryte SDK */
 

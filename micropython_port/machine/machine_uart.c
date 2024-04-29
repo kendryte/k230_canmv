@@ -135,7 +135,8 @@ STATIC mp_obj_t machine_uart_make_new(const mp_obj_type_t *type, size_t n_args, 
 
 STATIC mp_obj_t machine_uart_deinit(mp_obj_t self_in) {
     machine_uart_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    machine_uart_obj_check(self);
+    if (self->status == 0)
+        return mp_const_none;
     close(self->fd);
     if (self->status == 2)
         uart_used[self->index] = 0;

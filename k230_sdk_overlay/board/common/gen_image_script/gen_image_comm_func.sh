@@ -14,13 +14,10 @@ gz_file_add_ver()
 	local storage="$(echo "$f" | sed -nE "s#[^-]*-([^\.]*).*#\1#p")"
 	local conf_name="${CONF%%_defconfig}"
 	local micropython_ver="v0.4";
-	cd ${K230_CANMV_ROOT};
-	git describe --tags `git rev-list --tags --max-count=1` && micropython_ver=$(git describe --tags `git rev-list --tags --max-count=1`)
-	git describe --tags --exact-match  && micropython_ver=$(git describe --tags --exact-match)
-	cd - 
 
-	cat ${sdk_ver_file} | grep v | cut -d- -f 1 > /dev/null && \
-	 	sdk_ver=$(cat ${sdk_ver_file} | grep v | cut -d- -f 1)
+
+	micropython_ver="$(awk -F- '/^micropython/ { print $1}' ${sdk_ver_file} | cut -d: -f2 )" 
+	sdk_ver="$(awk -F- '/^sdk:/ { print $1}' ${sdk_ver_file} | cut -d: -f2 )"
 	cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2 > /dev/null && \
 		 nncase_ver=$(cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2)
 	rm -rf  ${conf_name}_${storage}_${sdk_ver}_nncase_v${nncase_ver}.img.gz;
@@ -88,34 +85,55 @@ gen_version()
 	local nncase_ver_file="${K230_SDK_ROOT}/src/big/nncase/riscv64/nncase/include/nncase/version.h"
 	cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2 > /dev/null && \
 		 nncase_ver=$(cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2)
+	local sdk_ver="unkonwn"
+	local micropython_ver="unkonwn"
 	
 
-	cd  "${BUILD_DIR}/images/little-core/rootfs" ; 
+	pushd  ${BUILD_DIR}/images/little-core/rootfs
 	mkdir -p etc/version/
 
+	{ #sdk_ver;
+		set +e; commitid=$(awk -F- '/^sdk:/ { print $6}' ${post_copy_rootfs_dir}/${ver_file});set -e;
+		set +e; last_tag=$(awk -F- '/^sdk:/ { print $1}' ${post_copy_rootfs_dir}/${ver_file} | cut -d: -f2 ) ;set -e;
+		
 
-	set +e; commitid=$(awk -F- '/^[^#]/ { print $6}' ${post_copy_rootfs_dir}/${ver_file});set -e;
-	set +e; last_tag=$(awk -F- '/^[^#]/ { print $1}' ${post_copy_rootfs_dir}/${ver_file} | head -1 ) ;set -e;
-	
+		[ "${commitid}" != "" ] || commitid="unkonwn"
+		[ "${last_tag}" != "" ] || last_tag="unkonwn"
 
-	[ "${commitid}" != "" ] || commitid="unkonwn"
-	[ "${last_tag}" != "" ] || last_tag="unkonwn"
+		
+		git rev-parse --short HEAD  &&  commitid=$(git rev-parse --short HEAD) 
+		git describe --tags `git rev-list --tags --max-count=1` && last_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+		git describe --tags --exact-match  && last_tag=$(git describe --tags --exact-match)
+		sdk_ver="${last_tag}-$(date "+%Y%m%d-%H%M%S")-$(whoami)-$(hostname)-${commitid}"
+	}
+	{ #micropython;
+		set +e; commitid=$(awk -F- '/^micropython/ { print $6}' ${post_copy_rootfs_dir}/${ver_file});set -e;
+		set +e; last_tag=$(awk -F- '/^micropython/ { print $1}' ${post_copy_rootfs_dir}/${ver_file} | cut -d: -f2 ) ;set -e;
+		
 
-	git rev-parse --short HEAD  &&  commitid=$(git rev-parse --short HEAD) 
-	git describe --tags `git rev-list --tags --max-count=1` && last_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
-	git describe --tags --exact-match  && last_tag=$(git describe --tags --exact-match)
+		[ "${commitid}" != "" ] || commitid="unkonwn"
+		[ "${last_tag}" != "" ] || last_tag="unkonwn"
 
-	ver="${last_tag}-$(date "+%Y%m%d-%H%M%S")-$(whoami)-$(hostname)-${commitid}"
+		pushd ${K230_CANMV_ROOT}
+		git rev-parse --short HEAD  &&  commitid=$(git rev-parse --short HEAD) 
+		git describe --tags `git rev-list --tags --max-count=1` && last_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+		git describe --tags --exact-match  && last_tag=$(git describe --tags --exact-match)
+		popd
+
+		micropython_ver="${last_tag}-$(date "+%Y%m%d-%H%M%S")-$(whoami)-$(hostname)-${commitid}"
+	}
+
 	echo -e "#############SDK VERSION######################################" >${ver_file}
-	echo -e ${ver} >> ${ver_file}
+	echo -e "micropython:${micropython_ver}" >> ${ver_file}
+	echo -e "sdk:${sdk_ver}" >> ${ver_file}
 	echo -e "nncase:${nncase_ver}" >> ${ver_file}
 	echo -e "##############################################################" >>${ver_file}
-	echo "build version: ${ver}"
+	echo "build version: ${micropython_ver}"
 
 	mkdir -p ${post_copy_rootfs_dir}/etc/version/
 	cp -f ${ver_file}  ${post_copy_rootfs_dir}/${ver_file}
 
-	cd -;
+	popd;
 }
 
 #增加外设的固件到文件系统

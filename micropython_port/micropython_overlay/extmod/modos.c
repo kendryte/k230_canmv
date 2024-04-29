@@ -94,9 +94,9 @@ STATIC const qstr mp_os_uname_info_fields[] = {
 };
 STATIC const MP_DEFINE_STR_OBJ(mp_os_uname_info_sysname_obj, MICROPY_PY_SYS_PLATFORM);
 STATIC const MP_DEFINE_STR_OBJ(mp_os_uname_info_nodename_obj, MICROPY_PY_SYS_PLATFORM);
-STATIC CONST_RELEASE MP_DEFINE_STR_OBJ(mp_os_uname_info_release_obj, MICROPY_VERSION_STRING);
+STATIC CONST_RELEASE MP_DEFINE_STR_OBJ(mp_os_uname_info_release_obj, CANMV_VER);
 STATIC const MP_DEFINE_STR_OBJ(mp_os_uname_info_version_obj, MICROPY_GIT_TAG " on " MICROPY_BUILD_DATE MICROPY_BUILD_TYPE_PAREN);
-STATIC const MP_DEFINE_STR_OBJ(mp_os_uname_info_machine_obj, MICROPY_HW_BOARD_NAME " with " MICROPY_HW_MCU_NAME);
+STATIC const MP_DEFINE_STR_OBJ(mp_os_uname_info_machine_obj, MICROPY_HW_BOARD_NAME);
 
 STATIC MP_DEFINE_ATTRTUPLE(
     mp_os_uname_info_obj,

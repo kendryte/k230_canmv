@@ -6,7 +6,6 @@ SHELL=/bin/bash
 BUILD_TYPE ?= product
 
 MPP_SRC_DIR="${K230_SDK_ROOT}/src/big/mpp"
-MIDDLEWARE_SRC_DIR="${K230_SDK_ROOT}/src/big/middleware"
 CDK_SRC_DIR="${K230_SDK_ROOT}/src/common/cdk"
 BUILDROOT_EXT_SRC_PATH="src/little/buildroot-ext"
 POST_COPY_ROOTFS_PATH=board/common/post_copy_rootfs
@@ -44,7 +43,6 @@ export PATH=$(TMP_PATH)
 export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH)
 export CDK_SRC_DIR=$(K230_SDK_ROOT)/$(CDK_SRC_PATH)
 export MPP_SRC_DIR=$(K230_SDK_ROOT)/$(MPP_SRC_PATH)
-export MIDDLEWARE_SRC_DIR=$(K230_SDK_ROOT)/src/big/middleware
 
 
 
@@ -69,12 +67,10 @@ endef
 
 .PHONY: all
 ifeq ($(CONFIG_SUPPORT_RTSMART)$(CONFIG_SUPPORT_LINUX),yy)
-all .DEFAULT: check_src prepare_memory linux mpp middleware cdk-kernel cdk-kernel-install cdk-user cdk-user-install rt-smart-apps rt-smart-kernel big-core-opensbi little-core-opensbi buildroot uboot
-else  ifeq  ($(CONFIG_SUPPORT_RTSMART),y)
-all .DEFAULT: check_src prepare_memory  mpp middleware rt-smart-apps rt-smart-kernel big-core-opensbi   uboot
-else  ifeq  ($(CONFIG_SUPPORT_LINUX),y)
-all .DEFAULT: check_src prepare_memory linux   little-core-opensbi buildroot uboot
-endif 
+all .DEFAULT: check_src prepare_memory linux mpp mpp-middleware cdk-kernel cdk-kernel-install cdk-user cdk-user-install rt-smart-apps rt-smart-kernel big-core-opensbi little-core-opensbi buildroot uboot
+else ifeq ($(CONFIG_SUPPORT_RTSMART),y)
+all .DEFAULT: check_src prepare_memory mpp mpp-middleware rt-smart-apps rt-smart-kernel big-core-opensbi uboot
+endif
 
 .PHONY: download_toolchain
 download_toolchain:
@@ -106,8 +102,8 @@ prepare_sourcecode:prepare_toolchain
 #ai
 	@echo "download nncase sdk"
 	@rm -rf src/big/utils/; rm -rf src/big/ai;
-	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/kmodel/kmodel_v2.8.0.1.tgz -O - | tar -xzC src/big/
-	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/nncase/nncase_k230_v2.8.0.tgz -O - | tar -xzC src/big/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/kmodel/kmodel_v2.8.1.tgz -O - | tar -xzC src/big/
+	@wget -q --show-progress $(DOWNLOAD_URL)/downloads/nncase/nncase_k230_v2.8.1.tgz -O - | tar -xzC src/big/
 
 #big utils
 	@echo "download big utils"
@@ -173,7 +169,7 @@ prepare_memory: defconfig  .config  tools/menuconfig_to_code.sh  parse.mak
 	@./tools/kconfig/conf --silentoldconfig  --olddefconfig $(KCONFIG_CFG)
 	@cp include/generated/autoconf.h src/little/uboot/board/canaan/common/sdk_autoconf.h
 	@cp include/generated/autoconf.h src/big/mpp/include/comm/k_autoconf_comm.h
-
+	@cp include/generated/autoconf.h src/big/rt-smart/kernel/bsp/maix3/k_autoconf_comm.h
 #	#@cp include/generated/autoconf.h src/little/buildroot-ext/package/feature_opreation/src/sdk_autoconf.h
 	@rm -rf include;
 	@./tools/menuconfig_to_code.sh
@@ -202,7 +198,6 @@ mpp-apps:check_src
 	cd $(MPP_SRC_DIR); \
 	make -C userapps/src || exit $?; \
 	mkdir -p $(RTSMART_SRC_DIR)/userapps/root/bin/; \
-	cp $(RTSMART_SRC_DIR)/init.sh $(RTSMART_SRC_DIR)/userapps/root/bin/; \
 	cd -;
 
 .PHONY: mpp-apps-clean
@@ -220,29 +215,20 @@ mpp: mpp-kernel mpp-apps
 .PHONY: mpp-clean
 mpp-clean: mpp-kernel-clean mpp-apps-clean
 
-.PHONY: poc
-poc:check_src
+.PHONY: mpp-middleware
+mpp-middleware:
 	@export PATH=$(RTT_EXEC_PATH):$(PATH); \
 	export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH); \
-	cd $(K230_SDK_ROOT)/src/reference/business_poc/doorlock/big; \
-	mkdir -p build; cd build; cmake ../; \
-	make && make install; rm ./* -rf; \
+	cd $(MPP_SRC_DIR); \
+	make -C middleware || exit $?; \
 	cd -;
 
+.PHONY: mpp-middleware-clean
+mpp-middleware-clean:
 	@export PATH=$(RTT_EXEC_PATH):$(PATH); \
 	export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH); \
-	cd $(K230_SDK_ROOT)/src/reference/business_poc/doorlock_ov9286/big; \
-	mkdir -p build; cd build; cmake ../; \
-	make && make install; rm ./* -rf; \
-	cd -;
-	
-.PHONY: peephole	
-peephole:check_src
-	@export PATH=$(RTT_EXEC_PATH):$(PATH); \
-	export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH); \
-	cd $(K230_SDK_ROOT)/src/reference/business_poc/peephole/big; \
-	mkdir -p build; cd build; cmake ../; \
-	make && make install; rm ./* -rf; \
+	cd $(MPP_SRC_DIR); \
+	make clean -C middleware; \
 	cd -;
 
 .PHONY: cdk-kernel
@@ -284,29 +270,6 @@ cdk-user-install:check_src
 cdk-user-clean:
 	@export PATH=$(RTT_EXEC_PATH):$(LINUX_EXEC_PATH):$(PATH);export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH);export LINUX_BUILD_DIR=$(LINUX_BUILD_DIR); \
 	cd $(CDK_SRC_PATH)/user/;make clean;cd -;
-
-
-.PHONY: middleware-mp4
-middleware-mp4: check_src
-	@export PATH=$(RTT_EXEC_PATH):$(PATH); \
-	export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH); \
-	cd $(MIDDLEWARE_SRC_DIR); \
-	make -C mp4_format || exit $?; \
-	cd -;
-
-.PHONY: middleware-mp4-clean
-middleware-mp4-clean:
-	@export PATH=$(RTT_EXEC_PATH):$(PATH); \
-	export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH); \
-	cd $(MIDDLEWARE_SRC_DIR); \
-	make clean -C mp4_format; \
-	cd -;
-
-.PHONY: middleware
-middleware: middleware-mp4
-
-.PHONY: middleware-clean
-middleware-clean: middleware-mp4-clean
 
 .PHONY: rt-smart-apps
 rt-smart-apps: defconfig prepare_memory  check_src
@@ -368,6 +331,7 @@ linux-menuconfig:
 linux-savedefconfig:
 	cd $(LINUX_SRC_PATH); \
 	make O=$(LINUX_BUILD_DIR) CROSS_COMPILE=$(LINUX_EXEC_PATH)/$(LINUX_CC_PREFIX) ARCH=riscv savedefconfig; \
+	cp $(LINUX_BUILD_DIR)/defconfig  arch/riscv/configs/$(LINUX_KERNEL_DEFCONFIG);\
 	cd -
 
 .PHONY: linux
@@ -391,7 +355,7 @@ big-core-opensbi: rt-smart-kernel
 	export PLATFORM=kendryte/fpgac908; \
 	make FW_FDT_PATH=hw.dtb FW_PAYLOAD_PATH=rtthread.bin O=$(BIG_OPENSBI_BUILD_DIR) OPENSBI_QUIET=1 || exit $?; \
 	cd -
-rtt_update_romfs: 
+rtt_update_romfs:
 	@export RTT_CC=$(RTT_CC); \
 	export RTT_CC_PREFIX=$(RTT_CC_PREFIX); \
 	export RTT_EXEC_PATH=$(RTT_EXEC_PATH); \
@@ -408,7 +372,7 @@ rtt_update_romfs:
 	export PLATFORM=kendryte/fpgac908; \
 	$(MAKE) FW_FDT_PATH=hw.dtb FW_PAYLOAD_PATH=rtthread.bin O=$(BIG_OPENSBI_BUILD_DIR) OPENSBI_QUIET=1 || exit $?; \
 	cd -
-	
+
 .PHONY: big-core-opensbi-clean
 big-core-opensbi-clean:
 	rm -rf $(BIG_OPENSBI_BUILD_DIR); \
@@ -511,7 +475,7 @@ build-image: defconfig  prepare_memory  check_src
 	cd $(K230_SDK_ROOT);
 
 .PHONY: clean
-clean: uboot-clean little-core-opensbi-clean linux-clean rt-smart-clean buildroot-clean
+clean: uboot-clean little-core-opensbi-clean linux-clean rt-smart-clean buildroot-clean mpp-middleware-clean
 	@rm -rf defconfig
 	@rm -rf prepare_memory
 	@rm -rf $(BUILD_DIR)

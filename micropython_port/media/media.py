@@ -1,5 +1,4 @@
 from mpp import *
-import _thread
 
 
 MAX_MEDIA_BUFFER_POOLS = 16 #FIX VALUE
@@ -116,8 +115,6 @@ class media:
     buf_config.max_pool_cnt = MAX_MEDIA_BUFFER_POOLS
     config_index = 0
     __buf_has_init = False
-
-    lock = _thread.allocate_lock()
 
     # create media link
     @classmethod

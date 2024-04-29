@@ -83,7 +83,7 @@ static int cdc_read(struct dfs_fd *fd, void *buf, size_t count) {
     rt_err_t error = rt_sem_take(&cdc_read_sem, 1000);
     if (error == RT_EOK) {
         goto start;
-    } else if (error == RT_ETIMEOUT) {
+    } else if (error == -RT_ETIMEOUT) {
         USB_LOG_WRN("read timeout\n");
         return 0;
     } else {

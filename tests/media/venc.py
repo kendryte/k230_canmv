@@ -19,8 +19,8 @@ def venc_test():
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
     # 设置camera 输出buffer
     camera.set_outbufs(CAM_DEV_ID_0, CAM_CHN_ID_0, 6)
-    # 设置camera 输出buffer size
-    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, width, height)
+    # 设置camera 输出buffer size,4k alignment
+    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, width, height,12)
     # 设置camera 输出格式
     camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
     # 实例化video encoder

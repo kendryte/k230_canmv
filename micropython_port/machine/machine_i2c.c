@@ -513,7 +513,8 @@ MP_DEFINE_CONST_FUN_OBJ_KW(machine_i2c_init_obj, 1, machine_i2c_init);
 
 STATIC mp_obj_t machine_i2c_deinit(mp_obj_t self_in) {
     machine_i2c_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    machine_i2c_obj_check(self);
+    if (self->status == 0)
+        return mp_const_none;
     close(self->fd);
     if (self->status == 2)
         i2c_used[self->index] = 0;
