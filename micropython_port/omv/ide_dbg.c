@@ -676,22 +676,6 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                                     // y
                                     uint8_t* y = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[0], ysize);
                                     kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[0], y, ysize);
-                                    rotation90_u8(rotation_buffer.v_frame.virt_addr[0], y, frame_info.v_frame.width, frame_info.v_frame.height);
-                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[0], y, ysize);
-                                    kd_mpi_sys_munmap(y, ysize);
-        
-                                    // uv
-                                    uint16_t* uv = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[1], uvsize);
-                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
-                                    rotation90_u16(rotation_buffer.v_frame.virt_addr[1], uv, frame_info.v_frame.width / 2, frame_info.v_frame.height / 2);
-                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
-                                    kd_mpi_sys_munmap(uv, uvsize);
-
-                                    ssize = hd_jpeg_encode(&rotation_buffer, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
-                                } else if (vo_func == K_ROTATION_270) {
-                                    // y
-                                    uint8_t* y = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[0], ysize);
-                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[0], y, ysize);
                                     rotation270_u8(rotation_buffer.v_frame.virt_addr[0], y, frame_info.v_frame.width, frame_info.v_frame.height);
                                     kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[0], y, ysize);
                                     kd_mpi_sys_munmap(y, ysize);
@@ -700,6 +684,22 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                                     uint16_t* uv = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[1], uvsize);
                                     kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
                                     rotation270_u16(rotation_buffer.v_frame.virt_addr[1], uv, frame_info.v_frame.width / 2, frame_info.v_frame.height / 2);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
+                                    kd_mpi_sys_munmap(uv, uvsize);
+
+                                    ssize = hd_jpeg_encode(&rotation_buffer, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
+                                } else if (vo_func == K_ROTATION_270) {
+                                    // y
+                                    uint8_t* y = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[0], ysize);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[0], y, ysize);
+                                    rotation90_u8(rotation_buffer.v_frame.virt_addr[0], y, frame_info.v_frame.width, frame_info.v_frame.height);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[0], y, ysize);
+                                    kd_mpi_sys_munmap(y, ysize);
+        
+                                    // uv
+                                    uint16_t* uv = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[1], uvsize);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
+                                    rotation90_u16(rotation_buffer.v_frame.virt_addr[1], uv, frame_info.v_frame.width / 2, frame_info.v_frame.height / 2);
                                     kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
                                     kd_mpi_sys_munmap(uv, uvsize);
 
