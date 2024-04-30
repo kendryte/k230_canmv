@@ -14,11 +14,15 @@ import image
 import random
 import gc, os, sys
 
+SENSOR_WIDTH = ALIGN_UP(1920, 16)
+SENSOR_HEIGHT = 1080
 DISPLAY_WIDTH = ALIGN_UP(1920, 16)
 DISPLAY_HEIGHT = 1080
-if "K230d_canmv" in sys.implementation[2] : 
-    DISPLAY_WIDTH = ALIGN_UP(800, 16)  
-    DISPLAY_HEIGHT = 480
+if "k230d_canmv" in sys.implementation[2] :
+    SENSOR_WIDTH = ALIGN_UP(800, 16)
+    SENSOR_HEIGHT = 480
+    DISPLAY_WIDTH = ALIGN_UP(480, 16)
+    DISPLAY_HEIGHT = 800
 
 OUT_RGB888P_WIDTH = ALIGN_UP(1024, 16)
 OUT_RGB888P_HEIGH = 624
@@ -210,7 +214,10 @@ def get_result(output_data):
 
 def camera_init():
     # use hdmi for display
-    display.init(LT9611_1920X1080_30FPS)
+    if "k230d_canmv" in sys.implementation[2] :
+        display.init(ST7701_V1_MIPI_2LAN_480X800_30FPS)
+    else :
+        display.init(LT9611_1920X1080_30FPS)
     # config vb for osd layer
     config = k_vb_config()
     config.max_pool_cnt = 1
@@ -222,7 +229,7 @@ def camera_init():
     # init default sensor
     camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
     # set chn0 output size
-    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, DISPLAY_WIDTH, DISPLAY_HEIGHT)
+    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, SENSOR_WIDTH, SENSOR_HEIGHT)
     # set chn0 output format
     camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
     # create meida source device
@@ -232,7 +239,10 @@ def camera_init():
     # create meida link
     media.create_link(meida_source, meida_sink)
     # set display plane with video channel
-    display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
+    if "k230d_canmv" in sys.implementation[2] :
+        display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, K_ROTATION_90, DISPLAY_CHN_VIDEO1)
+    else :
+        display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
     # set chn2 output size
     camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_2, OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGH)
     # set chn2 output format
@@ -312,10 +322,13 @@ def face_detect():
             if dets:
                 for det in dets:
                     x1, y1, x2, y2 = map(lambda x: int(round(x, 0)), det[:4])
-                    w = (x2 - x1) * DISPLAY_WIDTH // OUT_RGB888P_WIDTH
-                    h = (y2 - y1) * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH
+                    w = (x2 - x1) * SENSOR_WIDTH // OUT_RGB888P_WIDTH
+                    h = (y2 - y1) * SENSOR_HEIGHT // OUT_RGB888P_HEIGH
                     # draw detect result rectangle
-                    draw_img.draw_rectangle(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH, y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH, w, h, color=(255,255,0,255))
+                    if "k230d_canmv" in sys.implementation[2] :
+                        draw_img.draw_rectangle((OUT_RGB888P_HEIGH - y2) * DISPLAY_WIDTH // OUT_RGB888P_HEIGH, x1 * DISPLAY_HEIGHT // OUT_RGB888P_WIDTH, h, w, color=(255,255,0,255))
+                    else :
+                        draw_img.draw_rectangle(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH, y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH, w, h, color=(255,255,0,255))
             draw_img.copy_to(osd_img)
             os.exitpoint()
     except KeyboardInterrupt as e:
