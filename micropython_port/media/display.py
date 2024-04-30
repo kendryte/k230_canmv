@@ -95,6 +95,7 @@ class display:
             cls.set_osd_plane(x, y, width, height, pixelformat, chn)
         else:
             raise ValueError('set_plane failed')
+        ide_dbg_set_vo_func(mirror)
 
     @classmethod
     def disable_plane(cls, chn):

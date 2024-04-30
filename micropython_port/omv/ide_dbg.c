@@ -8,10 +8,13 @@
  */
 #include "builtin.h"
 #include "k_connector_comm.h"
+#include "k_module.h"
 #include "k_vb_comm.h"
 #include "k_video_comm.h"
+#include "k_vo_comm.h"
 #include "mpconfig.h"
 #include "mpi_connector_api.h"
+#include "mpi_sys_api.h"
 #include "mpi_vb_api.h"
 #include "mpi_vo_api.h"
 #include "mpstate.h"
@@ -26,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <sys/mman.h>
 #include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -43,12 +47,16 @@
 
 #if CONFIG_CANMV_IDE_SUPPORT
 
-#define IDE_DEBUG_PRINT 0
-#if IDE_DEBUG_PRINT
-#define pr(fmt,...) fprintf(stderr,fmt "\n",##__VA_ARGS__)
-#else
-#define pr(fmt,...)
-#endif
+#define COLOR_NONE "\033[0m"
+#define RED "\033[1;31;40m"
+#define BLUE "\033[1;34;40m"
+#define GREEN "\033[1;32;40m"
+#define YELLOW "\033[1;33;40m"
+
+#define pr_verb(fmt,...)
+#define pr_info(fmt,...) fprintf(stderr,GREEN fmt "\n"COLOR_NONE,##__VA_ARGS__)
+#define pr_warn(fmt,...) fprintf(stderr,YELLOW fmt "\n"COLOR_NONE,##__VA_ARGS__)
+#define pr_err(fmt,...) fprintf(stderr,RED fmt " at line %d\n"COLOR_NONE,##__VA_ARGS__, __LINE__)
 
 int usb_cdc_fd;
 pthread_t ide_dbg_task_p;
@@ -217,7 +225,7 @@ void interrupt_repl(void) {
 }
 
 void interrupt_ide(void) {
-    pr("[usb] exit IDE mode");
+    pr_verb("[usb] exit IDE mode");
     ide_attached = false;
     sem_post(&script_sem);
 }
@@ -251,6 +259,9 @@ static size_t wbc_jpeg_buffer_size = 0;
 static uint32_t wbc_jpeg_size = 0;
 static k_connector_type connector_type = 0;
 static k_video_frame_info frame_info;
+static int vo_func = K_VO_MIRROR_NONE;
+static k_video_frame_info rotation_buffer;
+static bool flag_vo_wbc_enabled = false;
 #endif
 
 int ide_dbg_vo_init(k_connector_type _connector_type) {
@@ -260,35 +271,61 @@ int ide_dbg_vo_init(k_connector_type _connector_type) {
     return 0;
 }
 
+#define ALIGN_UP(x,a) (((x)+(a)-1)/(a)*(a))
+
 int ide_dbg_vo_wbc_init(void) {
     #if ENABLE_VO_WRITEBACK
     k_connector_info vo_info;
 
     kd_mpi_get_connector_info(connector_type, &vo_info);
-    pr("[omv] %s(%d), %ux%u", __func__, connector_type, vo_info.resolution.hdisplay, vo_info.resolution.vdisplay);
+    pr_verb("[omv] %s(%d), %ux%u", __func__, connector_type, vo_info.resolution.hdisplay, vo_info.resolution.vdisplay);
     k_vo_wbc_attr attr = {
         .target_size = {
             .width = vo_info.resolution.hdisplay,
             .height = vo_info.resolution.vdisplay
         }
     };
+    if (vo_func != K_VO_MIRROR_NONE) {
+        // allocate rotation buffer
+        k_vb_blk_handle handle = kd_mpi_vb_get_block(VB_INVALID_POOLID, 3117056, NULL);
+        if (handle == VB_INVALID_HANDLE) {
+            pr_err("can't get vb for rotation");
+            vo_func = K_VO_MIRROR_NONE;
+            goto skip_rotation;
+        }
+        rotation_buffer.mod_id = K_ID_MMZ;
+        rotation_buffer.pool_id = kd_mpi_vb_handle_to_pool_id(handle);
+        rotation_buffer.v_frame.phys_addr[0] = kd_mpi_vb_handle_to_phyaddr(handle);
+        unsigned ysize = vo_info.resolution.hdisplay * vo_info.resolution.vdisplay;
+        rotation_buffer.v_frame.width = vo_info.resolution.vdisplay;
+        rotation_buffer.v_frame.height = vo_info.resolution.hdisplay;
+        rotation_buffer.v_frame.phys_addr[1] = ALIGN_UP(rotation_buffer.v_frame.phys_addr[0] + ysize, 0x1000);
+        rotation_buffer.v_frame.pixel_format = PIXEL_FORMAT_YVU_SEMIPLANAR_420;
+        rotation_buffer.v_frame.stride[0] = rotation_buffer.v_frame.width;
+        rotation_buffer.v_frame.stride[1] = rotation_buffer.v_frame.width;
+        rotation_buffer.v_frame.virt_addr[1] = kd_mpi_sys_mmap(rotation_buffer.v_frame.phys_addr[1], ysize / 2);
+        rotation_buffer.v_frame.virt_addr[0] = kd_mpi_sys_mmap(rotation_buffer.v_frame.phys_addr[0], ysize);
+        pr_info("set rotation buffer %08lx", rotation_buffer.v_frame.phys_addr[0]);
+    }
+    skip_rotation:
     if (kd_mpi_vo_set_wbc_attr(&attr)) {
-        pr("[omv] kd_mpi_vo_set_wbc_attr error");
+        pr_err("[omv] kd_mpi_vo_set_wbc_attr error");
         return -1;
     }
     if (kd_mpi_vo_enable_wbc()) {
-        pr("[omv] kd_mpi_vo_enable_wbc error");
+        pr_err("[omv] kd_mpi_vo_enable_wbc error");
         return -1;
     }
-    pr("[omv] VO writeback enabled");
+    pr_verb("[omv] VO writeback enabled");
+    flag_vo_wbc_enabled = true;
     #endif
     return 0;
 }
 
 int ide_dbg_vo_deinit(void) {
-    pr("[omv] %s", __func__);
+    pr_verb("[omv] %s", __func__);
     #if ENABLE_VO_WRITEBACK
-    #include <sys/mman.h>
+    flag_vo_wbc_enabled = false;
     int fd = open("/dev/mem", O_RDWR | O_SYNC);
     if (fd < 0)
         mp_raise_OSError(errno);
@@ -301,15 +338,73 @@ int ide_dbg_vo_deinit(void) {
     close(fd);
     usleep(50000);
     kd_mpi_vo_disable_wbc();
+    vo_func = K_VO_MIRROR_NONE;
+    if (rotation_buffer.v_frame.virt_addr[0]) {
+        unsigned ysize = rotation_buffer.v_frame.width * rotation_buffer.v_frame.height;
+        kd_mpi_sys_munmap(rotation_buffer.v_frame.virt_addr[0], ysize);
+        kd_mpi_sys_munmap(rotation_buffer.v_frame.virt_addr[1], ysize / 2);
+    }
+    if (rotation_buffer.v_frame.phys_addr[0] != 0) {
+        kd_mpi_vb_release_block(kd_mpi_vb_phyaddr_to_handle(rotation_buffer.v_frame.phys_addr[0]));
+    }
     #endif
     return 0;
 }
 
 int ide_dbg_set_vo_wbc(int enable) {
-    pr("[omv] %s, enable(%d)", __func__, enable);
+    pr_verb("[omv] %s, enable(%d)", __func__, enable);
     fb_from = enable ? FB_FROM_VO_WRITEBACK : FB_FROM_NONE;
     return 0;
 }
+
+int ide_dbg_set_vo_func(int func) {
+    if (vo_func == K_VO_MIRROR_NONE) {
+        vo_func = func;
+    }
+    return 0;
+}
+
+static void rotation90_u8(uint8_t* __restrict dst, uint8_t* __restrict src, unsigned w, unsigned h) {
+    unsigned nw = h;
+    unsigned nh = w;
+    for (unsigned i = 0; i < nh; i++) {
+        for (unsigned j = 0; j < nw; j++) {
+            *(dst + i * nw + j) = *(src + (h - j - 1) * w + i);
+        }
+    }
+}
+
+static void rotation270_u8(uint8_t* __restrict dst, uint8_t* __restrict src, unsigned w, unsigned h) {
+    unsigned nw = h;
+    unsigned nh = w;
+    for (unsigned i = 0; i < nh; i++) {
+        for (unsigned j = 0; j < nw; j++) {
+            *(dst + i * nw + j) = *(src + j * w + (w - i - 1));
+        }
+    }
+}
+
+static void rotation90_u16(uint16_t* __restrict dst, uint16_t* __restrict src, unsigned w, unsigned h) {
+    unsigned nw = h;
+    unsigned nh = w;
+    for (unsigned i = 0; i < nh; i++) {
+        for (unsigned j = 0; j < nw; j++) {
+            *(dst + i * nw + j) = *(src + (h - j - 1) * w + i);
+        }
+    }
+}
+
+static void rotation270_u16(uint16_t* __restrict dst, uint16_t* __restrict src, unsigned w, unsigned h) {
+    unsigned nw = h;
+    unsigned nh = w;
+    for (unsigned i = 0; i < nh; i++) {
+        for (unsigned j = 0; j < nw; j++) {
+            *(dst + i * nw + j) = *(src + j * w + (w - i - 1));
+        }
+    }
+}
+
+int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int timeout, void*(*realloc)(void*, unsigned long));
 
 static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* data, size_t length) {
     for (size_t i = 0; i < length;) {
@@ -342,19 +437,19 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                 #endif
                 {
                     print_raw(data, length);
-                    pr("cmd: %x", state->cmd);
+                    pr_verb("cmd: %x", state->cmd);
                 }
                 switch (state->cmd) {
                     case USBDBG_NONE:
                         break;
                     case USBDBG_QUERY_STATUS: {
-                        pr("cmd: USBDBG_QUERY_STATUS");
+                        pr_verb("cmd: USBDBG_QUERY_STATUS");
                         uint32_t resp = 0xFFEEBBAA;
                         usb_tx(&resp, sizeof(resp));
                         break;
                     }
                     case USBDBG_FW_VERSION: {
-                        pr("cmd: USBDBG_FW_VERSION");
+                        pr_verb("cmd: USBDBG_FW_VERSION");
                         uint32_t resp[3] = {
                             FIRMWARE_VERSION_MAJOR,
                             FIRMWARE_VERSION_MINOR,
@@ -366,17 +461,17 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     case USBDBG_ARCH_STR: {
                         char buffer[0x40];
                         if (state->data_length != sizeof(buffer)) {
-                            pr("Warning: USBDBG_ARCH_STR data length %u, expected %lu", state->data_length, sizeof(buffer));
+                            pr_verb("Warning: USBDBG_ARCH_STR data length %u, expected %lu", state->data_length, sizeof(buffer));
                         }
                         snprintf(buffer, sizeof(buffer), "%s [%s:%08X%08X%08X]",
                             OMV_ARCH_STR, OMV_BOARD_TYPE, 0, 0, 0); // TODO: UID
-                        pr("cmd: USBDBG_ARCH_STR %s", buffer);
+                        pr_verb("cmd: USBDBG_ARCH_STR %s", buffer);
                         usb_tx(buffer, sizeof(buffer));
                         break;
                     }
                     case USBDBG_SCRIPT_EXEC: {
                         // TODO
-                        pr("cmd: USBDBG_SCRIPT_EXEC size %u", state->data_length);
+                        pr_verb("cmd: USBDBG_SCRIPT_EXEC size %u", state->data_length);
                         if (ide_script_running != 0)
                             mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&ide_exception));
                         usleep(100000);
@@ -393,7 +488,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     }
                     case USBDBG_SCRIPT_STOP: {
                         // TODO
-                        pr("cmd: USBDBG_SCRIPT_STOP");
+                        pr_verb("cmd: USBDBG_SCRIPT_STOP");
                         // raise IDE interrupt
                         if (ide_script_running)
                             mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&ide_exception));
@@ -401,16 +496,16 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     }
                     case USBDBG_SCRIPT_SAVE: {
                         // TODO
-                        pr("cmd: USBDBG_SCRIPT_SAVE");
+                        pr_verb("cmd: USBDBG_SCRIPT_SAVE");
                         break;
                     }
                     case USBDBG_QUERY_FILE_STAT: {
-                        pr("cmd: USBDBG_QUERY_FILE_STAT");
+                        pr_verb("cmd: USBDBG_QUERY_FILE_STAT");
                         usb_tx(&ide_dbg_sv_file.errcode, sizeof(ide_dbg_sv_file.errcode));
                         break;
                     }
                     case USBDBG_WRITEFILE: {
-                        pr("cmd: USBDBG_WRITEFILE %u bytes", state->data_length);
+                        pr_verb("cmd: USBDBG_WRITEFILE %u bytes", state->data_length);
                         if ((ide_dbg_sv_file.file == NULL) ||
                             (ide_dbg_sv_file.chunk_buffer == NULL) ||
                             (ide_dbg_sv_file.info.chunk_size < state->data_length)) {
@@ -432,7 +527,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         break;
                     }
                     case USBDBG_VERIFYFILE: {
-                        pr("cmd: USBDBG_VERIFYFILE");
+                        pr_verb("cmd: USBDBG_VERIFYFILE");
                         // TODO: use hardware sha256
                         uint32_t resp = USBDBG_SVFILE_VERIFY_ERR_NONE;
                         if (ide_dbg_sv_file.file == NULL) {
@@ -460,7 +555,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         sha256_final(&sha256, sha256_result);
                         if (strncmp((const char *)sha256_result, (const char *)ide_dbg_sv_file.info.sha256, sizeof(sha256_result)) != 0) {
                             resp = USBDBG_SVFILE_VERIFY_SHA2_ERR;
-                            pr("file sha256 unmatched");
+                            pr_verb("file sha256 unmatched");
                             print_sha256(sha256_result);
                         }
                         verify_end:
@@ -469,16 +564,16 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         break;
                     }
                     case USBDBG_CREATEFILE: {
-                        pr("cmd: USBDBG_CREATEFILE");
+                        pr_verb("cmd: USBDBG_CREATEFILE");
                         memset(&ide_dbg_sv_file.info, 0, sizeof(ide_dbg_sv_file.info));
                         if (sizeof(ide_dbg_sv_file.info) != state->data_length) {
                             ide_dbg_sv_file.errcode = USBDBG_SVFILE_ERR_PATH_ERR;
-                            pr("Warning: CREATEFILE expect data length %lu, got %u", sizeof(ide_dbg_sv_file.info), state->data_length);
+                            pr_verb("Warning: CREATEFILE expect data length %lu, got %u", sizeof(ide_dbg_sv_file.info), state->data_length);
                             break;
                         }
                         // continue receiving
                         read_until(usb_cdc_fd, &ide_dbg_sv_file.info, sizeof(ide_dbg_sv_file.info));
-                        pr("create file: chunk_size(%d), name(%s)",
+                        pr_verb("create file: chunk_size(%d), name(%s)",
                             ide_dbg_sv_file.info.chunk_size, ide_dbg_sv_file.info.name
                         );
                         print_sha256(ide_dbg_sv_file.info.sha256);
@@ -505,7 +600,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     case USBDBG_SCRIPT_RUNNING: {
                         // DO NOT PRINT
                         #if PRINT_ALL
-                        pr("cmd: USBDBG_SCRIPT_RUNNING");
+                        pr_verb("cmd: USBDBG_SCRIPT_RUNNING");
                         #endif
                         usb_tx(&ide_script_running, sizeof(ide_script_running));
                         break;
@@ -518,7 +613,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         }
                         #if !PRINT_ALL
                         else {
-                            pr("cmd: USBDBG_TX_BUF_LEN %u", len);
+                            pr_verb("cmd: USBDBG_TX_BUF_LEN %u", len);
                         }
                         #endif
                         usb_tx((void*)&len, sizeof(len));
@@ -527,7 +622,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     }
                     case USBDBG_TX_BUF: {
                         pthread_mutex_lock(&tx_buf_mutex);
-                        // pr("cmd: USBDBG_TX_BUF %u", TX_BUF_READABLE);
+                        // pr_verb("cmd: USBDBG_TX_BUF %u", TX_BUF_READABLE);
                         uint32_t len = TX_BUF_READABLE;
                         if (len > state->data_length) {
                             len = state->data_length;
@@ -546,7 +641,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     case USBDBG_FRAME_SIZE: {
                         // DO NOT PRINT
                         #if PRINT_ALL
-                        pr("cmd: USBDBG_FRAME_SIZE");
+                        pr_verb("cmd: USBDBG_FRAME_SIZE");
                         #endif
                         uint32_t resp[3] = {
                             0, // width
@@ -559,29 +654,62 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         if (fb_from_current == FB_FROM_USER_SET) {
                             pthread_mutex_lock(&fb_mutex);
                             if (fb_data) {
-                                pr("[omv] use user set fb");
+                                pr_verb("[omv] use user set fb");
                                 resp[0] = fb_width;
                                 resp[1] = fb_height;
                                 resp[2] = fb_size;
                             }
                             pthread_mutex_unlock(&fb_mutex);
                         #if ENABLE_VO_WRITEBACK
-                        } else if (fb_from_current == FB_FROM_VO_WRITEBACK) {
+                        } else if (flag_vo_wbc_enabled && (fb_from_current == FB_FROM_VO_WRITEBACK)) {
                             if (wbc_jpeg_size == 0) {
                                 unsigned error = kd_mpi_wbc_dump_frame(&frame_info, 50);
                                 if (error) {
-                                    pr("[omv] kd_mpi_wbc_dump_frame error: %u", error);
+                                    pr_verb("[omv] kd_mpi_wbc_dump_frame error: %u", error);
                                     goto skip;
                                 }
                                 frame_info.v_frame.pixel_format = PIXEL_FORMAT_YVU_SEMIPLANAR_420;
-                                //pr("[omv] kd_mpi_wbc_dump_frame success w(%u)h(%u)phy(%08lx)",
-                                //frame_info.v_frame.width, frame_info.v_frame.height, frame_info.v_frame.phys_addr[0]);
-                                // JPEG compressing
-                                int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int timeout, void*(*realloc)(void*, unsigned long));
-                                int ssize = hd_jpeg_encode(&frame_info, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
+                                unsigned ysize = frame_info.v_frame.width * frame_info.v_frame.height;
+                                unsigned uvsize = ysize / 2;
+                                int ssize = 0;
+                                if (vo_func == K_ROTATION_90) {
+                                    // y
+                                    uint8_t* y = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[0], ysize);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[0], y, ysize);
+                                    rotation90_u8(rotation_buffer.v_frame.virt_addr[0], y, frame_info.v_frame.width, frame_info.v_frame.height);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[0], y, ysize);
+                                    kd_mpi_sys_munmap(y, ysize);
+        
+                                    // uv
+                                    uint16_t* uv = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[1], uvsize);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
+                                    rotation90_u16(rotation_buffer.v_frame.virt_addr[1], uv, frame_info.v_frame.width / 2, frame_info.v_frame.height / 2);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
+                                    kd_mpi_sys_munmap(uv, uvsize);
+
+                                    ssize = hd_jpeg_encode(&rotation_buffer, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
+                                } else if (vo_func == K_ROTATION_270) {
+                                    // y
+                                    uint8_t* y = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[0], ysize);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[0], y, ysize);
+                                    rotation270_u8(rotation_buffer.v_frame.virt_addr[0], y, frame_info.v_frame.width, frame_info.v_frame.height);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[0], y, ysize);
+                                    kd_mpi_sys_munmap(y, ysize);
+        
+                                    // uv
+                                    uint16_t* uv = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[1], uvsize);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
+                                    rotation270_u16(rotation_buffer.v_frame.virt_addr[1], uv, frame_info.v_frame.width / 2, frame_info.v_frame.height / 2);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
+                                    kd_mpi_sys_munmap(uv, uvsize);
+
+                                    ssize = hd_jpeg_encode(&rotation_buffer, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
+                                } else {
+                                    ssize = hd_jpeg_encode(&frame_info, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
+                                }
                                 kd_mpi_wbc_dump_release(&frame_info);
                                 if (ssize <= 0) {
-                                    pr("[omv] hardware JPEG error %d", ssize);
+                                    pr_verb("[omv] hardware JPEG error %d", ssize);
                                     // error
                                     goto skip;
                                 }
@@ -595,13 +723,12 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         }
                         skip:
                         if (resp[2]) {
-                            pr("cmd: USBDBG_FRAME_SIZE %u %u %u from(%d)", resp[0], resp[1], resp[2], fb_from);
+                            // pr_verb("cmd: USBDBG_FRAME_SIZE %u %u %u from(%d)", resp[0], resp[1], resp[2], fb_from);
                         }
                         usb_tx(&resp, sizeof(resp));
                         break;
                     }
                     case USBDBG_FRAME_DUMP: {
-                        pr("cmd: USBDBG_FRAME_DUMP");
                         if (fb_from_current == FB_FROM_USER_SET) {
                             pthread_mutex_lock(&fb_mutex);
                             usb_tx((void*)fb_data, fb_size);
@@ -619,7 +746,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                     }
                     case USBDBG_SYS_RESET: {
                         // TODO: reset serialport to REPL mode
-                        pr("cmd: USBDBG_SYS_RESET");
+                        pr_verb("cmd: USBDBG_SYS_RESET");
                         if (ide_script_running) {
                             ide_disconnect = true;
                             mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&ide_exception));
@@ -633,12 +760,12 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                         if (i + 1 < length) {
                             enable_pic = data[i+1];
                         }
-                        pr("cmd: USBDBG_FB_ENABLE, enable(%u)", enable_pic);
+                        pr_verb("cmd: USBDBG_FB_ENABLE, enable(%u)", enable_pic);
                         break;
                     }
                     default:
                         // unknown command
-                        pr("unknown command %02x", state->cmd);
+                        pr_verb("unknown command %02x", state->cmd);
                         break;
                 }
                 state->state = FRAME_HEAD;
@@ -702,7 +829,7 @@ static void* ide_dbg_task(void* args) {
         }
         if (FD_ISSET(usb_cdc_fd, &efds)) {
             // RTS
-            pr("[usb] RTS");
+            pr_verb("[usb] RTS");
             static struct timeval tval_last = {};
             struct timeval tval;
             struct timeval tval_sub;
@@ -725,7 +852,7 @@ static void* ide_dbg_task(void* args) {
         }
         ssize_t size = read(usb_cdc_fd, usb_cdc_read_buf, sizeof(usb_cdc_read_buf));
         if (size == 0) {
-            pr("[usb] read timeout");
+            pr_verb("[usb] read timeout");
             continue;
         } else if (size < 0) {
             // TODO: error, but ???
@@ -744,7 +871,7 @@ static void* ide_dbg_task(void* args) {
                 (strncmp((const char*)usb_cdc_read_buf, IDE_TOKEN3, size) == 0)
                 )) {
                 // switch to ide mode
-                pr("[usb] switch to IDE mode");
+                pr_verb("[usb] switch to IDE mode");
                 if (!ide_dbg_attach()) {
                     interrupt_repl();
                 }
@@ -768,7 +895,7 @@ static void* ide_dbg_task(void* args) {
                     continue;
                 }
                 // normal REPL
-                pr("[usb] read %lu bytes ", size);
+                pr_verb("[usb] read %lu bytes ", size);
                 print_raw(usb_cdc_read_buf, size);
                 if ((size == 1) && (usb_cdc_read_buf[0] == CHAR_CTRL_C) && repl_script_running) {
                     // terminate script running
@@ -796,12 +923,12 @@ static void* ide_dbg_task(void* args) {
 }
 
 void sighandler(int sig) {
-    pr("get signal %d", sig);
+    pr_verb("get signal %d", sig);
     exit(0);
 }
 
 void ide_dbg_init(void) {
-    pr("IDE debugger built %s %s", __DATE__, __TIME__);
+    pr_info("IDE debugger built %s %s", __DATE__, __TIME__);
     usb_cdc_fd = open("/dev/ttyUSB1", O_RDWR);
     if (usb_cdc_fd < 0) {
         perror("open /dev/ttyUSB1 error");
