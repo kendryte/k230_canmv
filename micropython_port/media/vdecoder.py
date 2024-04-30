@@ -127,11 +127,11 @@ class Decoder:
 
         kd_mpi_sys_munmap(vir_data,blk_size)
 
-        kd_mpi_vb_release_block(handle)
-
         ret = kd_mpi_vdec_send_stream(self.chn, stream, -1)
         if (ret != 0):
             raise OSError("kd_mpi_vdec_send_stream failed,channel:",self.chn)
+
+        kd_mpi_vb_release_block(handle)
 
         status = k_vdec_chn_status()
         os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
