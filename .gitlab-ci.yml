@@ -183,9 +183,11 @@ release_image_publish:
       echo "Total pipeline duration ${t_hours}小时${t_minutes}分${t_seconds}秒"
       if [[ "$SEND" == "TRUE" ]]; then
         test -d bin || mkdir ./bin
-        test -f ./bin/send_feishy && rm -rf ./bin/send_feishu
+        test -f ./bin/send_feishu && rm -rf ./bin/send_feishu
+        echo "start to download send_feishu";
         wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/send_feishu -O ./bin/send_feishu
         chmod +x ./bin/send_feishu
+        echo "start to run send_feishu";
         ./bin/send_feishu --msg_type pipeline --gitlab_repo $CI_PROJECT_NAME --pipeline_source $CI_PIPELINE_SOURCE --pipeline_version ${SUB_BASE} --pipeline_seconds $total_seconds --pipeline_stage $CI_JOB_STAGE --pipeline_url $CI_PIPELINE_URL --pipeline_result $CI_JOB_STATUS --sdk_url "$sdk_url" --image_url "$image_url"
         echo "send feishu done"
       else
@@ -460,10 +462,10 @@ release_image_publish:
           fi
     - echo "MR ID ${CI_MERGE_REQUEST_IID}"
     - echo "Pipeline ID ${CI_PIPELINE_ID}"
-    - reserved=$(./bin/ailab add ${available} --time 15m --site gitlab-runner --source ${CI_MERGE_REQUEST_IID} --job ${CI_PIPELINE_ID} --format args)
+    - reserved=$(./bin/ailab add ${available} --time 15m --site ${CI_PROJECT_NAME} --source ${CI_MERGE_REQUEST_IID} --job ${CI_PIPELINE_ID} --format args)
     - echo ${reserved}
     - >
-          if [[ ${reserved} =~ "gitlab-runner" ]]; then
+          if [[ ${reserved} =~ "gitlab" ]]; then
             echo "Reserve DUT pass"
           else
             echo "ERROR: Reserve DUT failed"
