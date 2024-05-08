@@ -74,7 +74,10 @@ release_image_publish:
    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG =~ /^v\d+\.\d+.*$/
   parallel:
     matrix:
-      - CONF: [k230_canmv_defconfig]
+      - CONF:
+        - k230_canmv_defconfig
+        - k230_canmv_only_rtt_defconfig
+        - k230d_canmv_only_rtt_defconfig
   extends:
     - .sync_release_image
 
@@ -807,7 +810,10 @@ build_image:
   timeout: 45m
   parallel:
     matrix:
-      - CONF: [k230_canmv_defconfig]
+      - CONF:
+        - k230_canmv_defconfig
+        - k230_canmv_only_rtt_defconfig
+        - k230d_canmv_only_rtt_defconfig
   variables:
     SRC_DIR: ./output/${CONF}/images
   script:
