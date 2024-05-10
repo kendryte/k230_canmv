@@ -190,8 +190,40 @@ release_image_publish:
         echo "start to download send_feishu";
         wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/send_feishu -O ./bin/send_feishu
         chmod +x ./bin/send_feishu
-        echo "start to run send_feishu";
-        ./bin/send_feishu --msg_type pipeline --gitlab_repo $CI_PROJECT_NAME --pipeline_source $CI_PIPELINE_SOURCE --pipeline_version ${SUB_BASE} --pipeline_seconds $total_seconds --pipeline_stage $CI_JOB_STAGE --pipeline_url $CI_PIPELINE_URL --pipeline_result $CI_JOB_STATUS --sdk_url "$sdk_url" --image_url "$image_url"
+        echo "---start to send feishu msg in for loop"
+        stime=$(date +'%Y-%m-%d %H:%M:%S')
+        echo "---run send feishu msg start time: $stime"
+        send_cmd="timeout 1m ./bin/send_feishu --msg_type pipeline --gitlab_repo $CI_PROJECT_NAME --pipeline_source $CI_PIPELINE_SOURCE --pipeline_version ${SUB_BASE} --pipeline_seconds $total_seconds --pipeline_stage $CI_JOB_STAGE --pipeline_url $CI_PIPELINE_URL --pipeline_result $CI_JOB_STATUS --image_url $image_url "
+        for i in {1..4}; do
+          if [ $i -eq 4 ]
+          then
+            echo "ERROR: Max retries reached with run send feishu msg"
+            exit 1
+          fi
+          starttime=$(date +'%Y-%m-%d %H:%M:%S')
+          echo "---loop $i start time: $starttime"
+          echo "---start to run send feishu msg in loop $i---"
+          if $send_cmd
+          then
+            echo "---loop $i run send feishu msg pass---"
+            break
+          else
+            echo "ERROR:loop $i run send feishu msg failed, ignore Error and try again..."
+            echo "---start to rerun in next loop..."
+            sleep 3
+          fi
+          endtime=$(date +'%Y-%m-%d %H:%M:%S')
+          start_seconds=$(date -d "$starttime" +%s)
+          end_seconds=$(date -d "$endtime" +%s)
+          echo "---loop $i end time: $endtime"
+          echo "---loop $i total cost time：$((end_seconds - start_seconds)) s"
+        done
+        etime=$(date +'%Y-%m-%d %H:%M:%S')
+        s_seconds=$(date -d "$stime" +%s)
+        e_seconds=$(date -d "$etime" +%s)
+        echo "---run send feishu msg end time: $etime"
+        echo "---run send feishu msg total cost time：$((e_seconds - s_seconds)) s"
+        echo "---finished run send feishu msg in loop $i"
         echo "send feishu done"
       else
         echo "skip send feishu msg"
