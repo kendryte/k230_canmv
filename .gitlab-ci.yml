@@ -1,7 +1,5 @@
 variables:
     DEFAULT_CONF: k230_canmv_defconfig
-    HW_TYPE: k230
-    HW_MODEL: canmv
     HW_VER: v0.1
     TFTP_BASE: /data1/tftp_server
     NFS_BASE: /data/nfs_server
@@ -444,7 +442,7 @@ release_image_publish:
             CI_MERGE_REQUEST_IID=$CI_PIPELINE_SOURCE
           fi
         echo "current MR ID ${CI_MERGE_REQUEST_IID}"
-        SUB_DIR="${CI_MERGE_REQUEST_IID}_${CI_PIPELINE_ID}";
+        SUB_DIR="${CI_MERGE_REQUEST_IID}_${CI_PIPELINE_ID}/${CONF}";
         sudo mkdir -p ${DST_DIR}/${SUB_DIR}/ || exit 1
         src_file="${SRC_DIR}/sysimage-sdcard.img.gz"
         ls "${src_file}" || exit 1
@@ -466,21 +464,6 @@ release_image_publish:
 .test:
   test_setup:
     - - echo "----------Step 1. get available test devices----------"
-    - test -d bin || mkdir ./bin
-    - test -f ./bin/ailab && rm -rf ./bin/ailab
-    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/ailab -O ./bin/ailab
-    - chmod +x ./bin/ailab
-    - available=$(./bin/ailab show --dest available --domain ${TEST_ENV} --hw_type ${HW_TYPE} --hw_model ${HW_MODEL} --hw_ver ${HW_VER} --format args)
-    - echo ${available}
-    - >
-       if [[ $available =~ "k230" ]]; then
-          echo "Get Available DUT pass"
-        else
-          echo "ERROR: No Available DUT, Please rerun to check it again"
-          exit 1
-        fi
-    - echo "----------get available test devices done----------"
-    - echo "----------Step 2. reserve test device----------"
     - |
         echo "check job from MR or tag or schedule or web"
         if [[ ${CI_MERGE_REQUEST_IID} ]]; then
@@ -497,26 +480,93 @@ release_image_publish:
           fi
     - echo "MR ID ${CI_MERGE_REQUEST_IID}"
     - echo "Pipeline ID ${CI_PIPELINE_ID}"
-    - reserved=$(./bin/ailab add ${available} --time 15m --site ${CI_PROJECT_NAME} --source ${CI_MERGE_REQUEST_IID} --job ${CI_PIPELINE_ID} --format args)
-    - echo ${reserved}
-    - >
-          if [[ ${reserved} =~ "gitlab" ]]; then
-            echo "Reserve DUT pass"
+    - test -d bin || mkdir ./bin
+    - test -f ./bin/ailab && rm -rf ./bin/ailab
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/ailab -O ./bin/ailab
+    - chmod +x ./bin/ailab
+    - |
+      echo "for loop to get available test device"
+      for i in {1..6}; do
+        if [ $i -eq 6 ];
+        then
+          echo "ERROR: No Available DUT after 5 times retry, Please rerun curent job to check it again";
+          exit 1;
+        fi
+        starttime=$(date +'%Y-%m-%d %H:%M:%S');
+        echo "---loop $i start time: $starttime";
+        echo "---start to get available test device in loop $i---";
+        available=$(./bin/ailab show --dest available --domain ${TEST_ENV} --hw_type ${HW_TYPE} --hw_model ${HW_MODEL} --hw_ver ${HW_VER} --format args)
+        echo ${available}
+        if [[ $available =~ "k230" ]];
+        then
+          echo "---Get Available DUT pass in loop $i---";
+          echo "----------get available test devices done----------";
+          echo "----------Step 2. reserve test device----------";
+          reserved=$(./bin/ailab add ${available} --time 15m --site ${CI_PROJECT_NAME} --source ${CI_MERGE_REQUEST_IID} --job ${CI_PIPELINE_ID} --format args);
+          echo ${reserved};
+          if [[ ${reserved} =~ "gitlab" ]];
+          then
+            echo "Reserve DUT pass in loop $i, break loop and continue the next job";
+            # exit for loop with break once device avaiable and reserved pass
+            break;
           else
-            echo "ERROR: Reserve DUT failed"
-            exit 1
+            echo "ERROR: Reserve DUT failed";
+            if [ $i -eq 6 ];
+            then
+              echo "ERROR: No Available DUT after 5 times retry, Please rerun curent job to check it again";
+              exit 1;
+            else
+              echo "---sleep 30 seconds and auto rerun in next loop...";
+              sleep 30
+            fi
           fi
+        else
+          echo "ERROR: Get available test device failed in loop $i, ignore Error and try again...";
+          echo "---sleep for 30seconds and start to rerun in next loop...";
+          sleep 30;
+        fi
+      done
     - echo "----------Step 3. save reserved/available for after_script----------"
     - echo "${available}" > available
     - echo "${reserved}" > reserved
-    #- power=$(./bin/ailab power --type=on ${available})
-    #- echo $power
-    - echo "----------reserve test device done----------"
+    - echo "${HW_MODEL}" > HW_MODEL
+    - echo "----------Step 4. power on/reset test device before test start----------"
+    - power_off="./bin/ailab power --type=off ${available}";
+    - power_on="./bin/ailab power --type=on ${available}";
+    - power_reset="./bin/ailab power --type=cycle ${available}";
+    - echo $power_off
+    - echo $power_on
+    - echo $power_reset
+    - |
+      echo "---start to run device power job before test start...";
+      if [[ "$HW_MODEL" =~ "canmv_v2" ]]
+      then
+        echo "---canmv v2 board will be power reset at test start ---";
+        $power_reset;
+        sleep 2;
+        echo "canmv_v2 board power reset done. continue to run test job";
+      elif [[ "$HW_MODEL" == "canmv" ]]
+      then
+        echo "---canmv board will be power reset at test start ---";
+        $power_reset;
+        sleep 2;
+        echo "canmv board power reset done. continue to run test job";
+      else
+        echo "---evb board will be power off and power on at test start---";
+        $power_off;
+        sleep 2;
+        $power_on;
+        sleep 2;
+        echo "evb board power off and power on done. continue in next loop";
+      fi
+      echo "---device power action done, start to run test job...";
+    - echo "----------reserve test device and power on/reset test device done----------"
   test_teardown:
     - echo "----------release test device----------"
     - echo "get variables from previous steps"
     - reserved=$(cat reserved)
     - available=$(cat available)
+    - HW_MODEL=$(cat HW_MODEL)
     - echo "Release DUT start"
     - test -d bin || mkdir ./bin
     - test -f ./bin/ailab && rm -rf ./bin/ailab
@@ -524,22 +574,43 @@ release_image_publish:
     - chmod +x ./bin/ailab
     - result=$(./bin/ailab update --dest=reserved ${reserved})
     - echo $result
-    - >
-          if [[ $result =~ "True" ]]; then
-            echo "Release DUT pass"
-          else
-            echo "ERROR: Release DUT failed"
-            exit 1
-          fi
-    # - power=$(./bin/ailab power --type=cycle ${available})
-    # - echo $power
-    # - >
-    #       if [[ $power =~ "True" ]]; then
-    #         echo "Reset DUT pass"
-    #       else
-    #         echo "ERROR: Reset DUT failed"
-    #         exit 1
-    #       fi
+    - echo $result
+    - |
+      if [[ $result =~ "True" ]]; then
+        echo "Release DUT pass";
+      else
+        echo "ERROR: Release DUT failed";
+        exit 1;
+      fi
+    - power_off="./bin/ailab power --type=off ${available}";
+    - power_on="./bin/ailab power --type=on ${available}";
+    - power_reset="./bin/ailab power --type=cycle ${available}";
+    - echo $power_off
+    - echo $power_on
+    - echo $power_reset
+    - |
+      echo "---start to run device power job after test done...";
+      if [[ "$HW_MODEL" =~ "canmv_v2" ]]
+      then
+        echo "---canmv v2 board will skip power job at test start ---";
+        # $power_reset;
+        # sleep 2;
+        # echo "canmv_v2 board power reset done. continue to run test job";
+      elif [[ "$HW_MODEL" == "canmv" ]]
+      then
+        echo "---canmv board will skip power job after test done---";
+        # $power_reset;
+        # sleep 2;
+        # echo "canmv board power reset done. continue to run test job";
+      else
+        echo "---evb board will be power off after test done---";
+        $power_off;
+        # sleep 2;
+        # $power_on;
+        # sleep 2;
+        echo "evb board power off and power on done. continue in next loop";
+      fi
+      echo "---device power job done---";
     - echo "----------release test device done----------"
   load_image:
     - echo "----------load image to test device----------"
@@ -551,42 +622,61 @@ release_image_publish:
     - echo "MR ID ${CI_MERGE_REQUEST_IID}"
     - echo "Pipeline ID ${CI_PIPELINE_ID}"
     - |
-        echo "---start to load image in for loop"
-        stime=$(date +'%Y-%m-%d %H:%M:%S')
-        echo "---load image start time: $stime"
-        power_reset="./bin/ailab power --type=cycle ${available}"
-        load_cmd="./bin/aiload --pr_id ${CI_MERGE_REQUEST_IID} --job_id ${CI_PIPELINE_ID} --md5_sysimage ${sysimage_md5} ${available}"
-        for i in {1..6}; do
-          if [ $i -eq 6 ]
+      echo "---start to load image in for loop";
+      stime=$(date +'%Y-%m-%d %H:%M:%S');
+      echo "---load image start time: $stime";
+      load_cmd="./bin/aiload --file_name=$NFS_CASE_FOLDER/${TEST_ENV}.yml";
+      echo "${load_cmd}";
+      for i in {1..6}; do
+        if [ $i -eq 6 ]
+        then
+            echo "ERROR: Max retries reached with load image";
+            exit 1;
+        fi
+        starttime=$(date +'%Y-%m-%d %H:%M:%S');
+        echo "---loop $i start time: $starttime";
+        echo "---start to load image in loop $i---";
+        if $load_cmd
+        then
+          echo "---loop $i load image pass---";
+          break;
+        else
+          echo "ERROR:loop $i load image failed, ignore Error and retry again...";
+          echo "---start to run device power job after failed job...";
+          if [[ "$HW_MODEL" == "canmv_v2" ]]
           then
-            echo "ERROR: Max retries reached with load image"
-            exit 1
-          fi
-          starttime=$(date +'%Y-%m-%d %H:%M:%S')
-          echo "---loop $i start time: $starttime"
-          echo "---start to load image in loop $i---"
-          $power_reset
-          if $load_cmd
+            echo "---canmv_v2 board will be power reset at the end of loop $i ---";
+            $power_reset;
+            sleep 15;
+            echo "canmv_v2 board power reset done. continue in next loop";
+          elif [[ "$HW_MODEL" == "canmv" ]]
           then
-            echo "---loop $i load image pass---"
-            break
+            echo "---canmv board will be power reset at the end of loop $i ---";
+            $power_reset;
+            sleep 15;
+            echo "canmv board power reset done. continue in next loop";
           else
-            echo "ERROR:loop $i load image failed, ignore Error and try again..."
-            echo "---start to rerun in next loop..."
-            sleep 1
+            echo "---evb board will be power off and power on at the end of loop $i---";
+            $power_off;
+            sleep 3;
+            $power_on;
+            sleep 15;
+            echo "evb board power off and power on done. continue in next loop";
           fi
-          endtime=$(date +'%Y-%m-%d %H:%M:%S')
-          start_seconds=$(date -d "$starttime" +%s)
-          end_seconds=$(date -d "$endtime" +%s)
-          echo "---loop $i end time: $endtime"
-          echo "---loop $i total cost time：$((end_seconds - start_seconds)) s"
-        done
-        etime=$(date +'%Y-%m-%d %H:%M:%S')
-        s_seconds=$(date -d "$stime" +%s)
-        e_seconds=$(date -d "$etime" +%s)
-        echo "---load image end time: $etime"
-        echo "---load image total cost time：$((e_seconds - s_seconds)) s"
-        echo "---finished load image in loop $i"
+          echo "---device power action, start to rerun in next loop...";
+        fi
+        endtime=$(date +'%Y-%m-%d %H:%M:%S');
+        start_seconds=$(date -d "$starttime" +%s);
+        end_seconds=$(date -d "$endtime" +%s);
+        echo "---loop $i end time: $endtime";
+        echo "---loop $i total cost time：$((end_seconds - start_seconds)) s";
+      done
+      etime=$(date +'%Y-%m-%d %H:%M:%S');
+      s_seconds=$(date -d "$stime" +%s);
+      e_seconds=$(date -d "$etime" +%s);
+      echo "---load image end time: $etime";
+      echo "---load image total cost time：$((e_seconds - s_seconds)) s";
+      echo "---finished load image in loop $i";
     - echo "---load image pass"
     - echo "----------load image to test device done----------"
   copy_test_resource:
@@ -616,8 +706,8 @@ release_image_publish:
           CI_MERGE_REQUEST_IID=$CI_PIPELINE_SOURCE
       fi
       echo "current MR ID ${CI_MERGE_REQUEST_IID}"
-      SUB_DIR="${CI_MERGE_REQUEST_IID}_${CI_PIPELINE_ID}";
-      NFS_CASE_FOLDER="${NFS_DST_DIR}/${SUB_DIR}/${TEST_ENV}"
+      SUB_DIR="${CI_MERGE_REQUEST_IID}_${CI_PIPELINE_ID}"
+      NFS_CASE_FOLDER="${NFS_DST_DIR}/${SUB_DIR}/${CONF}/${TEST_ENV}"
       echo "NFS_CASE_FOLDER: $NFS_CASE_FOLDER"
       echo "update current NFS_CASE_FOLDER permission before write"
       sudo mkdir -p ${NFS_CASE_FOLDER} || exit 1
@@ -648,12 +738,17 @@ release_image_publish:
     - cd -
     - pwd
     - echo "finished copy test resource in nfs_server"
-    - echo "----------Step 6. generate test device yml file for test job----------"
-    - ./bin/ailab convert --dest=script --format yaml --file_name=${TEST_ENV}.yml --nfs_server_ip $NFS_SERVER --nfs_case_folder $NFS_CASE_FOLDER ${available}
+    - echo "----------Step 7. generate test device yml file for test job----------"
+    - echo "run command ./bin/ailab convert --dest=script --format yaml --file_name=${TEST_ENV}.yml --nfs_server_ip $NFS_SERVER --nfs_case_folder $NFS_CASE_FOLDER --only_rtt ${ONLY_RTT} --conf ${CONF} --pr_id ${CI_MERGE_REQUEST_IID} --job_id ${CI_PIPELINE_ID} --sysimage_md5 ${sysimage_md5} ${available}"
+    - ./bin/ailab convert --dest=script --format yaml --file_name=${TEST_ENV}.yml --nfs_server_ip $NFS_SERVER --nfs_case_folder $NFS_CASE_FOLDER --only_rtt ${ONLY_RTT} --conf ${CONF} --pr_id ${CI_MERGE_REQUEST_IID} --job_id ${CI_PIPELINE_ID} --sysimage_md5 ${sysimage_md5} ${available}
     - test -f ${TEST_ENV}.yml || exit 1
-    - echo "cp ${TEST_ENV}.yml to nfs_case_folder"
+    - cat ${TEST_ENV}.yml || exit 1
+    - echo "cp ${TEST_ENV}.yml to nfs_case_folder for NUC remote PC audio job"
     - cp -rf --sparse=always ${TEST_ENV}.yml $NFS_CASE_FOLDER/ || exit 1
     - test -f $NFS_CASE_FOLDER/${TEST_ENV}.yml || exit 1
+    - echo "show test resource in nfs_server"
+    - echo $NFS_CASE_FOLDER
+    - ls -alht $NFS_CASE_FOLDER
   smoke_test:
     - echo "----------Run Smoke Test start----------"
     - echo "---add test script"
@@ -673,7 +768,7 @@ release_image_publish:
         echo "---start to run k230 micropython smoke test in for loop"
         stime=$(date +'%Y-%m-%d %H:%M:%S')
         echo "---run k230 smoke test start time: $stime"
-        test_cmd="./k230_micropython_smoke_test.sh ${TEST_ENV}"
+        test_cmd="./k230_micropython_smoke_test.sh $NFS_CASE_FOLDER/${TEST_ENV}.yml"
         for i in {1..3}; do
           if [ $i -eq 3 ]
           then
@@ -722,7 +817,7 @@ release_image_publish:
         echo "---start to run k230 micropython daily test in for loop"
         stime=$(date +'%Y-%m-%d %H:%M:%S')
         echo "---run k230 micropython daily test start time: $stime"
-        test_cmd="./k230_micropython_daily_test.sh $TEST_ENV"
+        test_cmd="./k230_micropython_daily_test.sh $NFS_CASE_FOLDER/${TEST_ENV}.yml"
         for i in {1..3}; do
           if [ $i -eq 3 ]
           then
@@ -793,6 +888,17 @@ before_script:
   - git config --global --add safe.directory $CI_PROJECT_DIR/micropython
   - echo '----------fetch all tags----------'
   - git fetch --tags
+  - HW_TYPE=$(echo $CONF | awk -F '_'  '{print $1}')
+  - HW_MODEL=$(echo $CONF | awk -F "_"  '{if ($3 == "v2") print $2"_"$3; else print $2}')
+  - echo "HW_TYPE ${HW_TYPE}, HW_MODEL ${HW_MODEL}"
+  - |
+      if [[ $CONF =~ "only_rtt_defconfig" ]]; then
+        ONLY_RTT=True
+      else
+        ONLY_RTT=False
+      fi
+  - echo "ONLY_RTT is ${ONLY_RTT}"
+
 
 after_script:
   - *show_vars
@@ -846,6 +952,7 @@ build_image:
         - k230_canmv_defconfig
         - k230_canmv_only_rtt_defconfig
         - k230d_canmv_only_rtt_defconfig
+        - k230_canmv_01studio_defconfig
   variables:
     SRC_DIR: ./output/${CONF}/images
   script:
@@ -864,6 +971,7 @@ load_image_smoke_test:
   stage: smoke_test
   variables:
     TEST_ENV: ai
+    CONF: k230_canmv_defconfig
   rules:
     # MR job to dev branch
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"  && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev"
@@ -903,6 +1011,7 @@ daily_build_test:
   timeout: 300m
   variables:
     TEST_ENV: ai
+    CONF: k230_canmv_defconfig
   script:
     - *show_vars
     - *check_build_result
