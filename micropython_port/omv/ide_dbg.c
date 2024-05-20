@@ -343,9 +343,11 @@ int ide_dbg_vo_deinit(void) {
         unsigned ysize = rotation_buffer.v_frame.width * rotation_buffer.v_frame.height;
         kd_mpi_sys_munmap(rotation_buffer.v_frame.virt_addr[0], ysize);
         kd_mpi_sys_munmap(rotation_buffer.v_frame.virt_addr[1], ysize / 2);
+        rotation_buffer.v_frame.virt_addr[0] = 0;
     }
     if (rotation_buffer.v_frame.phys_addr[0] != 0) {
         kd_mpi_vb_release_block(kd_mpi_vb_phyaddr_to_handle(rotation_buffer.v_frame.phys_addr[0]));
+        rotation_buffer.v_frame.phys_addr[0] = 0;
     }
     #endif
     return 0;
