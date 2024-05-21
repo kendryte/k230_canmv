@@ -180,7 +180,7 @@ class media:
         cls.config_index += 1
         # for VO writeback
         cls.buf_config.comm_pool[cls.config_index].blk_size = 3117056
-        cls.buf_config.comm_pool[cls.config_index].blk_cnt = 5
+        cls.buf_config.comm_pool[cls.config_index].blk_cnt = 4
         cls.buf_config.comm_pool[cls.config_index].mode = VB_REMAP_MODE_NOCACHE
         cls.config_index += 1
 

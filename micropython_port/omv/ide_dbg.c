@@ -260,7 +260,9 @@ static uint32_t wbc_jpeg_size = 0;
 static k_connector_type connector_type = 0;
 static k_video_frame_info frame_info;
 static int vo_func = K_VO_MIRROR_NONE;
+#if ENABLE_BUFFER_ROTATION
 static k_video_frame_info rotation_buffer;
+#endif
 static bool flag_vo_wbc_enabled = false;
 #endif
 
@@ -285,6 +287,7 @@ int ide_dbg_vo_wbc_init(void) {
             .height = vo_info.resolution.vdisplay
         }
     };
+    #if ENABLE_BUFFER_ROTATION
     if (vo_func != K_VO_MIRROR_NONE) {
         // allocate rotation buffer
         k_vb_blk_handle handle = kd_mpi_vb_get_block(VB_INVALID_POOLID, 3117056, NULL);
@@ -308,6 +311,7 @@ int ide_dbg_vo_wbc_init(void) {
         pr_info("set rotation buffer %08lx", rotation_buffer.v_frame.phys_addr[0]);
     }
     skip_rotation:
+    #endif
     if (kd_mpi_vo_set_wbc_attr(&attr)) {
         pr_err("[omv] kd_mpi_vo_set_wbc_attr error");
         return -1;
@@ -338,6 +342,7 @@ int ide_dbg_vo_deinit(void) {
     close(fd);
     usleep(50000);
     kd_mpi_vo_disable_wbc();
+    #if ENABLE_BUFFER_ROTATION
     vo_func = K_VO_MIRROR_NONE;
     if (rotation_buffer.v_frame.virt_addr[0]) {
         unsigned ysize = rotation_buffer.v_frame.width * rotation_buffer.v_frame.height;
@@ -349,6 +354,7 @@ int ide_dbg_vo_deinit(void) {
         kd_mpi_vb_release_block(kd_mpi_vb_phyaddr_to_handle(rotation_buffer.v_frame.phys_addr[0]));
         rotation_buffer.v_frame.phys_addr[0] = 0;
     }
+    #endif
     #endif
     return 0;
 }
@@ -365,7 +371,7 @@ int ide_dbg_set_vo_func(int func) {
     }
     return 0;
 }
-
+#if ENABLE_BUFFER_ROTATION
 static void rotation90_u8(uint8_t* __restrict dst, uint8_t* __restrict src, unsigned w, unsigned h) {
     unsigned nw = h;
     unsigned nh = w;
@@ -405,7 +411,7 @@ static void rotation270_u16(uint16_t* __restrict dst, uint16_t* __restrict src, 
         }
     }
 }
-
+#endif
 int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int timeout, void*(*realloc)(void*, unsigned long));
 
 static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* data, size_t length) {
@@ -671,9 +677,10 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                                     goto skip;
                                 }
                                 frame_info.v_frame.pixel_format = PIXEL_FORMAT_YVU_SEMIPLANAR_420;
+                                int ssize = 0;
+                                #if ENABLE_BUFFER_ROTATION
                                 unsigned ysize = frame_info.v_frame.width * frame_info.v_frame.height;
                                 unsigned uvsize = ysize / 2;
-                                int ssize = 0;
                                 if (vo_func == K_ROTATION_90) {
                                     // y
                                     uint8_t* y = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[0], ysize);
@@ -709,6 +716,9 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                                 } else {
                                     ssize = hd_jpeg_encode(&frame_info, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
                                 }
+                                #else
+                                ssize = hd_jpeg_encode(&frame_info, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
+                                #endif
                                 kd_mpi_wbc_dump_release(&frame_info);
                                 if (ssize <= 0) {
                                     pr_verb("[omv] hardware JPEG error %d", ssize);
