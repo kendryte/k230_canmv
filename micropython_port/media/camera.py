@@ -43,6 +43,7 @@ class __camera_device:
         self.dev_attr.mode = VICAP_WORK_ONLINE_MODE
         # self.dev_attr.mode = VICAP_WORK_OFFLINE_MODE
         self.dev_attr.input_type = VICAP_INPUT_TYPE_SENSOR
+        self.dev_attr.mirror = 0
 
         for i in range(0, VICAP_CHN_ID_MAX):
             self.chn_attr[i].buffer_num = CAM_DEFAULT_OUTPUT_BUF_NUM
@@ -52,6 +53,27 @@ class camera:
     # gloable cam_dev obj define
     cam_dev = [__camera_device() for i in range(0, VICAP_DEV_ID_MAX)]
 
+    @classmethod
+    def set_hmirror(cls, dev_num = 0, enable = 1):
+        if (dev_num > CAM_DEV_ID_MAX - 1):
+            raise ValueError(f"set_inbufs, invalid param, dev_num({dev_num}")
+
+        # cls.cam_dev[dev_num].dev_attr.mirror = 1
+        if (enable == 1):
+            cls.cam_dev[dev_num].dev_attr.mirror = cls.cam_dev[dev_num].dev_attr.mirror | 1
+        else:
+            cls.cam_dev[dev_num].dev_attr.mirror = cls.cam_dev[dev_num].dev_attr.mirror & (~(1))
+
+    @classmethod
+    def set_vflip(cls, dev_num = 0, enable = 1):
+        if (dev_num > CAM_DEV_ID_MAX - 1):
+            raise ValueError(f"set_inbufs, invalid param, dev_num({dev_num}")
+
+        # cls.cam_dev[dev_num].dev_attr.mirror = 2
+        if (enable == 1):
+            cls.cam_dev[dev_num].dev_attr.mirror = cls.cam_dev[dev_num].dev_attr.mirror | 2
+        else:
+            cls.cam_dev[dev_num].dev_attr.mirror = cls.cam_dev[dev_num].dev_attr.mirror& (~(2))
 
     # sensor_init
     @classmethod
