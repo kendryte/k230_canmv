@@ -85,18 +85,18 @@ class camera:
         if ret:
             raise OSError("get sensor info err")
 
-        if type == OV_OV5647_MIPI_CSI0_1920X1080_30FPS_10BIT_LINEAR:
-            kd_mpi_vicap_set_mclk(VICAP_MCLK0, VICAP_PLL0_CLK_DIV4, 16, 1)
-        if type == OV_OV5647_MIPI_CSI1_1920X1080_30FPS_10BIT_LINEAR:
-            kd_mpi_vicap_set_mclk(VICAP_MCLK1, VICAP_PLL0_CLK_DIV4, 16, 1)
-        if type == OV_OV5647_MIPI_CSI2_1920X1080_30FPS_10BIT_LINEAR:
-            kd_mpi_vicap_set_mclk(VICAP_MCLK2, VICAP_PLL0_CLK_DIV4, 16, 1)
-        if type == IMX335_MIPI_2LANE_RAW12_1920X1080_30FPS_MCLK_7425_LINEAR:
-            kd_mpi_vicap_set_mclk(VICAP_MCLK0, VICAP_PLL1_CLK_DIV4, 8, 1)
-        if type == IMX335_MIPI_CSI1_2LANE_RAW12_1920X1080_30FPS_MCLK_7425_LINEAR:
-            kd_mpi_vicap_set_mclk(VICAP_MCLK1, VICAP_PLL1_CLK_DIV4, 8, 1)
-        if type == IMX335_MIPI_CSI2_2LANE_RAW12_1920X1080_30FPS_MCLK_7425_LINEAR:
-            kd_mpi_vicap_set_mclk(VICAP_MCLK2, VICAP_PLL1_CLK_DIV4, 8, 1)
+        # if type == OV_OV5647_MIPI_CSI0_1920X1080_30FPS_10BIT_LINEAR:
+        #     kd_mpi_vicap_set_mclk(VICAP_MCLK0, VICAP_PLL0_CLK_DIV4, 16, 1)
+        # if type == OV_OV5647_MIPI_CSI1_1920X1080_30FPS_10BIT_LINEAR:
+        #     kd_mpi_vicap_set_mclk(VICAP_MCLK1, VICAP_PLL0_CLK_DIV4, 16, 1)
+        # if type == OV_OV5647_MIPI_CSI2_1920X1080_30FPS_10BIT_LINEAR:
+        #     kd_mpi_vicap_set_mclk(VICAP_MCLK2, VICAP_PLL0_CLK_DIV4, 16, 1)
+        # if type == IMX335_MIPI_2LANE_RAW12_1920X1080_30FPS_MCLK_7425_LINEAR:
+        #     kd_mpi_vicap_set_mclk(VICAP_MCLK0, VICAP_PLL1_CLK_DIV4, 8, 1)
+        # if type == IMX335_MIPI_CSI1_2LANE_RAW12_1920X1080_30FPS_MCLK_7425_LINEAR:
+        #     kd_mpi_vicap_set_mclk(VICAP_MCLK1, VICAP_PLL1_CLK_DIV4, 8, 1)
+        # if type == IMX335_MIPI_CSI2_2LANE_RAW12_1920X1080_30FPS_MCLK_7425_LINEAR:
+        #     kd_mpi_vicap_set_mclk(VICAP_MCLK2, VICAP_PLL1_CLK_DIV4, 8, 1)
 
         cls.cam_dev[dev_num].dev_attr.acq_win.h_start = 0
         cls.cam_dev[dev_num].dev_attr.acq_win.v_start = 0
