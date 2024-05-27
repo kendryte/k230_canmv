@@ -182,26 +182,30 @@ release_image_publish:
       t_minutes=$(( (total_seconds % 3600) / 60 ))
       t_seconds=$((total_seconds % 60))
       echo "Total pipeline duration ${t_hours}小时${t_minutes}分${t_seconds}秒"
-      if [[ "$SEND" == "TRUE" ]]; then
-        test -d bin || mkdir ./bin
-        test -f ./bin/send_feishu && rm -rf ./bin/send_feishu
+      if [[ "$SEND" == "TRUE" ]];
+      then
+        test -d bin || mkdir ./bin;
+        test -f ./bin/send_feishu && rm -rf ./bin/send_feishu;
         echo "start to download send_feishu";
-        wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/send_feishu -O ./bin/send_feishu
-        chmod +x ./bin/send_feishu
+        wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/send_feishu -O ./bin/send_feishu;
+        chmod +x ./bin/send_feishu;
         echo "---start to send feishu msg in for loop"
         stime=$(date +'%Y-%m-%d %H:%M:%S')
         echo "---run send feishu msg start time: $stime"
-        send_cmd="timeout 1m ./bin/send_feishu --msg_type pipeline --gitlab_repo $CI_PROJECT_NAME --pipeline_source $CI_PIPELINE_SOURCE --pipeline_version ${SUB_BASE} --pipeline_seconds $total_seconds --pipeline_stage $CI_JOB_STAGE --pipeline_url $CI_PIPELINE_URL --pipeline_result $CI_JOB_STATUS --image_url $image_url "
-        for i in {1..4}; do
-          if [ $i -eq 4 ]
+        send_cmd="timeout 1m ./bin/send_feishu --msg_type pipeline --gitlab_repo $CI_PROJECT_NAME --pipeline_source $CI_PIPELINE_SOURCE --pipeline_version ${SUB_BASE} --pipeline_seconds $total_seconds --pipeline_stage $CI_JOB_STAGE --pipeline_url $CI_PIPELINE_URL --pipeline_result $CI_JOB_STATUS --sdk_url $sdk_url --image_url $image_url --job_name='$CI_JOB_NAME'"
+        for i in {1..5}; do
+          if [ $i -eq 5 ]
           then
             echo "ERROR: Max retries reached with run send feishu msg"
             exit 1
           fi
           starttime=$(date +'%Y-%m-%d %H:%M:%S')
           echo "---loop $i start time: $starttime"
+          echo "`date +'%Y-%m-%d %H:%M:%S'` use curl to test feishu server start"
+          timeout 1m curl -X POST -H 'Content-Type: application/json' --data '{"username":"xyz","password":"xyz"}'  https://open.feishu.cn/open-apis/bot/v2/hook/44335978-407b-44c5-99d1-954934b3caa4 -v
+          echo "`date +'%Y-%m-%d %H:%M:%S'` use curl to test feishu server end"
           echo "---start to run send feishu msg in loop $i---"
-          if $send_cmd
+          if eval $send_cmd
           then
             echo "---loop $i run send feishu msg pass---"
             break
@@ -222,9 +226,9 @@ release_image_publish:
         echo "---run send feishu msg end time: $etime"
         echo "---run send feishu msg total cost time：$((e_seconds - s_seconds)) s"
         echo "---finished run send feishu msg in loop $i"
-        echo "send feishu done"
+        echo "send feishu done";
       else
-        echo "skip send feishu msg"
+        echo "skip send feishu msg";
       fi
 
 .get_job_type: &get_job_type
@@ -636,7 +640,7 @@ release_image_publish:
         starttime=$(date +'%Y-%m-%d %H:%M:%S');
         echo "---loop $i start time: $starttime";
         echo "---start to load image in loop $i---";
-        if $load_cmd
+        if eval $load_cmd
         then
           echo "---loop $i load image pass---";
           break;
@@ -761,7 +765,7 @@ release_image_publish:
     - test -f ./bin/airobot && rm -rf ./bin/airobot
     - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/airobot -O ./bin/airobot
     - chmod +x ./bin/airobot
-    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/testscripts/k230_micropython_canmv_smoke_test.sh -O ./k230_micropython_smoke_test.sh
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/testscripts/k230_micropython_smoke_test.sh -O ./k230_micropython_smoke_test.sh
     - chmod +x ./k230_micropython_smoke_test.sh
     - ls -alht
     - |
@@ -778,7 +782,7 @@ release_image_publish:
           starttime=$(date +'%Y-%m-%d %H:%M:%S')
           echo "---loop $i start time: $starttime"
           echo "---start to run k230 canmicropythonmv smoke test in loop $i---"
-          if $test_cmd
+          if eval $test_cmd
           then
             echo "---loop $i run k230 micropython smoke test pass---"
             break
@@ -811,7 +815,7 @@ release_image_publish:
     - test -f ./bin/airobot && rm -rf ./bin/airobot
     - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/airobot -O ./bin/airobot
     - chmod +x ./bin/airobot
-    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/testscripts/k230_micropython_canmv_daily_test.sh -O ./k230_micropython_daily_test.sh
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/testscripts/k230_micropython_daily_test.sh -O ./k230_micropython_daily_test.sh
     - chmod +x ./k230_micropython_daily_test.sh
     - |
         echo "---start to run k230 micropython daily test in for loop"
@@ -827,7 +831,7 @@ release_image_publish:
           starttime=$(date +'%Y-%m-%d %H:%M:%S')
           echo "---loop $i start time: $starttime"
           echo "---start to run k230 micropython daily test in loop $i---"
-          if $test_cmd
+          if eval $test_cmd
           then
             echo "---loop $i run k230 micropython daily test pass---"
             break
@@ -983,7 +987,7 @@ load_image_smoke_test:
     - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG !~ /^v\d+\.\d+.*$/
     # daily build
     - if: $CI_PIPELINE_SOURCE == "schedule"
-  timeout: 30m
+  timeout: 60m
   script:
     - *show_vars
     - *check_build_result
