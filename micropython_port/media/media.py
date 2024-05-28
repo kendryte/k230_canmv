@@ -168,23 +168,24 @@ class media:
 
 
     @classmethod
-    def buffer_init(cls):
+    def buffer_init(cls, venc_size=1843200, venc_cnt=1, wb_size=3117056, wb_cnt=4):
         if cls.__buf_has_init:
             raise OSError("The buffer has been initialized!!!\n\
             This method can only be called once, please check your code!!!")
 
         # for JPEG encoder
-        cls.buf_config.comm_pool[cls.config_index].blk_size = 1843200
-        cls.buf_config.comm_pool[cls.config_index].blk_cnt = 16
-        cls.buf_config.comm_pool[cls.config_index].mode = VB_REMAP_MODE_NOCACHE
-        cls.config_index += 1
+        if venc_cnt > 0:
+            cls.buf_config.comm_pool[cls.config_index].blk_size = venc_size
+            cls.buf_config.comm_pool[cls.config_index].blk_cnt = venc_cnt
+            cls.buf_config.comm_pool[cls.config_index].mode = VB_REMAP_MODE_NOCACHE
+            cls.config_index += 1
         # for VO writeback
-        cls.buf_config.comm_pool[cls.config_index].blk_size = 3117056
-        cls.buf_config.comm_pool[cls.config_index].blk_cnt = 4
-        cls.buf_config.comm_pool[cls.config_index].mode = VB_REMAP_MODE_NOCACHE
-        cls.config_index += 1
+        if wb_cnt > 0:
+            cls.buf_config.comm_pool[cls.config_index].blk_size = wb_size
+            cls.buf_config.comm_pool[cls.config_index].blk_cnt = wb_cnt
+            cls.buf_config.comm_pool[cls.config_index].mode = VB_REMAP_MODE_NOCACHE
+            cls.config_index += 1
 
-        print("buffer pool : ", cls.config_index)
         ret = kd_mpi_vb_set_config(cls.buf_config)
         if ret:
             raise OSError(f"buffer_init, vb config failed({ret})")

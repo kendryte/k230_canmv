@@ -11,6 +11,8 @@
 #include "k_module.h"
 #include "k_vb_comm.h"
 #include "k_video_comm.h"
+#include "k_dma_comm.h"
+#include "mpi_dma_api.h"
 #include "k_vo_comm.h"
 #include "mpconfig.h"
 #include "mpi_connector_api.h"
@@ -251,6 +253,7 @@ void ide_set_fb(const void* data, uint32_t size, uint32_t width, uint32_t height
     pthread_mutex_unlock(&fb_mutex);
 }
 
+#define ALIGN_UP(x,a) (((x)+(a)-1)/(a)*(a))
 #define ENABLE_VO_WRITEBACK 1
 // for VO writeback
 #if ENABLE_VO_WRITEBACK
@@ -266,6 +269,104 @@ static k_video_frame_info rotation_buffer;
 static bool flag_vo_wbc_enabled = false;
 #endif
 
+#define OSD_ROTATION_DMA_CHN 0
+
+void dma_dev_init(void)
+{
+    int ret;
+    k_dma_dev_attr_t dev_attr;
+
+    dev_attr.burst_len = 0;
+    dev_attr.ckg_bypass = 0xff;
+    dev_attr.outstanding = 7;
+
+    ret = kd_mpi_dma_set_dev_attr(&dev_attr);
+    if (ret != K_SUCCESS) {
+        printf("set dev attr error\r\n");
+        return;
+    }
+
+    ret = kd_mpi_dma_start_dev();
+    if (ret != K_SUCCESS) {
+        printf("start dev error\r\n");
+        return;
+    }
+}
+
+static void dma_dev_deinit(void)
+{
+    kd_mpi_dma_stop_chn(OSD_ROTATION_DMA_CHN);
+    kd_mpi_dma_stop_dev();
+}
+
+int kd_mpi_vo_osd_rotation(int flag, k_video_frame_info *in, k_video_frame_info *out)
+{
+#if 0
+    uint32_t width = in->v_frame.width;
+    uint32_t height = in->v_frame.height;
+    uint32_t src_index, dst_index;
+    uint32_t *src = in->v_frame.virt_addr[0];
+    uint32_t *dst = out->v_frame.virt_addr[0];
+
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            src_index = i * width + j;
+            dst_index = j * height + height - i - 1;
+            dst[dst_index] = src[src_index];
+        }
+    }
+    return 0;
+#endif
+    k_dma_chn_attr_u chn_attr = {
+        .gdma_attr.buffer_num = 1,
+        .gdma_attr.rotation = flag & K_ROTATION_0 ? DEGREE_0 :
+            flag & K_ROTATION_90 ? DEGREE_90 :
+            flag & K_ROTATION_180 ? DEGREE_180 :
+            flag & K_ROTATION_270 ? DEGREE_270 : DEGREE_0,
+        .gdma_attr.x_mirror = flag & (K_VO_MIRROR_HOR || K_VO_MIRROR_BOTH) ? 1 : 0,
+        .gdma_attr.y_mirror = flag & (K_VO_MIRROR_VER || K_VO_MIRROR_BOTH) ? 1 : 0,
+        .gdma_attr.width = in->v_frame.width,
+        .gdma_attr.height = in->v_frame.height,
+        .gdma_attr.src_stride[0] = in->v_frame.stride[0],
+        .gdma_attr.dst_stride[0] = out->v_frame.stride[0],
+        .gdma_attr.work_mode = DMA_UNBIND,
+        .gdma_attr.pixel_format =
+            (in->v_frame.pixel_format == PIXEL_FORMAT_ARGB_8888 ||
+            in->v_frame.pixel_format == PIXEL_FORMAT_ABGR_8888) ? DMA_PIXEL_FORMAT_ARGB_8888 :
+            (in->v_frame.pixel_format == PIXEL_FORMAT_RGB_888 ||
+            in->v_frame.pixel_format == PIXEL_FORMAT_BGR_888) ? DMA_PIXEL_FORMAT_RGB_888 :
+            (in->v_frame.pixel_format == 300 || in->v_frame.pixel_format == 301) ? DMA_PIXEL_FORMAT_RGB_565:
+            (in->v_frame.pixel_format == PIXEL_FORMAT_RGB_MONOCHROME_8BPP) ? DMA_PIXEL_FORMAT_YUV_400_8BIT : 0,
+    };
+    int ret;
+    k_video_frame_info tmp;
+
+    kd_mpi_dma_stop_chn(OSD_ROTATION_DMA_CHN);
+    ret = kd_mpi_dma_set_chn_attr(OSD_ROTATION_DMA_CHN, &chn_attr);
+    if (ret != K_SUCCESS)
+        mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("set chn attr error"));
+    ret = kd_mpi_dma_start_chn(OSD_ROTATION_DMA_CHN);
+    if (ret != K_SUCCESS)
+        mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("start chn error"));
+
+    ret = kd_mpi_dma_send_frame(OSD_ROTATION_DMA_CHN, in, -1);
+    if (ret != K_SUCCESS)
+        mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("send frame error"));
+
+    ret = kd_mpi_dma_get_frame(OSD_ROTATION_DMA_CHN, &tmp, -1);
+    if (ret != K_SUCCESS)
+        mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("get frame error"));
+
+    extern void memcpy_fast(void *dst, void *src, size_t size);
+    uint32_t size = out->v_frame.stride[0] * out->v_frame.height;
+    void *tmp_addr = kd_mpi_sys_mmap(tmp.v_frame.phys_addr[0], size);
+    memcpy_fast(out->v_frame.virt_addr[0], tmp_addr, size);
+    kd_mpi_sys_munmap(tmp_addr, size);
+    kd_mpi_dma_release_frame(OSD_ROTATION_DMA_CHN, &tmp);
+
+    return 0;
+}
+
 int ide_dbg_vo_init(k_connector_type _connector_type) {
     #if ENABLE_VO_WRITEBACK
     connector_type = _connector_type;
@@ -273,10 +374,10 @@ int ide_dbg_vo_init(k_connector_type _connector_type) {
     return 0;
 }
 
-#define ALIGN_UP(x,a) (((x)+(a)-1)/(a)*(a))
-
 int ide_dbg_vo_wbc_init(void) {
     #if ENABLE_VO_WRITEBACK
+    if (fb_from != FB_FROM_VO_WRITEBACK)
+        return 0;
     k_connector_info vo_info;
 
     kd_mpi_get_connector_info(connector_type, &vo_info);
@@ -290,7 +391,9 @@ int ide_dbg_vo_wbc_init(void) {
     #if ENABLE_BUFFER_ROTATION
     if (vo_func != K_VO_MIRROR_NONE) {
         // allocate rotation buffer
-        k_vb_blk_handle handle = kd_mpi_vb_get_block(VB_INVALID_POOLID, 3117056, NULL);
+        uint32_t buf_size = ALIGN_UP(vo_info.resolution.hdisplay * vo_info.resolution.vdisplay, 0x1000);
+        buf_size = ALIGN_UP(buf_size + buf_size / 2, 0x1000);
+        k_vb_blk_handle handle = kd_mpi_vb_get_block(VB_INVALID_POOLID, buf_size, NULL);
         if (handle == VB_INVALID_HANDLE) {
             pr_err("can't get vb for rotation");
             vo_func = K_VO_MIRROR_NONE;
@@ -328,6 +431,7 @@ int ide_dbg_vo_wbc_init(void) {
 
 int ide_dbg_vo_deinit(void) {
     pr_verb("[omv] %s", __func__);
+    dma_dev_deinit();
     #if ENABLE_VO_WRITEBACK
     flag_vo_wbc_enabled = false;
     int fd = open("/dev/mem", O_RDWR | O_SYNC);
@@ -412,6 +516,7 @@ static void rotation270_u16(uint16_t* __restrict dst, uint16_t* __restrict src, 
     }
 }
 #endif
+
 int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int timeout, void*(*realloc)(void*, unsigned long));
 
 static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* data, size_t length) {
