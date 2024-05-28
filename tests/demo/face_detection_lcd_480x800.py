@@ -4,8 +4,8 @@
 #
 # You can start camera preview and get face detection result.
 
-from media.camera import *
-from media.display import *
+from media import _sensor
+from media.lcd import *
 from media.media import *
 import nncase_runtime as nn
 import ulab.numpy as np
@@ -17,8 +17,8 @@ import gc, os, sys
 
 SENSOR_WIDTH = ALIGN_UP(800, 16)
 SENSOR_HEIGHT = 480
-DISPLAY_WIDTH = ALIGN_UP(480, 16)
-DISPLAY_HEIGHT = 800
+DISPLAY_WIDTH = ALIGN_UP(800, 16)
+DISPLAY_HEIGHT = 480
 
 OUT_RGB888P_WIDTH = ALIGN_UP(1024, 16)
 OUT_RGB888P_HEIGH = 624
@@ -210,53 +210,32 @@ def get_result(output_data):
 
 def camera_init():
     # use hdmi for display
-    display.init(ST7701_V1_MIPI_2LAN_480X800_30FPS)
-
-    # config vb for osd layer
-    config = k_vb_config()
-    config.max_pool_cnt = 1
-    config.comm_pool[0].blk_size = 4*DISPLAY_WIDTH*DISPLAY_HEIGHT
-    config.comm_pool[0].blk_cnt = 1
-    config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
-    # meida buffer config
-    media.buffer_config(config)
+    lcd.init(ST7701_V1_MIPI_2LAN_480X800_30FPS)
     # init default sensor
-    camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
+    global sensor
+    sensor = _sensor.Sensor()
+    sensor.reset()
     # set chn0 output size
-    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, SENSOR_WIDTH, SENSOR_HEIGHT)
+    sensor.set_framesize(SENSOR_WIDTH, SENSOR_HEIGHT)
     # set chn0 output format
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
-    # create meida source device
-    globals()["meida_source"] = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
-    # create meida sink device
-    globals()["meida_sink"] = media_device(DISPLAY_MOD_ID, DISPLAY_DEV_ID, DISPLAY_CHN_VIDEO1)
-    # create meida link
-    media.create_link(meida_source, meida_sink)
-    # set display plane with video channel
-    display.set_plane(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, PIXEL_FORMAT_YVU_PLANAR_420, K_ROTATION_90, DISPLAY_CHN_VIDEO1)
+    sensor.set_pixformat(PIXEL_FORMAT_YUV_SEMIPLANAR_420)
     # set chn2 output size
-    camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_2, OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGH)
+    sensor.set_framesize(OUT_RGB888P_WIDTH, OUT_RGB888P_HEIGH, chn=CAM_CHN_ID_2)
     # set chn2 output format
-    camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_2, PIXEL_FORMAT_RGB_888_PLANAR)
+    sensor.set_pixformat(PIXEL_FORMAT_RGB_888_PLANAR, chn=CAM_CHN_ID_2)
     # media buffer init
-    media.buffer_init()
-    # request media buffer for osd image
-    globals()["buffer"] = media.request_buffer(4 * DISPLAY_WIDTH * DISPLAY_HEIGHT)
+    media.buffer_init(venc_cnt=0,wb_cnt=0)
     # start stream for camera device0
-    camera.start_stream(CAM_DEV_ID_0)
+    sensor.run()
 
 
 def camera_deinit():
-    # stop stream for camera device0
-    camera.stop_stream(CAM_DEV_ID_0)
-    # deinit display
-    display.deinit()
     os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
-    time.sleep_ms(100)
-    # release media buffer
-    media.release_buffer(globals()["buffer"])
-    # destroy media link
-    media.destroy_link(globals()["meida_source"], globals()["meida_sink"])
+    # stop stream for camera device0
+    sensor.stop()
+    time.sleep_ms(50)
+    # deinit display
+    lcd.deinit()
     # deinit media buffer
     media.buffer_deinit()
 
@@ -274,21 +253,16 @@ def face_detect():
     ai2d_builder = ai2d.build([1,3,OUT_RGB888P_HEIGH,OUT_RGB888P_WIDTH], [1,3,320,320])
     # create image for drawing
     draw_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
-    # create image for osd
-    osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, poolid=buffer.pool_id, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr)
-    osd_img.clear()
-    display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD0)
 
     try:
         while True:
             # capture image from dev and chn
-            rgb888p_img = camera.capture_image(CAM_DEV_ID_0, CAM_CHN_ID_2)
+            rgb888p_img = sensor.snapshot(chn=CAM_CHN_ID_2)
             ai2d_input = rgb888p_img.to_numpy_ref()
             ai2d_input_tensor = nn.from_numpy(ai2d_input)
             data = np.ones((1,3,320,320),dtype=np.uint8)
             ai2d_out = nn.from_numpy(data)
             ai2d_builder.run(ai2d_input_tensor, ai2d_out)
-            camera.release_image(CAM_DEV_ID_0, CAM_CHN_ID_2, rgb888p_img)
             # set input
             kpu.set_input_tensor(0, ai2d_out)
             # run kmodel
@@ -316,8 +290,8 @@ def face_detect():
                     w = (x2 - x1) * SENSOR_WIDTH // OUT_RGB888P_WIDTH
                     h = (y2 - y1) * SENSOR_HEIGHT // OUT_RGB888P_HEIGH
                     # draw detect result rectangle
-                    draw_img.draw_rectangle((OUT_RGB888P_HEIGH - y2) * DISPLAY_WIDTH // OUT_RGB888P_HEIGH, x1 * DISPLAY_HEIGHT // OUT_RGB888P_WIDTH, h, w, color=(255,255,0,255))
-            draw_img.copy_to(osd_img)
+                    draw_img.draw_rectangle(x1 * DISPLAY_WIDTH // OUT_RGB888P_WIDTH, y1 * DISPLAY_HEIGHT // OUT_RGB888P_HEIGH, w, h, color=(255,255,0,255))
+            lcd.show_image(draw_img)
             os.exitpoint()
     except KeyboardInterrupt as e:
         print("user stop: ", e)

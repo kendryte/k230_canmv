@@ -1,4 +1,4 @@
-from media.display import *
+from media.lcd import *
 from media.media import *
 import time, os, sys, gc
 import lvgl as lv
@@ -8,40 +8,26 @@ DISPLAY_HEIGHT = 1080
 
 def display_init():
     # use hdmi for display
-    display.init(LT9611_1920X1080_30FPS)
-    # config vb for osd layer
-    config = k_vb_config()
-    config.max_pool_cnt = 1
-    config.comm_pool[0].blk_size = 4*DISPLAY_WIDTH*DISPLAY_HEIGHT
-    config.comm_pool[0].blk_cnt = 1
-    config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
-    # meida buffer config
-    media.buffer_config(config)
+    lcd.init(LT9611_MIPI_4LAN_1920X1080_30FPS, video_enable=False)
     # media buffer init
     media.buffer_init()
-    # request media buffer for osd image
-    buffer = media.request_buffer(4 * DISPLAY_WIDTH * DISPLAY_HEIGHT)
-    # create image for osd
-    globals()["buffer"] = buffer
-    osd_img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888, alloc=image.ALLOC_VB, phyaddr=buffer.phys_addr, virtaddr=buffer.virt_addr, poolid=buffer.pool_id)
-    globals()["osd_img"] = osd_img
-    osd_img.clear()
-    display.show_image(osd_img, 0, 0, DISPLAY_CHN_OSD0)
 
 def display_deinit():
-    # deinit display
-    display.deinit()
     os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
-    time.sleep_ms(100)
+    time.sleep_ms(50)
+    # deinit display
+    lcd.deinit()
     # release media buffer
-    media.release_buffer(globals()["buffer"])
-    # deinit media buffer
     media.buffer_deinit()
 
 def disp_drv_flush_cb(disp_drv, area, color):
     if disp_drv.flush_is_last() == True:
-        osd_img = globals()["osd_img"]
-        osd_img.copy_from(color.__dereference__(osd_img.size()))
+        buf1 = globals()["buf1"]
+        buf2 = globals()["buf2"]
+        if buf1.virtaddr() == uctypes.addressof(color.__dereference__()):
+            lcd.show_image(buf1)
+        else:
+            lcd.show_image(buf2)
     disp_drv.flush_ready()
 
 def lvgl_init():

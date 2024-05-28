@@ -31,11 +31,13 @@
 #include "py/runtime.h"
 #include "py/obj.h"
 #include "mpi_connector_api.h"
+
 int ide_dbg_vo_init(k_connector_type connector_type);
 int ide_dbg_vo_deinit(void);
 int ide_dbg_vo_wbc_init(void);
 int ide_dbg_set_vo_wbc(int);
 int ide_dbg_set_vo_func(int);
+int kd_mpi_vo_osd_rotation(int flag, k_video_frame_info *in, k_video_frame_info *out);
 
 #define FUNC_IMPL
 #define FUNC_FILE "connector_func_def.h"

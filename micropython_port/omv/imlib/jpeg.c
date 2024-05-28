@@ -1969,8 +1969,8 @@ int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int ti
         memset(&attr, 0, sizeof(attr));
         attr.venc_attr.pic_width = frame->v_frame.width;
         attr.venc_attr.pic_height = frame->v_frame.height;
-        attr.venc_attr.stream_buf_size = (1920 * 1920 / 2 + 0xfff) & ~0xfff;
-        attr.venc_attr.stream_buf_cnt = 8;
+        attr.venc_attr.stream_buf_size = (frame->v_frame.width * frame->v_frame.height + 0xfff) & ~0xfff;
+        attr.venc_attr.stream_buf_cnt = 1;
         attr.venc_attr.type = K_PT_JPEG;
         attr.rc_attr.rc_mode = K_VENC_RC_MODE_MJPEG_FIXQP;
         attr.rc_attr.mjpeg_fixqp.src_frame_rate = 30;
