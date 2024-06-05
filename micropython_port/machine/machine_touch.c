@@ -64,7 +64,7 @@ typedef struct {
 
 STATIC void machine_touch_info_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     machine_touch_info_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    mp_printf(print, "track_id: %d, event: %d, x: %d, y: %d, width: %d, timestamp: %d",
+    mp_printf(print, "track_id: %d, event: %d, width: %d, x: %d, y: %d, timestamp: %d",
         self->info.event, self->info.track_id, self->info.width, self->info.x_coordinate,
         self->info.y_coordinate, self->info.timestamp);
 }
