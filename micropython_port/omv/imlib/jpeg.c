@@ -1946,8 +1946,26 @@ static void jpeg_write_headers(jpeg_buf_t *jpeg_buf, int w, int h, int bpp, jpeg
     jpeg_put_bytes(jpeg_buf, (uint8_t [3]) {0x00, 0x3F, 0x0}, 3);
 }
 
-volatile char jpeg_encoder_created = 0;
+volatile int jpeg_encoder_created = -1;
 static pthread_mutex_t hd_jpeg_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void hd_jpeg_encoder_enable(void)
+{
+    pthread_mutex_lock(&hd_jpeg_mutex);
+    jpeg_encoder_created = 0;
+    pthread_mutex_unlock(&hd_jpeg_mutex);
+}
+
+void hd_jpeg_encoder_destory(void)
+{
+    pthread_mutex_lock(&hd_jpeg_mutex);
+    if(jpeg_encoder_created) {
+        jpeg_encoder_created = -1;
+        kd_mpi_venc_stop_chn(VENC_MAX_CHN_NUMS - 1);
+        kd_mpi_venc_destroy_chn(VENC_MAX_CHN_NUMS - 1);
+    }
+    pthread_mutex_unlock(&hd_jpeg_mutex);
+}
 
 /**
  * Hardware JPEG compressing
@@ -1956,11 +1974,13 @@ static pthread_mutex_t hd_jpeg_mutex = PTHREAD_MUTEX_INITIALIZER;
 int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int timeout, void*(*realloc)(void*, unsigned long)) {
     int ret = -1;
     int error = 0;
+
+    pthread_mutex_lock(&hd_jpeg_mutex);
     if (jpeg_encoder_created < 0) {
+        printf("aa\n");
         // create channel failed, do not try again
         return -1;
     }
-    pthread_mutex_lock(&hd_jpeg_mutex);
     static bool first_frame = true;
     static k_venc_chn_attr attr;
     init:

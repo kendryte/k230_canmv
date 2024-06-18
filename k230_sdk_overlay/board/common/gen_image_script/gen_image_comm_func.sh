@@ -538,8 +538,9 @@ gen_env_bin()
 }
 copy_app()
 {
-	mkdir -p ${BUILD_DIR}/images/big-core/app
+	mkdir -p ${BUILD_DIR}/images/big-core/{app,res}
 	cp -r ${K230_CANMV_BUILD_DIR}/images/app/   ${BUILD_DIR}/images/big-core/
+	cp -r ${K230_CANMV_BUILD_DIR}/images/res/   ${BUILD_DIR}/images/big-core/
 	# if [ "${CONFIG_SUPPORT_RTSMART}" = "y" ] ; then
 	# 	cp ${K230_SDK_ROOT}/src/big/mpp/userapps/sample/elf/*   ${BUILD_DIR}/images/big-core/app
 	# 	[ "${CONFIG_SUPPORT_LINUX}" = "y" ] && cp ${K230_SDK_ROOT}/src/common/cdk/user/out/big/*  ${BUILD_DIR}/images/big-core/app

@@ -1533,6 +1533,8 @@ STATIC mp_obj_t py_image_draw_string(size_t n_args, const mp_obj_t *args, mp_map
     int arg_string_vflip =
         py_helper_keyword_int(n_args, args, offset + 10, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_string_vflip), false);
 
+    mp_printf(&mp_plat_print, "Deprecated function, please use draw_string_advanced.");
+
     imlib_draw_string(arg_img, arg_x_off, arg_y_off, arg_str,
                       arg_c, arg_scale, arg_x_spacing, arg_y_spacing, arg_mono_space,
                       arg_char_rotation, arg_char_hmirror, arg_char_vflip,
@@ -1540,6 +1542,30 @@ STATIC mp_obj_t py_image_draw_string(size_t n_args, const mp_obj_t *args, mp_map
     return args[0];
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_draw_string_obj, 2, py_image_draw_string);
+
+STATIC mp_obj_t py_image_draw_string_advance(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    image_t *arg_img = py_helper_arg_to_image_mutable(args[0]);
+
+    const mp_obj_t *arg_vec;
+    uint offset = py_helper_consume_array(n_args, args, 1, 4, &arg_vec);
+    int arg_x_off = mp_obj_get_int(arg_vec[0]);
+    int arg_y_off = mp_obj_get_int(arg_vec[1]);
+    int arg_char_size = mp_obj_get_int(arg_vec[2]);
+    const char *arg_str = mp_obj_str_get_str(arg_vec[3]);
+
+    int arg_color = py_helper_keyword_color(arg_img, n_args, args, offset + 0, kw_args, -1);
+    mp_obj_t font_path_obj = py_helper_keyword_object(n_args, args, offset + 1, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_font), NULL);
+
+    const char *arg_font_path = NULL;
+    if (font_path_obj) {
+        arg_font_path = mp_obj_str_get_str(font_path_obj);
+    }
+
+    imlib_draw_string_advance(arg_img, arg_x_off, arg_y_off, arg_char_size, arg_str, arg_color, arg_font_path);
+
+    return args[0];
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_draw_string_advance_obj, 4, py_image_draw_string_advance);
 
 STATIC mp_obj_t py_image_draw_cross(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
     image_t *arg_img = py_helper_arg_to_image_mutable(args[0]);
@@ -6451,6 +6477,7 @@ static const mp_rom_map_elem_t locals_dict_table[] = {
     {MP_ROM_QSTR(MP_QSTR_draw_circle),         MP_ROM_PTR(&py_image_draw_circle_obj)},
     {MP_ROM_QSTR(MP_QSTR_draw_ellipse),        MP_ROM_PTR(&py_image_draw_ellipse_obj)},
     {MP_ROM_QSTR(MP_QSTR_draw_string),         MP_ROM_PTR(&py_image_draw_string_obj)},
+    {MP_ROM_QSTR(MP_QSTR_draw_string_advanced), MP_ROM_PTR(&py_image_draw_string_advance_obj)},
     {MP_ROM_QSTR(MP_QSTR_draw_cross),          MP_ROM_PTR(&py_image_draw_cross_obj)},
     {MP_ROM_QSTR(MP_QSTR_draw_arrow),          MP_ROM_PTR(&py_image_draw_arrow_obj)},
     {MP_ROM_QSTR(MP_QSTR_draw_edges),          MP_ROM_PTR(&py_image_draw_edges_obj)},
@@ -7116,6 +7143,41 @@ mp_obj_t py_image_load_image(size_t n_args, const mp_obj_t *args, mp_map_t *kw_a
         (void) path;
         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Image I/O is not supported"));
         #endif //IMLIB_ENABLE_IMAGE_FILE_IO
+    }
+
+    mp_map_elem_t *kw_arg_cvt = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_cvt_565), MP_MAP_LOOKUP);
+    if(kw_arg_cvt && (false == mp_obj_is_bool(kw_arg_cvt->value))) {
+        mp_raise_msg(&mp_type_ValueError, MP_ERROR_TEXT("cvt only support True or False"));
+    }
+
+    if(kw_arg_cvt && mp_obj_is_true(kw_arg_cvt->value)) {
+        if (PIXFORMAT_RGB888 == image.pixfmt) {
+            uint8_t r, g, b;
+
+            uint8_t *pixel_rgb888 = image.data;
+            uint16_t *pixel_rgb565 = (uint16_t *)image.data;
+            uint8_t *pixel_rgb888_end = pixel_rgb888 + image.w * image.h * 3;
+
+            do {
+                r = pixel_rgb888[0];
+                g = pixel_rgb888[1];
+                b = pixel_rgb888[2];
+                pixel_rgb888 += 3;
+
+                *(pixel_rgb565++) = COLOR_R8_G8_B8_TO_RGB565(r, g, b);
+
+                r = pixel_rgb888[0];
+                g = pixel_rgb888[1];
+                b = pixel_rgb888[2];
+                pixel_rgb888 += 3;
+
+                *(pixel_rgb565++) = COLOR_R8_G8_B8_TO_RGB565(r, g, b);
+            } while (pixel_rgb888 < pixel_rgb888_end);
+
+            image.pixfmt = PIXFORMAT_RGB565;
+        } else {
+            mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("cvt not support format %x"), image.pixfmt);
+        }
     }
 
     return py_image_from_struct(&image);

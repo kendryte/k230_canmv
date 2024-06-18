@@ -1411,6 +1411,13 @@ void imlib_draw_string(image_t *img,
                        int string_rotation,
                        bool string_hmirror,
                        bool string_hflip);
+void imlib_draw_string_advance(image_t *img,
+                                int x_off,
+                                int y_off,
+                                int char_size,
+                                const char *str,
+                                int color,
+                                const char *font_path);
 void imlib_draw_image(image_t *dst_img,
                       image_t *src_img,
                       int dst_x_start,

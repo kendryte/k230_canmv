@@ -361,6 +361,12 @@ void mp_thread_set_realtime(void) {
 }
 #endif
 
+int mp_thread_get_exitpoint_flag(void)
+{
+    mp_thread_t *th = MP_STATE_THREAD(user_data);
+    return th->exitpoint_flag;
+}
+
 void mp_thread_set_exitpoint_flag(int flag) {
     mp_thread_t *th = MP_STATE_THREAD(user_data);
     th->exitpoint_flag = flag;

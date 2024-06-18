@@ -80,8 +80,12 @@ void memcpy_fast(void *dst, void *src, size_t size) {
     uint64_t *pdst = dst;
     uint64_t *psrc = src;
     len = size >> 3;
-    for (int i = 0; i < len; i++)
+
+    uint64_t *pdst_end = pdst + len;
+    do {
         *pdst++ = *psrc++;
+    } while(pdst < pdst_end);
+
     if (size & 0x7) {
         len <<= 3;
         dst += len;

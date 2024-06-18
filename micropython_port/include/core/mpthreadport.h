@@ -56,6 +56,7 @@ enum {
     EXITPOINT_ENABLE_SLEEP,
 };
 
+int mp_thread_get_exitpoint_flag(void);
 void mp_thread_set_exitpoint_flag(int flag);
 void mp_thread_set_exception_main(mp_obj_t obj);
 void mp_thread_set_exception_other(mp_obj_t obj);

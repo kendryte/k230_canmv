@@ -14,6 +14,8 @@ k230_sdk_download_url = $(server_url)/release/sdk/k230_sdk.tar.gz
 endif # ifeq ($(NATIVE_BUILD),1)
 micropython_download_url = $(server_url)/downloads/canmv/micropython.tar.gz
 lvgl_download_url = $(server_url)/downloads/canmv/lv_binding_micropython.tar.gz
+freetype_download_url = $(server_url)/downloads/canmv/freetype.tar.gz
+wrap_download_url = $(server_url)/downloads/canmv/micropython_wrap.tar.gz
 
 fast_dl:
 	@set -e; \
@@ -28,10 +30,20 @@ fast_dl:
 		wget -c --show-progress $(micropython_download_url) -O - | tar -xz ; \
 		touch micropython_port/.ready_dl_src; \
 	fi; \
-	if [ ! -f micropython_port/lvgl/.ready_dl_src ]; then \
+	if [ ! -f micropython_port/3d-party/lvgl/.ready_dl_src ]; then \
 		echo "download lvgl"; \
-		wget -c --show-progress $(lvgl_download_url) -O - | tar -xz -C micropython_port/lvgl ; \
-		touch micropython_port/lvgl/.ready_dl_src; \
+		wget -c --show-progress $(lvgl_download_url) -O - | tar -xz -C micropython_port/3d-party/lvgl ; \
+		touch micropython_port/3d-party/lvgl/.ready_dl_src; \
+	fi; \
+	if [ ! -f micropython_port/3d-party/freetype/.ready_dl_src ]; then \
+		echo "download freetype"; \
+		wget -c --show-progress $(freetype_download_url) -O - | tar -xz -C micropython_port/3d-party/freetype ; \
+		touch micropython_port/3d-party/freetype/.ready_dl_src; \
+	fi; \
+	if [ ! -f micropython_port/3d-party/wrap/.ready_dl_src ]; then \
+		echo "download micropython-wrap"; \
+		wget -c --show-progress $(wrap_download_url) -O - | tar -xz -C micropython_port/3d-party/wrap ; \
+		touch micropython_port/3d-party/wrap/.ready_dl_src; \
 	fi;
 
 endif # end ifeq ($(FAST_DL),0)
@@ -65,19 +77,15 @@ sync_submodule:
 	@rsync -a -q micropython_port/micropython_overlay/ micropython/
 	@touch micropython_port/.ready_sync_file
 	@touch micropython_port/.ready_sync_dir
-	@git submodule update --init -f micropython_port/lvgl/lv_binding_micropython
-	@git -C micropython_port/lvgl/lv_binding_micropython clean -fdq
-	@rsync -a -q micropython_port/lvgl/overlay/ micropython_port/lvgl/lv_binding_micropython/
-	@touch micropython_port/lvgl/.ready_sync_file
-	@touch micropython_port/lvgl/.ready_sync_dir
+	@make -C micropython_port/3d-party/freetype sync_submodule
+	@make -C micropython_port/3d-party/lvgl sync_submodule
+	@make -C micropython_port/3d-party/wrap sync_submodule
 
 ifeq ($(MAKECMDGOALS), sync_overlay)
 k230_sdk_overlay_dir = $(shell find k230_sdk_overlay -type d)
 k230_sdk_overlay_file = $(shell find k230_sdk_overlay -type f -a -not -name ".ready*")
 micropython_overlay_dir = $(shell find micropython_port/micropython_overlay -type d)
 micropython_overlay_file = $(shell find micropython_port/micropython_overlay -type f)
-lvgl_overlay_dir = $(shell find micropython_port/lvgl/overlay -type d)
-lvgl_overlay_file = $(shell find micropython_port/lvgl/overlay -type f)
 endif
 
 k230_sdk_overlay/.ready_sync_dir: $(k230_sdk_overlay_dir)
@@ -104,28 +112,17 @@ micropython_port/.ready_sync_file: micropython_port/.ready_sync_dir $(micropytho
 	@rsync -a -q micropython_port/micropython_overlay/ micropython/
 	@touch micropython_port/.ready_sync_file
 
-micropython_port/lvgl/.ready_sync_dir: $(lvgl_overlay_dir)
-	@echo "sync_lvgl_overlay_dir"
-	@git -C micropython_port/lvgl/lv_binding_micropython clean -fdq
-	@git -C micropython_port/lvgl/lv_binding_micropython reset -q --hard
-	@touch micropython_port/lvgl/.ready_sync_dir
-
-micropython_port/lvgl/.ready_sync_file: micropython_port/lvgl/.ready_sync_dir $(lvgl_overlay_file)
-	@echo "sync_lvgl_overlay_file"
-	@rsync -a -q micropython_port/lvgl/overlay/ micropython_port/lvgl/lv_binding_micropython/
-	@touch micropython_port/lvgl/.ready_sync_file
-
 .PHONY: k230_sdk_sync_overlay
 k230_sdk_sync_overlay: k230_sdk_overlay/.ready_sync_dir k230_sdk_overlay/.ready_sync_file
 
 .PHONY: micropython_sync_overlay
 micropython_sync_overlay: micropython_port/.ready_sync_dir micropython_port/.ready_sync_file
 
-.PHONY: lvgl_sync_overlay
-lvgl_sync_overlay: micropython_port/lvgl/.ready_sync_dir micropython_port/lvgl/.ready_sync_file
-
 .PHONY: sync_overlay
-sync_overlay: k230_sdk_sync_overlay micropython_sync_overlay lvgl_sync_overlay
+sync_overlay: k230_sdk_sync_overlay micropython_sync_overlay
+	@make -C micropython_port/3d-party/freetype sync_overlay
+	@make -C micropython_port/3d-party/wrap sync_overlay
+	@make -C micropython_port/3d-party/lvgl sync_overlay
 
 $(K230_CANMV_BUILD_DIR)/.k230_sdk_all: k230_sdk_overlay/.ready_sync_dir k230_sdk_overlay/.ready_sync_file
 	@make -C k230_sdk all CONF=$(CONF) && touch $@
