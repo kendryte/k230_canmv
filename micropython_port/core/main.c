@@ -62,6 +62,8 @@
 #include "genhdr/mpversion.h"
 #include "input.h"
 
+#include "mpp_vb_mgmt.h"
+
 // Command line options, with their defaults
 STATIC bool compile_only = false;
 STATIC uint emit_opt = MP_EMIT_OPT_NONE;
@@ -649,6 +651,10 @@ MP_NOINLINE int main_(int argc, char **argv) {
     sys_set_excecutable(argv[0]);
     #endif
 
+    vb_mgmt_init();
+
+    extern void hd_jpeg_encoder_enable(void);
+    hd_jpeg_encoder_enable();
     extern void dma_dev_init(void);
     dma_dev_init();
     extern void usb_rx_clear(void);
@@ -827,6 +833,8 @@ main_thread_exit:
     MP_STATE_THREAD(prof_trace_callback) = MP_OBJ_NULL;
     #endif
 
+    // vb_mgmt_py_at_exit();
+
     #if MICROPY_PY_SYS_ATEXIT
     // Beware, the sys.settrace callback should be disabled before running sys.atexit.
     if (mp_obj_is_callable(MP_STATE_VM(sys_exitfunc))) {
@@ -864,14 +872,29 @@ main_thread_exit:
     }
     #endif
     #endif
-    extern char jpeg_encoder_created;
-    if (jpeg_encoder_created) {
-        kd_mpi_venc_stop_chn(VENC_MAX_CHN_NUMS - 1);
-        kd_mpi_venc_destroy_chn(VENC_MAX_CHN_NUMS - 1);
-    }
-    jpeg_encoder_created = 0;
-    void ide_dbg_vo_deinit(void);
-    ide_dbg_vo_deinit();
+
+    // extern char jpeg_encoder_created;
+    // if (jpeg_encoder_created) {
+    //     kd_mpi_venc_stop_chn(VENC_MAX_CHN_NUMS - 1);
+    //     kd_mpi_venc_destroy_chn(VENC_MAX_CHN_NUMS - 1);
+    // }
+    // jpeg_encoder_created = 0;
+
+    extern void hd_jpeg_encoder_destory(void);
+    hd_jpeg_encoder_destory();
+
+    extern void dma_dev_deinit(void);
+    dma_dev_deinit();
+
+    extern void ide_dbg_vo_wbc_deinit(void);
+    ide_dbg_vo_wbc_deinit();
+
+    extern void freetype_deinit(void);
+    freetype_deinit();
+
+    // release all block
+    vb_mgmt_deinit();
+
     kd_mpi_vb_exit();
 
     // printf("total bytes = %d\n", m_get_total_bytes_allocated());

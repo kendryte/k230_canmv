@@ -101,18 +101,28 @@ k230_sdk_build: .sync_overlay
 	@make -f scripts/helper.mk $(K230_CANMV_BUILD_DIR)/.k230_sdk_all CONF=$(CONF)
 
 .PHONY: micropython
-micropython: k230_sdk_build
+micropython_freetype: .sync_overlay
+	@mkdir -p $(K230_CANMV_BUILD_DIR)/images/res/font/
+	@cp -f fs_resource/font/SourceHanSansSC-Normal-Min.ttf $(K230_CANMV_BUILD_DIR)/images/res/font
+	@cp -f fs_resource/font/LICENSE.txt $(K230_CANMV_BUILD_DIR)/images/res/font/LICENSE.txt
+	@cp -f fs_resource/font/readme.txt $(K230_CANMV_BUILD_DIR)/images/res/font/readme.txt
+	@make -C micropython_port/3d-party/freetype/freetype
+
+.PHONY: micropython_freetype_clean
+micropython_freetype_clean: .sync_overlay
+	@make -C micropython_port/3d-party/freetype/freetype clean
+
+.PHONY: micropython
+micropython: k230_sdk_build micropython_freetype
 	@make -C micropython_port
-	@mkdir -p $(K230_CANMV_BUILD_DIR)/images/app
+	@mkdir -p $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel/
 	@cd $(K230_CANMV_BUILD_DIR); cp micropython/micropython images/app
 
 .PHONY: build-image
 build-image: micropython
-	@cp -r tests $(K230_CANMV_BUILD_DIR)/images/app
-	@cp -r libs $(K230_CANMV_BUILD_DIR)/images/app
-	@mkdir -p $(K230_CANMV_BUILD_DIR)/images/app/tests/utils/features
+	@cp -r fs_resource/libs $(K230_CANMV_BUILD_DIR)/images/app
+	@cp -r fs_resource/tests $(K230_CANMV_BUILD_DIR)/images/app
 	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_detection_320.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/nncase_runtime/face_detection
-	@mkdir -p $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
 	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_recognition.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
 	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/face_detection_320.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel
 	@cp -r k230_sdk/src/big/kmodel/ai_poc/kmodel/yolov8n_320.kmodel $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel

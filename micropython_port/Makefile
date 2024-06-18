@@ -49,6 +49,9 @@ INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/components/drivers
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/mp4_format/include
+INC += -I3d-party
+INC += -I3d-party/freetype/freetype/include
+INC += -I3d-party/wrap
 
 -include $(BUILD)/CANMV_VER
 CANMV_VER = $(shell git describe --tags `git rev-list --tags --max-count=1`)-$(shell git rev-parse --short HEAD)
@@ -108,6 +111,11 @@ OPENCV_DEP_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/utils/lib/opencv/lib/o
 OPENCV_LIBS = -lstdc++ -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -lopencv_highgui -lopencv_videoio -lzlib -llibjpeg-turbo -llibopenjp2 -llibpng -llibtiff -llibwebp -lcsi_cv -latomic
 LDFLAGS += -L$(OPENCV_LIB_PATH) -L$(OPENCV_DEP_LIB_PATH) -Wl,--start-group $(OPENCV_LIBS) -Wl,--end-group
 
+# freetype
+FREETYPE_LIB_PATH = $(BUILD)/freetype
+FREETYPE_LIBS = -lfreetype
+LDFLAGS += -L$(FREETYPE_LIB_PATH) -Wl,--start-group $(FREETYPE_LIBS) -Wl,--end-group
+
 ifeq ($(MICROPY_PY_TERMIOS),1)
 CFLAGS += -DMICROPY_PY_TERMIOS=1
 endif
@@ -122,22 +130,25 @@ SRC_C += \
 	core/mphalport.c \
 	core/input.c \
 	core/mpthreadport.c \
+	core/mpp_vb_mgmt.c \
 	$(wildcard $(BOARD_DIR)/*.c)
 
 MACHINE_SRC_C = $(wildcard machine/*.c)
 MAIX_SRC_C = $(wildcard maix/*.c)
-MPP_SRC_C = $(wildcard mpp/*.c)
+MPP_SRC_C = $(wildcard builtin_py/mpp_binding/*.c)
 KPU_SRC_C = $(wildcard kpu/*.c)
-OMV_SRC_C = $(wildcard omv/*.c)
 AICUBE_SRC_C = $(wildcard ai_cube/*.c)
 AIDEMO_SRC_C = $(wildcard ai_demo/*.c)
 SOCKET_SRC_C = $(wildcard socket_network/*.c)
+MODULES_SRC_C = $(wildcard modules/*.c)
+MODULES_SRC_C += $(wildcard modules/*/*.c)
 
+OMV_SRC_C = $(wildcard omv/*.c)
 OMV_SRC_C += $(wildcard omv/*/*.c)
 INC += -Iomv/alloc -Iomv/boards/canmv -Iomv/common -Iomv/imlib -Iomv/modules
 
 # LVGL build rules
-LVGL_BINDING_DIR = $(K230_CANMV_ROOT)/micropython_port/lvgl/lv_binding_micropython
+LVGL_BINDING_DIR = $(K230_CANMV_ROOT)/micropython_port/3d-party/lvgl/lv_binding_micropython
 LVGL_DIR = $(LVGL_BINDING_DIR)/lvgl
 LVGL_GENERIC_DRV_DIR = $(LVGL_BINDING_DIR)/driver/generic
 INC += -I$(LVGL_BINDING_DIR)
@@ -158,11 +169,13 @@ SRC_C += \
 	${MACHINE_SRC_C} \
 	${MAIX_SRC_C} \
 	${MPP_SRC_C} \
-	${KPU_SRC_C}  ${SOCKET_SRC_C} \
+	${KPU_SRC_C} \
+	${SOCKET_SRC_C} \
 	${OMV_SRC_C} \
 	${AICUBE_SRC_C} \
 	${AIDEMO_SRC_C} \
-	${LVGL_SRC_C}
+	${LVGL_SRC_C} \
+	${MODULES_SRC_C}
 
 SHARED_SRC_C += $(addprefix shared/,\
 	runtime/gchelper_generic.c \
@@ -181,6 +194,9 @@ AIDEMO_KWS_SRC_CXX = $(wildcard ai_demo/kws/*.cpp)
 SRC_CXX += ${AIDEMO_KWS_SRC_CXX}
 AIDEMO_TTS_ZH_SRC_CXX = $(wildcard ai_demo/tts_zh/*.cpp)
 SRC_CXX += ${AIDEMO_TTS_ZH_SRC_CXX}
+MODULES_SRC_CXX = $(wildcard modules/*.cpp)
+MODULES_SRC_CXX += $(wildcard modules/*/*.cpp)
+SRC_CXX += ${MODULES_SRC_CXX}
 
 OBJ = $(PY_O)
 OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
