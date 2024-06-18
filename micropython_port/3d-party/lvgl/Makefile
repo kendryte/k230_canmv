@@ -16,7 +16,9 @@ sync_overlay: $(overlay_dir) $(overlay_file)
 	@rsync -a -q overlay/ lv_binding_micropython/
 	@touch lv_binding_micropython/.ready_sync_file
 
-submodule_init:
+sync_submodule:
 	@git submodule update --init -f lv_binding_micropython
-
-sync_submodule: submodule_init sync_overlay
+	@git -C lv_binding_micropython clean -fdq
+	@rsync -a -q overlay/ lv_binding_micropython/
+	@touch lv_binding_micropython/.ready_sync_dir
+	@touch lv_binding_micropython/.ready_sync_file

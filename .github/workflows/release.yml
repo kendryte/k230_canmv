@@ -139,7 +139,9 @@ jobs:
           git config --global --add safe.directory $PWD
           git config --global --add safe.directory $PWD/k230_sdk
           git config --global --add safe.directory $PWD/micropython
-          git config --global --add safe.directory $PWD/micropython_port/lvgl/lv_binding_micropython
+          git config --global --add safe.directory $PWD/micropython_port/3d-party/freetype/freetype
+          git config --global --add safe.directory $PWD/micropython_port/3d-party/lvgl/lv_binding_micropython
+          git config --global --add safe.directory $PWD/micropython_port/3d-party/wrap/micropython-wrap
           git config --global --list
           ls -alht
           echo "download toolchain and build env"
@@ -182,7 +184,9 @@ jobs:
               git config --global --add safe.directory $PWD; \
               git config --global --add safe.directory $PWD/k230_sdk; \
               git config --global --add safe.directory $PWD/micropython; \
-              git config --global --add safe.directory $PWD/micropython_port/lvgl/lv_binding_micropython; \
+              git config --global --add safe.directory $PWD/micropython_port/3d-party/freetype/freetype; \
+              git config --global --add safe.directory $PWD/micropython_port/3d-party/lvgl/lv_binding_micropython; \
+              git config --global --add safe.directory $PWD/micropython_port/3d-party/wrap/micropython-wrap; \
               time make CONF=$CONF || exit 1; \
               echo '---show docker build output---'; \
               ls -alht output/${CONF}/images || exit 1"

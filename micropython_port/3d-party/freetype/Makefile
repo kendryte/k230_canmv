@@ -16,7 +16,9 @@ sync_overlay: $(overlay_dir) $(overlay_file)
 	@rsync -a -q overlay/ freetype/
 	@touch freetype/.ready_sync_file
 
-submodule_init:
+sync_submodule:
 	@git submodule update --init -f freetype
-
-sync_submodule: submodule_init sync_overlay
+	@git -C freetype clean -fdq
+	@rsync -a -q overlay/ freetype/
+	@touch freetype/.ready_sync_dir
+	@touch freetype/.ready_sync_file
