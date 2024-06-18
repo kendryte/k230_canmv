@@ -16,7 +16,9 @@ sync_overlay: $(overlay_dir) $(overlay_file)
 	@rsync -a -q overlay/ micropython-wrap/
 	@touch micropython-wrap/.ready_sync_file
 
-submodule_init:
+sync_submodule:
 	@git submodule update --init -f micropython-wrap
-
-sync_submodule: submodule_init sync_overlay
+	@git -C micropython-wrap clean -fdq
+	@rsync -a -q overlay/ micropython-wrap/
+	@touch micropython-wrap/.ready_sync_dir
+	@touch micropython-wrap/.ready_sync_file
