@@ -34,17 +34,24 @@ class FaceDetApp(AIBase):
         self.display_size=[ALIGN_UP(display_size[0],16),display_size[1]]
         # debug模式
         self.debug_mode=debug_mode
+        # Ai2d实例，用于实现模型预处理
         self.ai2d=Ai2d(debug_mode)
+        # 设置Ai2d的输入输出格式和类型
         self.ai2d.set_ai2d_dtype(nn.ai2d_format.NCHW_FMT,nn.ai2d_format.NCHW_FMT,np.uint8, np.uint8)
 
+    # 配置预处理操作，这里使用了padding和resize，Ai2d支持crop/shift/pad/resize/affine，具体代码请打开/sdcard/app/libs/AI2D.py查看
     def config_preprocess(self,input_image_size=None):
         with ScopedTiming("set preprocess config",self.debug_mode > 0):
-            # 初始化ai2d预处理配置
+            # 初始化ai2d预处理配置，默认为sensor给到AI的尺寸，可以通过设置input_image_size自行修改输入尺寸
             ai2d_input_size=input_image_size if input_image_size else self.rgb888p_size
+            # 设置padding预处理
             self.ai2d.pad(self.get_pad_param(), 0, [104,117,123])
+            # 设置resize预处理
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-            self.ai2d.build(ai2d_input_size,self.model_input_size)
+            # 构建预处理流程,参数为预处理输入tensor的shape和预处理输出的tensor的shape
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
+    # 自定义任务后处理,这里使用了aidemo库的face_det_post_process接口
     def postprocess(self,results):
         with ScopedTiming("postprocess",self.debug_mode > 0):
             res = aidemo.face_det_post_process(self.confidence_threshold,self.nms_threshold,self.model_input_size[0],self.anchors,self.rgb888p_size,results)
@@ -53,6 +60,7 @@ class FaceDetApp(AIBase):
             else:
                 return res[0]
 
+    # 计算padding参数
     def get_pad_param(self):
         dst_w = self.model_input_size[0]
         dst_h = self.model_input_size[1]
@@ -79,7 +87,7 @@ class EyeGazeApp(AIBase):
         super().__init__(kmodel_path,model_input_size,rgb888p_size,debug_mode)
         # kmodel路径
         self.kmodel_path=kmodel_path
-        # 检测模型输入分辨率
+        # 注视估计模型输入分辨率
         self.model_input_size=model_input_size
         # sensor给到AI的图像分辨率，宽16字节对齐
         self.rgb888p_size=[ALIGN_UP(rgb888p_size[0],16),rgb888p_size[1]]
@@ -87,24 +95,32 @@ class EyeGazeApp(AIBase):
         self.display_size=[ALIGN_UP(display_size[0],16),display_size[1]]
         # debug模式
         self.debug_mode=debug_mode
-        self.matrix_dst=None
+        # Ai2d实例，用于实现模型预处理
         self.ai2d=Ai2d(debug_mode)
+        # 设置Ai2d的输入输出格式和类型
         self.ai2d.set_ai2d_dtype(nn.ai2d_format.NCHW_FMT,nn.ai2d_format.NCHW_FMT,np.uint8, np.uint8)
 
+    # 配置预处理操作，这里使用了crop和resize，Ai2d支持crop/shift/pad/resize/affine，具体代码请打开/sdcard/app/libs/AI2D.py查看
     def config_preprocess(self,det,input_image_size=None):
         with ScopedTiming("set preprocess config",self.debug_mode > 0):
             # 初始化ai2d预处理配置
             ai2d_input_size=input_image_size if input_image_size else self.rgb888p_size
+            # 计算crop预处理参数
             x, y, w, h = map(lambda x: int(round(x, 0)), det[:4])
+            # 设置crop预处理
             self.ai2d.crop(x,y,w,h)
+            # 设置resize预处理
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-            self.ai2d.build(ai2d_input_size,self.model_input_size)
+            # 构建预处理流程,参数为预处理输入tensor的shape和预处理输出的tensor的shape
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
+    # 自定义后处理，results是模型输出的array列表，这里调用了aidemo库的eye_gaze_post_process接口
     def postprocess(self,results):
         with ScopedTiming("postprocess",self.debug_mode > 0):
             post_ret = aidemo.eye_gaze_post_process(results)
             return post_ret[0],post_ret[1]
 
+# 自定义注视估计类
 class EyeGaze:
     def __init__(self,face_det_kmodel,eye_gaze_kmodel,det_input_size,eye_gaze_input_size,anchors,confidence_threshold=0.25,nms_threshold=0.3,rgb888p_size=[1920,1080],display_size=[1920,1080],debug_mode=0):
         # 人脸检测模型路径
@@ -127,14 +143,20 @@ class EyeGaze:
         self.display_size=[ALIGN_UP(display_size[0],16),display_size[1]]
         # debug_mode模式
         self.debug_mode=debug_mode
+        # 人脸检测实例
         self.face_det=FaceDetApp(self.face_det_kmodel,model_input_size=self.det_input_size,anchors=self.anchors,confidence_threshold=self.confidence_threshold,nms_threshold=self.nms_threshold,rgb888p_size=self.rgb888p_size,display_size=self.display_size,debug_mode=0)
+        # 注视估计实例
         self.eye_gaze=EyeGazeApp(self.eye_gaze_kmodel,model_input_size=self.eye_gaze_input_size,rgb888p_size=self.rgb888p_size,display_size=self.display_size)
+        # 人脸检测配置预处理
         self.face_det.config_preprocess()
 
+    #run方法
     def run(self,input_np):
+        # 先进行人脸检测
         det_boxes=self.face_det.run(input_np)
         eye_gaze_res=[]
         for det_box in det_boxes:
+            # 对每一个检测到的人脸做注视估计
             self.eye_gaze.config_preprocess(det_box)
             pitch,yaw=self.eye_gaze.run(input_np)
             eye_gaze_res.append((pitch,yaw))
@@ -172,6 +194,7 @@ if __name__=="__main__":
     face_det_kmodel_path="/sdcard/app/tests/kmodel/face_detection_320.kmodel"
     # 人脸注视估计模型路径
     eye_gaze_kmodel_path="/sdcard/app/tests/kmodel/eye_gaze.kmodel"
+    # 其他参数
     anchors_path="/sdcard/app/tests/utils/prior_data_320.bin"
     rgb888p_size=[1920,1080]
     face_det_input_size=[320,320]
@@ -190,11 +213,12 @@ if __name__=="__main__":
     try:
         while True:
             os.exitpoint()
-            img=pl.get_frame()
-            det_boxes,eye_gaze_res=eg.run(img)
-            eg.draw_result(pl,det_boxes,eye_gaze_res)
-            pl.show_image()
-            gc.collect()
+            with ScopedTiming("total",1):
+                img=pl.get_frame()                          # 获取当前帧
+                det_boxes,eye_gaze_res=eg.run(img)          # 推理当前帧
+                eg.draw_result(pl,det_boxes,eye_gaze_res)   # 绘制推理效果
+                pl.show_image()                             # 展示推理效果
+                gc.collect()
     except Exception as e:
         sys.print_exception(e)
     finally:

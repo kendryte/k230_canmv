@@ -41,7 +41,7 @@ class LicenceDetectionApp(AIBase):
             # 初始化ai2d预处理配置，默认为sensor给到AI的尺寸，可以通过设置input_image_size自行修改输入尺寸
             ai2d_input_size = input_image_size if input_image_size else self.rgb888p_size
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-            self.ai2d.build(ai2d_input_size, self.model_input_size)
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
     # 自定义当前任务的后处理
     def postprocess(self, results):
@@ -64,6 +64,7 @@ class LicenceRecognitionApp(AIBase):
         self.display_size=[ALIGN_UP(display_size[0],16),display_size[1]]
         # debug模式
         self.debug_mode=debug_mode
+        # 车牌字符字典
         self.dict_rec = ["挂", "使", "领", "澳", "港", "皖", "沪", "津", "渝", "冀", "晋", "蒙", "辽", "吉", "黑", "苏", "浙", "京", "闽", "赣", "鲁", "豫", "鄂", "湘", "粤", "桂", "琼", "川", "贵", "云", "藏", "陕", "甘", "青", "宁", "新", "警", "学", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "_", "-"]
         self.dict_size = len(self.dict_rec)
         self.ai2d=Ai2d(debug_mode)
@@ -72,11 +73,11 @@ class LicenceRecognitionApp(AIBase):
     # 配置预处理操作，这里使用了resize，Ai2d支持crop/shift/pad/resize/affine
     def config_preprocess(self,input_image_size=None):
         with ScopedTiming("set preprocess config",self.debug_mode > 0):
-            # 初始化ai2d预处理配置
             ai2d_input_size=input_image_size if input_image_size else self.rgb888p_size
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-            self.ai2d.build(ai2d_input_size,self.model_input_size)
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
+    # 自定义后处理，results是模型输出的array列表
     def postprocess(self,results):
         with ScopedTiming("postprocess",self.debug_mode > 0):
             output_data=results[0].reshape((-1,self.dict_size))
@@ -88,7 +89,7 @@ class LicenceRecognitionApp(AIBase):
                     result_str += self.dict_rec[index - 1]
             return result_str
 
-
+# 车牌识别任务类
 class LicenceRec:
     def __init__(self,licence_det_kmodel,licence_rec_kmodel,det_input_size,rec_input_size,confidence_threshold=0.25,nms_threshold=0.3,rgb888p_size=[1920,1080],display_size=[1920,1080],debug_mode=0):
         # 车牌检测模型路径
@@ -113,13 +114,17 @@ class LicenceRec:
         self.licence_rec=LicenceRecognitionApp(self.licence_rec_kmodel,model_input_size=self.rec_input_size,rgb888p_size=self.rgb888p_size)
         self.licence_det.config_preprocess()
 
+    # run函数
     def run(self,input_np):
+        # 执行车牌检测
         det_boxes=self.licence_det.run(input_np)
+        # 将车牌部分抠出来
         imgs_array_boxes = aidemo.ocr_rec_preprocess(input_np,[self.rgb888p_size[1],self.rgb888p_size[0]],det_boxes)
         imgs_array = imgs_array_boxes[0]
         boxes = imgs_array_boxes[1]
         rec_res = []
         for img_array in imgs_array:
+            # 对每一个检测到的车牌进行识别
             self.licence_rec.config_preprocess(input_image_size=[img_array.shape[3],img_array.shape[2]])
             licence_str=self.licence_rec.run(img_array)
             rec_res.append(licence_str)
@@ -153,6 +158,7 @@ if __name__=="__main__":
     licence_det_kmodel_path="/sdcard/app/tests/kmodel/LPD_640.kmodel"
     # 车牌识别模型路径
     licence_rec_kmodel_path="/sdcard/app/tests/kmodel/licence_reco.kmodel"
+    # 其它参数
     rgb888p_size=[640,360]
     licence_det_input_size=[640,640]
     licence_rec_input_size=[220,32]
@@ -166,11 +172,12 @@ if __name__=="__main__":
     try:
         while True:
             os.exitpoint()
-            img=pl.get_frame()
-            det_res,rec_res=lr.run(img)
-            lr.draw_result(pl,det_res,rec_res)
-            pl.show_image()
-            gc.collect()
+            with ScopedTiming("total",1):
+                img=pl.get_frame()                  # 获取当前帧
+                det_res,rec_res=lr.run(img)         # 推理当前帧
+                lr.draw_result(pl,det_res,rec_res)  # 绘制当前帧推理结果
+                pl.show_image()                     # 展示推理结果
+                gc.collect()
     except Exception as e:
         sys.print_exception(e)
     finally:

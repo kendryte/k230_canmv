@@ -52,7 +52,7 @@ class ObjectDetectionApp(AIBase):
             # 初始化ai2d预处理配置，默认为sensor给到AI的尺寸，您可以通过设置input_image_size自行修改输入尺寸
             ai2d_input_size=input_image_size if input_image_size else self.rgb888p_size
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-            self.ai2d.build(ai2d_input_size,self.model_input_size)
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
     # 自定义当前任务的后处理
     def postprocess(self,results):
@@ -173,20 +173,21 @@ if __name__=="__main__":
     pl=PipeLine(rgb888p_size=rgb888p_size,display_size=display_size,display_mode=display_mode)
     pl.create()
     # 初始化自定义目标检测实例
-    ob_det=ObjectDetectionApp(kmodel_path,labels=labels,model_input_size=[320,320],max_boxes_num=max_boxes_num,confidence_threshold=confidence_threshold,nms_threshold=nms_threshold,rgb888p_size=rgb888p_size,display_size=display_size,debug_mode=1)
+    ob_det=ObjectDetectionApp(kmodel_path,labels=labels,model_input_size=[320,320],max_boxes_num=max_boxes_num,confidence_threshold=confidence_threshold,nms_threshold=nms_threshold,rgb888p_size=rgb888p_size,display_size=display_size,debug_mode=0)
     ob_det.config_preprocess()
     try:
         while True:
             os.exitpoint()
-            # 获取当前帧数据
-            img=pl.get_frame()
-            # 推理当前帧
-            res=ob_det.run(img)
-            # 绘制结果到PipeLine的osd图像
-            ob_det.draw_result(pl,res)
-            # 显示当前的绘制结果
-            pl.show_image()
-            gc.collect()
+            with ScopedTiming("total",1):
+                # 获取当前帧数据
+                img=pl.get_frame()
+                # 推理当前帧
+                res=ob_det.run(img)
+                # 绘制结果到PipeLine的osd图像
+                ob_det.draw_result(pl,res)
+                # 显示当前的绘制结果
+                pl.show_image()
+                gc.collect()
     except Exception as e:
         sys.print_exception(e)
     finally:

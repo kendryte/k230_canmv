@@ -45,14 +45,13 @@ class HandDetectionApp(AIBase):
             # 使用双线性插值进行resize操作，调整图像尺寸以符合模型输入要求
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
             # 构建预处理流程
-            self.ai2d.build(ai2d_input_size, self.model_input_size)
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
     # 自定义当前任务的后处理，用于处理模型输出结果
     def postprocess(self, results):
         with ScopedTiming("postprocess", self.debug_mode > 0):  # 使用ScopedTiming装饰器来测量后处理的时间
             # 使用aicube库的函数进行后处理，得到最终的检测结果
-            dets = aicube.anchorbasedet_post_process(
-                results[0], results[1], results[2], self.model_input_size, self.rgb888p_size, self.strides, len(self.labels), self.confidence_threshold, self.nms_threshold, self.anchors, self.nms_option)
+            dets = aicube.anchorbasedet_post_process(results[0], results[1], results[2], self.model_input_size, self.rgb888p_size, self.strides, len(self.labels), self.confidence_threshold, self.nms_threshold, self.anchors, self.nms_option)
             return dets
 
     # 绘制检测结果到屏幕上
@@ -128,19 +127,20 @@ if __name__=="__main__":
     pl=PipeLine(rgb888p_size=rgb888p_size,display_size=display_size,display_mode=display_mode)
     pl.create()
     # 初始化自定义手掌检测实例
-    hand_det=HandDetectionApp(kmodel_path,model_input_size=[512,512],labels=labels,anchors=anchors,confidence_threshold=confidence_threshold,nms_threshold=nms_threshold,nms_option=False,strides=[8,16,32],rgb888p_size=rgb888p_size,display_size=display_size,debug_mode=1)
+    hand_det=HandDetectionApp(kmodel_path,model_input_size=[512,512],labels=labels,anchors=anchors,confidence_threshold=confidence_threshold,nms_threshold=nms_threshold,nms_option=False,strides=[8,16,32],rgb888p_size=rgb888p_size,display_size=display_size,debug_mode=0)
     hand_det.config_preprocess()
     try:
         while True:
-            os.exitpoint() # 检查是否有退出信号
-            img=pl.get_frame() # 获取当前帧数据
-            res=hand_det.run(img) # 推理当前帧
-            hand_det.draw_result(pl,res)# 绘制结果到PipeLine的osd图像
-            pl.show_image() # 显示当前的绘制结果
-            gc.collect() # 垃圾回收
+            os.exitpoint()                              # 检查是否有退出信号
+            with ScopedTiming("total",1):
+                img=pl.get_frame()                      # 获取当前帧数据
+                res=hand_det.run(img)                   # 推理当前帧
+                hand_det.draw_result(pl,res)            # 绘制结果到PipeLine的osd图像
+                pl.show_image()                         # 显示当前的绘制结果
+                gc.collect()                            # 垃圾回收
     except Exception as e:
         sys.print_exception(e)
     finally:
-        hand_det.deinit() # 反初始化
-        pl.destroy()# 销毁PipeLine实例
+        hand_det.deinit()                               # 反初始化
+        pl.destroy()                                    # 销毁PipeLine实例
 

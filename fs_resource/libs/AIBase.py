@@ -65,12 +65,11 @@ class AIBase:
 
     # kmodel运行pipe，包括预处理+推理+后处理，后处理在单独的任务类中实现
     def run(self,input_np):
-        with ScopedTiming("total",self.debug_mode > 0):
-            self.cur_img=input_np
-            self.tensors.clear()
-            self.tensors.append(self.preprocess(input_np))
-            self.results=self.inference(self.tensors)
-            return self.postprocess(self.results)
+        self.cur_img=input_np
+        self.tensors.clear()
+        self.tensors.append(self.preprocess(input_np))
+        self.results=self.inference(self.tensors)
+        return self.postprocess(self.results)
 
     # AIBase销毁函数
     def deinit(self):

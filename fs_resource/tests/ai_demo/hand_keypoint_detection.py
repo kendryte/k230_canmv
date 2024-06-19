@@ -27,18 +27,24 @@ class HandDetApp(AIBase):
         self.confidence_threshold=confidence_threshold
         # nms阈值
         self.nms_threshold=nms_threshold
+        # 锚框,目标检测任务使用
         self.anchors=anchors
-        self.strides = strides  # 特征下采样倍数
-        self.nms_option = nms_option  # NMS选项，如果为True做类间NMS,如果为False做类内NMS
+        # 特征下采样倍数
+        self.strides = strides
+        # NMS选项，如果为True做类间NMS,如果为False做类内NMS
+        self.nms_option = nms_option
         # sensor给到AI的图像分辨率，宽16字节对齐
         self.rgb888p_size=[ALIGN_UP(rgb888p_size[0],16),rgb888p_size[1]]
         # 视频输出VO分辨率，宽16字节对齐
         self.display_size=[ALIGN_UP(display_size[0],16),display_size[1]]
         # debug模式
         self.debug_mode=debug_mode
+        # Ai2d实例用于实现预处理
         self.ai2d=Ai2d(debug_mode)
+        # 设置ai2d的输入输出的格式和数据类型
         self.ai2d.set_ai2d_dtype(nn.ai2d_format.NCHW_FMT,nn.ai2d_format.NCHW_FMT,np.uint8, np.uint8)
 
+    # 配置预处理操作，这里使用了pad和resize，Ai2d支持crop/shift/pad/resize/affine，具体代码请打开/sdcard/app/libs/AI2D.py查看
     def config_preprocess(self,input_image_size=None):
         with ScopedTiming("set preprocess config",self.debug_mode > 0):
             # 初始化ai2d预处理配置，默认为sensor给到AI的尺寸，可以通过设置input_image_size自行修改输入尺寸
@@ -48,9 +54,10 @@ class HandDetApp(AIBase):
             self.ai2d.pad([0, 0, 0, 0, top, bottom, left, right], 0, [114, 114, 114])
             # 使用双线性插值进行resize操作，调整图像尺寸以符合模型输入要求
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-            # 构建预处理流程
-            self.ai2d.build(ai2d_input_size, self.model_input_size)
+            # 构建预处理流程,参数为预处理输入tensor的shape和预处理输出的tensor的shape
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
+    # 自定义当前任务的后处理，用于处理模型输出结果，这里使用了aicube库的anchorbasedet_post_process接口
     def postprocess(self,results):
         with ScopedTiming("postprocess",self.debug_mode > 0):
             dets = aicube.anchorbasedet_post_process(results[0], results[1], results[2], self.model_input_size, self.rgb888p_size, self.strides, len(self.labels), self.confidence_threshold, self.nms_threshold, self.anchors, self.nms_option)
@@ -98,18 +105,21 @@ class HandKPDetApp(AIBase):
         self.crop_params=[]
         # debug模式
         self.debug_mode=debug_mode
+        # Ai2d实例用于实现预处理
         self.ai2d=Ai2d(debug_mode)
+        # 设置ai2d的输入输出的格式和数据类型
         self.ai2d.set_ai2d_dtype(nn.ai2d_format.NCHW_FMT,nn.ai2d_format.NCHW_FMT,np.uint8, np.uint8)
 
+    # 配置预处理操作，这里使用了crop和resize，Ai2d支持crop/shift/pad/resize/affine，具体代码请打开/sdcard/app/libs/AI2D.py查看
     def config_preprocess(self,det,input_image_size=None):
         with ScopedTiming("set preprocess config",self.debug_mode > 0):
-            # 初始化ai2d预处理配置
             ai2d_input_size=input_image_size if input_image_size else self.rgb888p_size
             self.crop_params = self.get_crop_param(det)
             self.ai2d.crop(self.crop_params[0],self.crop_params[1],self.crop_params[2],self.crop_params[3])
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-            self.ai2d.build(ai2d_input_size,self.model_input_size)
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
+    # 自定义后处理，results是模型输出的array列表
     def postprocess(self,results):
         with ScopedTiming("postprocess",self.debug_mode > 0):
             results=results[0].reshape(results[0].shape[0]*results[0].shape[1])
@@ -120,6 +130,7 @@ class HandKPDetApp(AIBase):
             results_show[1::2] = results_show[1::2] * (self.display_size[1] / self.rgb888p_size[1])
             return results_show
 
+    # 计算crop参数
     def get_crop_param(self,det_box):
         x1, y1, x2, y2 = det_box[2],det_box[3],det_box[4],det_box[5]
         w,h= int(x2 - x1),int(y2 - y1)
@@ -157,7 +168,9 @@ class HandKeyPointDet:
         self.confidence_threshold=confidence_threshold
         # nms阈值
         self.nms_threshold=nms_threshold
+        # nms选项
         self.nms_option=nms_option
+        # 特征图对于输入的下采样倍数
         self.strides=strides
         # sensor给到AI的图像分辨率，宽16字节对齐
         self.rgb888p_size=[ALIGN_UP(rgb888p_size[0],16),rgb888p_size[1]]
@@ -169,11 +182,14 @@ class HandKeyPointDet:
         self.hand_kp=HandKPDetApp(self.hand_kp_kmodel,model_input_size=self.kp_input_size,rgb888p_size=self.rgb888p_size,display_size=self.display_size)
         self.hand_det.config_preprocess()
 
+    # run函数
     def run(self,input_np):
+        # 手掌检测
         det_boxes=self.hand_det.run(input_np)
         hand_res=[]
         boxes=[]
         for det_box in det_boxes:
+            # 对检测到的每个手掌执行手势关键点识别
             x1, y1, x2, y2 = det_box[2],det_box[3],det_box[4],det_box[5]
             w,h= int(x2 - x1),int(y2 - y1)
             # 丢弃不合理的框
@@ -189,7 +205,7 @@ class HandKeyPointDet:
             hand_res.append(results_show)
         return boxes,hand_res
 
-    # 绘制效果
+    # 绘制效果，绘制手掌关键点、检测框
     def draw_result(self,pl,dets,hand_res):
         pl.osd_img.clear()
         if dets:
@@ -236,6 +252,7 @@ if __name__=="__main__":
     hand_det_kmodel_path="/sdcard/app/tests/kmodel/hand_det.kmodel"
     # 手部关键点模型路径
     hand_kp_kmodel_path="/sdcard/app/tests/kmodel/handkp_det.kmodel"
+    # 其它参数
     anchors_path="/sdcard/app/tests/utils/prior_data_320.bin"
     rgb888p_size=[1920,1080]
     hand_det_input_size=[512,512]
@@ -253,10 +270,10 @@ if __name__=="__main__":
         while True:
             os.exitpoint()
             with ScopedTiming("total",1):
-                img=pl.get_frame()
-                det_boxes,hand_res=hkd.run(img)
-                hkd.draw_result(pl,det_boxes,hand_res)
-                pl.show_image()
+                img=pl.get_frame()                      # 获取当前帧
+                det_boxes,hand_res=hkd.run(img)         # 推理当前帧
+                hkd.draw_result(pl,det_boxes,hand_res)  # 绘制推理结果
+                pl.show_image()                         # 展示推理结果
                 gc.collect()
     except Exception as e:
         sys.print_exception(e)

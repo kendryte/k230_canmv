@@ -62,20 +62,13 @@ class Ai2d:
             self.ai2d.set_affine_param(True,interp_method,crop_round,bound_ind,bound_val,bound_smooth,M)
 
     # 构造ai2d预处理器
-    def build(self,ai2d_input_size,ai2d_output_size,input_np=None):
+    def build(self,ai2d_input_shape,ai2d_output_shape,input_np=None):
         with ScopedTiming("ai2d build",self.debug_mode > 0):
-            if input_np:
-                # ai2d构造函数
-                self.ai2d_builder = self.ai2d.build([input_np.shape[0],input_np.shape[1],input_np.shape[2],input_np.shape[3]], [1,3,ai2d_output_size[1],ai2d_output_size[0]])
-                # 定义ai2d输出数据(即kmodel的输入数据，所以数据分辨率和模型的input_size一致)，并转换成tensor
-                output_data = np.ones((1,3,ai2d_output_size[1],ai2d_output_size[0]),dtype=np.uint8)
-                self.ai2d_output_tensor = nn.from_numpy(output_data)
-            else:
-                # ai2d构造函数
-                self.ai2d_builder = self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]], [1,3,ai2d_output_size[1],ai2d_output_size[0]])
-                # 定义ai2d输出数据(即kmodel的输入数据，所以数据分辨率和模型的input_size一致)，并转换成tensor
-                output_data = np.ones((1,3,ai2d_output_size[1],ai2d_output_size[0]),dtype=np.uint8)
-                self.ai2d_output_tensor = nn.from_numpy(output_data)
+            # ai2d构造函数
+            self.ai2d_builder = self.ai2d.build(ai2d_input_shape, ai2d_output_shape)
+            # 定义ai2d输出数据(即kmodel的输入数据，所以数据分辨率和模型的input_size一致)，并转换成tensor
+            output_data = np.ones((ai2d_output_shape[0],ai2d_output_shape[1],ai2d_output_shape[2],ai2d_output_shape[3]),dtype=np.uint8)
+            self.ai2d_output_tensor = nn.from_numpy(output_data)
 
     # 使用ai2d完成预处理
     def run(self,input_np):

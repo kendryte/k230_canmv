@@ -35,7 +35,7 @@ class PersonKeyPointApp(AIBase):
         self.SKELETON = [(16, 14),(14, 12),(17, 15),(15, 13),(12, 13),(6,  12),(7,  13),(6,  7),(6,  8),(7,  9),(8,  10),(9,  11),(2,  3),(1,  2),(1,  3),(2,  4),(3,  5),(4,  6),(5,  7)]
         #肢体颜色
         self.LIMB_COLORS = [(255, 51,  153, 255),(255, 51,  153, 255),(255, 51,  153, 255),(255, 51,  153, 255),(255, 255, 51,  255),(255, 255, 51,  255),(255, 255, 51,  255),(255, 255, 128, 0),(255, 255, 128, 0),(255, 255, 128, 0),(255, 255, 128, 0),(255, 255, 128, 0),(255, 0,   255, 0),(255, 0,   255, 0),(255, 0,   255, 0),(255, 0,   255, 0),(255, 0,   255, 0),(255, 0,   255, 0),(255, 0,   255, 0)]
-        #关键点颜色
+        #关键点颜色，共17个
         self.KPS_COLORS = [(255, 0,   255, 0),(255, 0,   255, 0),(255, 0,   255, 0),(255, 0,   255, 0),(255, 0,   255, 0),(255, 255, 128, 0),(255, 255, 128, 0),(255, 255, 128, 0),(255, 255, 128, 0),(255, 255, 128, 0),(255, 255, 128, 0),(255, 51,  153, 255),(255, 51,  153, 255),(255, 51,  153, 255),(255, 51,  153, 255),(255, 51,  153, 255),(255, 51,  153, 255)]
 
         # Ai2d实例，用于实现模型预处理
@@ -51,7 +51,7 @@ class PersonKeyPointApp(AIBase):
             top,bottom,left,right=self.get_padding_param()
             self.ai2d.pad([0,0,0,0,top,bottom,left,right], 0, [0,0,0])
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-            self.ai2d.build(ai2d_input_size,self.model_input_size)
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
     # 自定义当前任务的后处理
     def postprocess(self,results):
@@ -60,7 +60,7 @@ class PersonKeyPointApp(AIBase):
             results = aidemo.person_kp_postprocess(results[0],[self.rgb888p_size[1],self.rgb888p_size[0]],self.model_input_size,self.confidence_threshold,self.nms_threshold)
             return results
 
-    #绘制结果
+    #绘制结果，绘制人体关键点
     def draw_result(self,pl,res):
         with ScopedTiming("display_draw",self.debug_mode >0):
             if res[0]:
@@ -129,20 +129,21 @@ if __name__=="__main__":
     pl=PipeLine(rgb888p_size=rgb888p_size,display_size=display_size,display_mode=display_mode)
     pl.create()
     # 初始化自定义人体关键点检测实例
-    person_kp=PersonKeyPointApp(kmodel_path,model_input_size=[320,320],confidence_threshold=confidence_threshold,nms_threshold=nms_threshold,rgb888p_size=rgb888p_size,display_size=display_size,debug_mode=1)
+    person_kp=PersonKeyPointApp(kmodel_path,model_input_size=[320,320],confidence_threshold=confidence_threshold,nms_threshold=nms_threshold,rgb888p_size=rgb888p_size,display_size=display_size,debug_mode=0)
     person_kp.config_preprocess()
     try:
         while True:
             os.exitpoint()
-            # 获取当前帧数据
-            img=pl.get_frame()
-            # 推理当前帧
-            res=person_kp.run(img)
-            # 绘制结果到PipeLine的osd图像
-            person_kp.draw_result(pl,res)
-            # 显示当前的绘制结果
-            pl.show_image()
-            gc.collect()
+            with ScopedTiming("total",1):
+                # 获取当前帧数据
+                img=pl.get_frame()
+                # 推理当前帧
+                res=person_kp.run(img)
+                # 绘制结果到PipeLine的osd图像
+                person_kp.draw_result(pl,res)
+                # 显示当前的绘制结果
+                pl.show_image()
+                gc.collect()
     except Exception as e:
         sys.print_exception(e)
     finally:
