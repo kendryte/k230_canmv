@@ -30,16 +30,16 @@ class FaceDetectionApp(AIBase):
         self.ai2d = Ai2d(debug_mode)  # 实例化Ai2d，用于实现模型预处理
         self.ai2d.set_ai2d_dtype(nn.ai2d_format.NCHW_FMT, nn.ai2d_format.NCHW_FMT, np.uint8, np.uint8)  # 设置Ai2d的输入输出格式和类型
 
-    # 配置预处理操作，这里使用了pad和resize
+    # 配置预处理操作，这里使用了pad和resize，Ai2d支持crop/shift/pad/resize/affine，具体代码请打开/sdcard/app/libs/AI2D.py查看
     def config_preprocess(self, input_image_size=None):
         with ScopedTiming("set preprocess config", self.debug_mode > 0):  # 计时器，如果debug_mode大于0则开启
-            ai2d_input_size = input_image_size if input_image_size else self.rgb888p_size  # 设置AI输入尺寸
+            ai2d_input_size = input_image_size if input_image_size else self.rgb888p_size  # 初始化ai2d预处理配置，默认为sensor给到AI的尺寸，可以通过设置input_image_size自行修改输入尺寸
             top, bottom, left, right = self.get_padding_param()  # 获取padding参数
             self.ai2d.pad([0, 0, 0, 0, top, bottom, left, right], 0, [104, 117, 123])  # 填充边缘
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)  # 缩放图像
-            self.ai2d.build(ai2d_input_size, self.model_input_size)  # 构建预处理流程
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])  # 构建预处理流程
 
-    # 自定义当前任务的后处理，用于处理模型输出结果
+    # 自定义当前任务的后处理，results是模型输出array列表，这里使用了aidemo库的face_det_post_process接口
     def postprocess(self, results):
         with ScopedTiming("postprocess", self.debug_mode > 0):
             post_ret = aidemo.face_det_post_process(self.confidence_threshold, self.nms_threshold, self.model_input_size[1], self.anchors, self.rgb888p_size, results)
@@ -90,6 +90,7 @@ if __name__ == "__main__":
         display_size=[800,480]
     # 设置模型路径和其他参数
     kmodel_path = "/sdcard/app/tests/kmodel/face_detection_320.kmodel"
+    # 其它参数
     confidence_threshold = 0.5
     nms_threshold = 0.2
     anchor_len = 4200
@@ -102,22 +103,22 @@ if __name__ == "__main__":
     # 初始化PipeLine，用于图像处理流程
     pl = PipeLine(rgb888p_size=rgb888p_size, display_size=display_size, display_mode=display_mode)
     pl.create()  # 创建PipeLine实例
-
     # 初始化自定义人脸检测实例
-    face_det = FaceDetectionApp(kmodel_path, model_input_size=[320, 320], anchors=anchors, confidence_threshold=confidence_threshold, nms_threshold=nms_threshold, rgb888p_size=rgb888p_size, display_size=display_size, debug_mode=1)
+    face_det = FaceDetectionApp(kmodel_path, model_input_size=[320, 320], anchors=anchors, confidence_threshold=confidence_threshold, nms_threshold=nms_threshold, rgb888p_size=rgb888p_size, display_size=display_size, debug_mode=0)
     face_det.config_preprocess()  # 配置预处理
 
     try:
         while True:
-            os.exitpoint()  # 检查是否有退出信号
-            img = pl.get_frame()  # 获取当前帧数据
-            res = face_det.run(img)  # 推理当前帧
-            face_det.draw_result(pl, res)  # 绘制结果
-            pl.show_image()  # 显示结果
-            gc.collect()  # 垃圾回收
+            os.exitpoint()                      # 检查是否有退出信号
+            with ScopedTiming("total",1):
+                img = pl.get_frame()            # 获取当前帧数据
+                res = face_det.run(img)         # 推理当前帧
+                face_det.draw_result(pl, res)   # 绘制结果
+                pl.show_image()                 # 显示结果
+                gc.collect()                    # 垃圾回收
     except Exception as e:
-        sys.print_exception(e)  # 打印异常信息
+        sys.print_exception(e)                  # 打印异常信息
     finally:
-        face_det.deinit()  # 反初始化
-        pl.destroy()  # 销毁PipeLine实例
+        face_det.deinit()                       # 反初始化
+        pl.destroy()                            # 销毁PipeLine实例
 

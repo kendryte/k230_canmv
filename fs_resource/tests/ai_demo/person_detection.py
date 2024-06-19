@@ -51,7 +51,7 @@ class PersonDetectionApp(AIBase):
             top,bottom,left,right=self.get_padding_param()
             self.ai2d.pad([0,0,0,0,top,bottom,left,right], 0, [0,0,0])
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-            self.ai2d.build(ai2d_input_size,self.model_input_size)
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
     # 自定义当前任务的后处理
     def postprocess(self,results):
@@ -126,20 +126,21 @@ if __name__=="__main__":
     pl=PipeLine(rgb888p_size=rgb888p_size,display_size=display_size,display_mode=display_mode)
     pl.create()
     # 初始化自定义人体检测实例
-    person_det=PersonDetectionApp(kmodel_path,model_input_size=[640,640],labels=labels,anchors=anchors,confidence_threshold=confidence_threshold,nms_threshold=nms_threshold,nms_option=False,strides=[8,16,32],rgb888p_size=rgb888p_size,display_size=display_size,debug_mode=1)
+    person_det=PersonDetectionApp(kmodel_path,model_input_size=[640,640],labels=labels,anchors=anchors,confidence_threshold=confidence_threshold,nms_threshold=nms_threshold,nms_option=False,strides=[8,16,32],rgb888p_size=rgb888p_size,display_size=display_size,debug_mode=0)
     person_det.config_preprocess()
     try:
         while True:
             os.exitpoint()
-            # 获取当前帧数据
-            img=pl.get_frame()
-            # 推理当前帧
-            res=person_det.run(img)
-            # 绘制结果到PipeLine的osd图像
-            person_det.draw_result(pl,res)
-            # 显示当前的绘制结果
-            pl.show_image()
-            gc.collect()
+            with ScopedTiming("total",1):
+                # 获取当前帧数据
+                img=pl.get_frame()
+                # 推理当前帧
+                res=person_det.run(img)
+                # 绘制结果到PipeLine的osd图像
+                person_det.draw_result(pl,res)
+                # 显示当前的绘制结果
+                pl.show_image()
+                gc.collect()
     except Exception as e:
         sys.print_exception(e)
     finally:

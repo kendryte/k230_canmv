@@ -26,6 +26,7 @@ class FaceDetApp(AIBase):
         self.confidence_threshold=confidence_threshold
         # nms阈值
         self.nms_threshold=nms_threshold
+        # 检测任务锚框
         self.anchors=anchors
         # sensor给到AI的图像分辨率，宽16字节对齐
         self.rgb888p_size=[ALIGN_UP(rgb888p_size[0],16),rgb888p_size[1]]
@@ -33,17 +34,24 @@ class FaceDetApp(AIBase):
         self.display_size=[ALIGN_UP(display_size[0],16),display_size[1]]
         # debug模式
         self.debug_mode=debug_mode
+        # 实例化Ai2d，用于实现模型预处理
         self.ai2d=Ai2d(debug_mode)
+        # 设置Ai2d的输入输出格式和类型
         self.ai2d.set_ai2d_dtype(nn.ai2d_format.NCHW_FMT,nn.ai2d_format.NCHW_FMT,np.uint8, np.uint8)
 
+    # 配置预处理操作，这里使用了pad和resize，Ai2d支持crop/shift/pad/resize/affine，具体代码请打开/sdcard/app/libs/AI2D.py查看
     def config_preprocess(self,input_image_size=None):
         with ScopedTiming("set preprocess config",self.debug_mode > 0):
-            # 初始化ai2d预处理配置
+            # 初始化ai2d预处理配置，默认为sensor给到AI的尺寸，可以通过设置input_image_size自行修改输入尺寸
             ai2d_input_size=input_image_size if input_image_size else self.rgb888p_size
+            # 设置padding预处理
             self.ai2d.pad(self.get_pad_param(), 0, [104,117,123])
+            # 设置resize预处理
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-            self.ai2d.build(ai2d_input_size,self.model_input_size)
+            # 构建预处理流程,参数为预处理输入tensor的shape和预处理输出的tensor的shape
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
+    # 自定义后处理，results是模型输出的array列表，这里使用了aidemo的face_det_post_process列表
     def postprocess(self,results):
         with ScopedTiming("postprocess",self.debug_mode > 0):
             res = aidemo.face_det_post_process(self.confidence_threshold,self.nms_threshold,self.model_input_size[0],self.anchors,self.rgb888p_size,results)
@@ -52,6 +60,7 @@ class FaceDetApp(AIBase):
             else:
                 return res[0]
 
+    # 计算padding参数
     def get_pad_param(self):
         dst_w = self.model_input_size[0]
         dst_h = self.model_input_size[1]
@@ -78,7 +87,7 @@ class FaceLandMarkApp(AIBase):
         super().__init__(kmodel_path,model_input_size,rgb888p_size,debug_mode)
         # kmodel路径
         self.kmodel_path=kmodel_path
-        # 检测模型输入分辨率
+        # 关键点模型输入分辨率
         self.model_input_size=model_input_size
         # sensor给到AI的图像分辨率，宽16字节对齐
         self.rgb888p_size=[ALIGN_UP(rgb888p_size[0],16),rgb888p_size[1]]
@@ -86,20 +95,26 @@ class FaceLandMarkApp(AIBase):
         self.display_size=[ALIGN_UP(display_size[0],16),display_size[1]]
         # debug模式
         self.debug_mode=debug_mode
+        # 目标矩阵
         self.matrix_dst=None
         self.ai2d=Ai2d(debug_mode)
         self.ai2d.set_ai2d_dtype(nn.ai2d_format.NCHW_FMT,nn.ai2d_format.NCHW_FMT,np.uint8, np.uint8)
 
+    # 配置预处理操作，这里使用了affine，Ai2d支持crop/shift/pad/resize/affine，具体代码请打开/sdcard/app/libs/AI2D.py查看
     def config_preprocess(self,det,input_image_size=None):
         with ScopedTiming("set preprocess config",self.debug_mode > 0):
-            # 初始化ai2d预处理配置
+            # 初始化ai2d预处理配置，默认为sensor给到AI的尺寸，可以通过设置input_image_size自行修改输入尺寸
             ai2d_input_size=input_image_size if input_image_size else self.rgb888p_size
+            # 计算目标矩阵，并获取仿射变换矩阵
             self.matrix_dst = self.get_affine_matrix(det)
             affine_matrix = [self.matrix_dst[0][0],self.matrix_dst[0][1],self.matrix_dst[0][2],
                              self.matrix_dst[1][0],self.matrix_dst[1][1],self.matrix_dst[1][2]]
+            # 设置仿射变换预处理
             self.ai2d.affine(nn.interp_method.cv2_bilinear,0, 0, 127, 1,affine_matrix)
-            self.ai2d.build(ai2d_input_size,self.model_input_size)
+            # 构建预处理流程,参数为预处理输入tensor的shape和预处理输出的tensor的shape
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
+    # 自定义后处理，results是模型输出的array列表，这里使用了aidemo库的invert_affine_transform接口
     def postprocess(self,results):
         with ScopedTiming("postprocess",self.debug_mode > 0):
             pred=results[0]
@@ -145,15 +160,16 @@ class FaceLandMarkApp(AIBase):
             matrix_dst[1, 2] = half_input_len - cy
             return matrix_dst
 
+# 人脸标志解析
 class FaceLandMark:
     def __init__(self,face_det_kmodel,face_landmark_kmodel,det_input_size,landmark_input_size,anchors,confidence_threshold=0.25,nms_threshold=0.3,rgb888p_size=[1920,1080],display_size=[1920,1080],debug_mode=0):
         # 人脸检测模型路径
         self.face_det_kmodel=face_det_kmodel
-        # 人脸解析模型路径
+        # 人脸标志解析模型路径
         self.face_landmark_kmodel=face_landmark_kmodel
         # 人脸检测模型输入分辨率
         self.det_input_size=det_input_size
-        # 人脸解析模型输入分辨率
+        # 人脸标志解析模型输入分辨率
         self.landmark_input_size=landmark_input_size
         # anchors
         self.anchors=anchors
@@ -195,15 +211,20 @@ class FaceLandMark:
             (255, 255, 220, 50),
             (255, 30, 30, 255)
         ]
+        # 人脸检测实例
         self.face_det=FaceDetApp(self.face_det_kmodel,model_input_size=self.det_input_size,anchors=self.anchors,confidence_threshold=self.confidence_threshold,nms_threshold=self.nms_threshold,rgb888p_size=self.rgb888p_size,display_size=self.display_size,debug_mode=0)
+        # 人脸标志解析实例
         self.face_landmark=FaceLandMarkApp(self.face_landmark_kmodel,model_input_size=self.landmark_input_size,rgb888p_size=self.rgb888p_size,display_size=self.display_size)
+        # 配置人脸检测的预处理
         self.face_det.config_preprocess()
 
-
+    # run函数
     def run(self,input_np):
+        # 执行人脸检测
         det_boxes=self.face_det.run(input_np)
         landmark_res=[]
         for det_box in det_boxes:
+            # 对每一个检测到的人脸解析关键部位
             self.face_landmark.config_preprocess(det_box)
             res=self.face_landmark.run(input_np)
             landmark_res.append(res)
@@ -254,8 +275,9 @@ if __name__=="__main__":
         display_size=[800,480]
     # 人脸检测模型路径
     face_det_kmodel_path="/sdcard/app/tests/kmodel/face_detection_320.kmodel"
-    # 人脸关键点模型路径
+    # 人脸关键标志模型路径
     face_landmark_kmodel_path="/sdcard/app/tests/kmodel/face_landmark.kmodel"
+    # 其它参数
     anchors_path="/sdcard/app/tests/utils/prior_data_320.bin"
     rgb888p_size=[1920,1080]
     face_det_input_size=[320,320]
@@ -274,11 +296,12 @@ if __name__=="__main__":
     try:
         while True:
             os.exitpoint()
-            img=pl.get_frame()
-            det_boxes,landmark_res=flm.run(img)
-            flm.draw_result(pl,det_boxes,landmark_res)
-            pl.show_image()
-            gc.collect()
+            with ScopedTiming("total",1):
+                img=pl.get_frame()                          # 获取当前帧
+                det_boxes,landmark_res=flm.run(img)         # 推理当前帧
+                flm.draw_result(pl,det_boxes,landmark_res)  # 绘制推理结果
+                pl.show_image()                             # 展示推理效果
+                gc.collect()
     except Exception as e:
         sys.print_exception(e)
     finally:

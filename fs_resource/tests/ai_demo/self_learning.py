@@ -64,14 +64,14 @@ class SelfLearningApp(AIBase):
             ai2d_input_size=input_image_size if input_image_size else self.rgb888p_size
             self.ai2d.crop(int(self.crop_x),int(self.crop_y),int(self.crop_w),int(self.crop_h))
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-            self.ai2d.build(ai2d_input_size,self.model_input_size)
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
     # 自定义当前任务的后处理
     def postprocess(self,results):
         with ScopedTiming("postprocess",self.debug_mode > 0):
             return results[0][0]
 
-    # 绘制结果
+    # 绘制结果，绘制特征采集框和特征分类框
     def draw_result(self,pl,feature):
         pl.osd_img.clear()
         with ScopedTiming("display_draw",self.debug_mode >0):
@@ -128,6 +128,9 @@ class SelfLearningApp(AIBase):
 
     #数据初始化
     def data_init(self):
+        if os.path.exists(self.database_path):
+            os.rmdir(self.database_path)
+        os.mkdir(self.database_path)
         self.crop_x_osd = int(self.crop_x / self.rgb888p_size[0] * self.display_size[0])
         self.crop_y_osd = int(self.crop_y / self.rgb888p_size[1] * self.display_size[1])
         self.crop_w_osd = int(self.crop_w / self.rgb888p_size[0] * self.display_size[0])
@@ -165,20 +168,21 @@ if __name__=="__main__":
     pl=PipeLine(rgb888p_size=rgb888p_size,display_size=display_size,display_mode=display_mode)
     pl.create()
     # 初始化自学习实例
-    sl=SelfLearningApp(kmodel_path,model_input_size=model_input_size,labels=labels,top_k=top_k,threshold=threshold,database_path=database_path,rgb888p_size=rgb888p_size,display_size=display_size,debug_mode=1)
+    sl=SelfLearningApp(kmodel_path,model_input_size=model_input_size,labels=labels,top_k=top_k,threshold=threshold,database_path=database_path,rgb888p_size=rgb888p_size,display_size=display_size,debug_mode=0)
     sl.config_preprocess()
     try:
         while True:
             os.exitpoint()
-            # 获取当前帧数据
-            img=pl.get_frame()
-            # 推理当前帧
-            res=sl.run(img)
-            # 绘制结果到PipeLine的osd图像
-            sl.draw_result(pl,res)
-            # 显示当前的绘制结果
-            pl.show_image()
-            gc.collect()
+            with ScopedTiming("total",1):
+                # 获取当前帧数据
+                img=pl.get_frame()
+                # 推理当前帧
+                res=sl.run(img)
+                # 绘制结果到PipeLine的osd图像
+                sl.draw_result(pl,res)
+                # 显示当前的绘制结果
+                pl.show_image()
+                gc.collect()
     except Exception as e:
         sys.print_exception(e)
     finally:

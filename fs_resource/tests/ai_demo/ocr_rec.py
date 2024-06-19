@@ -42,15 +42,14 @@ class OCRDetectionApp(AIBase):
             top,bottom,left,right=self.get_padding_param()
             self.ai2d.pad([0,0,0,0,top,bottom,left,right], 0, [0,0,0])
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
-            self.ai2d.build(ai2d_input_size,self.model_input_size)
+            self.ai2d.build([1,3,ai2d_input_size[1],ai2d_input_size[0]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
     # 自定义当前任务的后处理
     def postprocess(self,results):
         with ScopedTiming("postprocess",self.debug_mode > 0):
             # chw2hwc
             hwc_array=self.chw2hwc(self.cur_img)
-            # 这里使用了aicube封装的接口seg_post_process做后处理，返回一个和display_size相同分辨率的mask图
-            # det_boxes结构为[[crop_array_nhwc,[p1_x,p1_y,p2_x,p2_y,p3_x,p3_y,p4_x,p4_y]],...]
+            # 这里使用了aicube封装的接口ocr_post_process做后处理,返回的det_boxes结构为[[crop_array_nhwc,[p1_x,p1_y,p2_x,p2_y,p3_x,p3_y,p4_x,p4_y]],...]
             det_boxes = aicube.ocr_post_process(results[0][:,:,:,0].reshape(-1), hwc_array.reshape(-1),self.model_input_size,self.rgb888p_size, self.mask_threshold, self.box_threshold)
             return det_boxes
 
@@ -105,22 +104,22 @@ class OCRRecognitionApp(AIBase):
         # debug模式
         self.debug_mode=debug_mode
         self.dict_word=None
+        # 读取OCR的字典
         self.read_dict()
         self.ai2d=Ai2d(debug_mode)
-        self.ai2d.set_ai2d_dtype(nn.ai2d_format.RGB_packed
-                                 ,nn.ai2d_format.NCHW_FMT,np.uint8, np.uint8)
+        self.ai2d.set_ai2d_dtype(nn.ai2d_format.RGB_packed,nn.ai2d_format.NCHW_FMT,np.uint8, np.uint8)
 
     # 配置预处理操作，这里使用了pad和resize，Ai2d支持crop/shift/pad/resize/affine，具体代码请打开/sdcard/app/libs/AI2D.py查看
     def config_preprocess(self,input_image_size=None,input_np=None):
         with ScopedTiming("set preprocess config",self.debug_mode > 0):
-            # 初始化ai2d预处理配置
             ai2d_input_size=input_image_size if input_image_size else self.rgb888p_size
             top,bottom,left,right=self.get_padding_param(ai2d_input_size,self.model_input_size)
             self.ai2d.pad([0,0,0,0,top,bottom,left,right], 0, [0,0,0])
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
             # 如果传入input_np，输入shape为input_np的shape,如果不传入，输入shape为[1,3,ai2d_input_size[1],ai2d_input_size[0]]
-            self.ai2d.build(ai2d_input_size,self.model_input_size,input_np=input_np)
+            self.ai2d.build([input_np.shape[0],input_np.shape[1],input_np.shape[2],input_np.shape[3]],[1,3,self.model_input_size[1],self.model_input_size[0]])
 
+    # 自定义后处理，results是模型输出的array列表
     def postprocess(self,results):
         with ScopedTiming("postprocess",self.debug_mode > 0):
             preds = np.argmax(results[0], axis=2).reshape((-1))
@@ -188,11 +187,14 @@ class OCRDetRec:
         self.ocr_rec=OCRRecognitionApp(self.ocr_rec_kmodel,model_input_size=self.rec_input_size,dict_path=self.dict_path,rgb888p_size=self.rgb888p_size,display_size=self.display_size)
         self.ocr_det.config_preprocess()
 
+    # run函数
     def run(self,input_np):
+        # 先进行OCR检测
         det_res=self.ocr_det.run(input_np)
         boxes=[]
         ocr_res=[]
         for det in det_res:
+            # 对得到的每个检测框执行OCR识别
             self.ocr_rec.config_preprocess(input_image_size=[det[0].shape[2],det[0].shape[1]],input_np=det[0])
             ocr_str=self.ocr_rec.run(det[0])
             ocr_res.append(ocr_str)
@@ -227,6 +229,7 @@ if __name__=="__main__":
     ocr_det_kmodel_path="/sdcard/app/tests/kmodel/ocr_det_int16.kmodel"
     # OCR识别模型路径
     ocr_rec_kmodel_path="/sdcard/app/tests/kmodel/ocr_rec_int16.kmodel"
+    # 其他参数
     dict_path="/sdcard/app/tests/utils/dict.txt"
     rgb888p_size=[640,360]
     ocr_det_input_size=[640,640]
@@ -242,10 +245,10 @@ if __name__=="__main__":
         while True:
             os.exitpoint()
             with ScopedTiming("total",1):
-                img=pl.get_frame()
-                det_res,rec_res=ocr.run(img)
-                ocr.draw_result(pl,det_res,rec_res)
-                pl.show_image()
+                img=pl.get_frame()                  # 获取当前帧
+                det_res,rec_res=ocr.run(img)        # 推理当前帧
+                ocr.draw_result(pl,det_res,rec_res) # 绘制当前帧推理结果
+                pl.show_image()                     # 展示当前帧推理结果
                 gc.collect()
     except Exception as e:
         sys.print_exception(e)
