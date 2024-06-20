@@ -350,7 +350,7 @@ if __name__=="__main__":
     det_dim=4
     anchors = np.fromfile(anchors_path, dtype=np.float)
     anchors = anchors.reshape((anchor_len,det_dim))
-    face_recognition_threshold = 0.5        # 人脸识别阈值
+    face_recognition_threshold = 0.75        # 人脸识别阈值
 
     # 初始化PipeLine，只关注传给AI的图像分辨率，显示的分辨率
     pl=PipeLine(rgb888p_size=rgb888p_size,display_size=display_size,display_mode=display_mode)

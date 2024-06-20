@@ -128,9 +128,11 @@ class SelfLearningApp(AIBase):
 
     #数据初始化
     def data_init(self):
-        if os.path.exists(self.database_path):
+        try:
             os.rmdir(self.database_path)
-        os.mkdir(self.database_path)
+            os.mkdir(self.database_path)
+        except:
+            os.mkdir(self.database_path)
         self.crop_x_osd = int(self.crop_x / self.rgb888p_size[0] * self.display_size[0])
         self.crop_y_osd = int(self.crop_y / self.rgb888p_size[1] * self.display_size[1])
         self.crop_w_osd = int(self.crop_w / self.rgb888p_size[0] * self.display_size[0])

@@ -38,14 +38,16 @@ class FaceDetApp(AIBase):
         self.ai2d=Ai2d(debug_mode)
         # 设置Ai2d的输入输出格式和类型
         self.ai2d.set_ai2d_dtype(nn.ai2d_format.NCHW_FMT,nn.ai2d_format.NCHW_FMT,np.uint8, np.uint8)
+        self.image_size=[]
 
     # 配置预处理操作，这里使用了pad和resize，Ai2d支持crop/shift/pad/resize/affine，具体代码请打开/sdcard/app/libs/AI2D.py查看
     def config_preprocess(self,input_image_size=None):
         with ScopedTiming("set preprocess config",self.debug_mode > 0):
             # 初始化ai2d预处理配置，默认为sensor给到AI的尺寸，可以通过设置input_image_size自行修改输入尺寸
             ai2d_input_size=input_image_size if input_image_size else self.rgb888p_size
+            self.image_size=[input_image_size[1],input_image_size[0]]
             # 计算padding参数，并设置padding预处理
-            self.ai2d.pad(self.get_pad_param(), 0, [104,117,123])
+            self.ai2d.pad(self.get_pad_param(ai2d_input_size), 0, [104,117,123])
             # 设置resize预处理
             self.ai2d.resize(nn.interp_method.tf_bilinear, nn.interp_mode.half_pixel)
             # 构建预处理流程,参数为预处理输入tensor的shape和预处理输出的tensor的shape
@@ -54,24 +56,24 @@ class FaceDetApp(AIBase):
     # 自定义后处理，results是模型输出的array列表，这里使用了aidemo库的face_det_post_process接口
     def postprocess(self,results):
         with ScopedTiming("postprocess",self.debug_mode > 0):
-            res = aidemo.face_det_post_process(self.confidence_threshold,self.nms_threshold,self.model_input_size[0],self.anchors,self.rgb888p_size,results)
+            res = aidemo.face_det_post_process(self.confidence_threshold,self.nms_threshold,self.model_input_size[0],self.anchors,self.image_size,results)
             if len(res)==0:
                 return res
             else:
                 return res[0],res[1]
 
-    def get_pad_param(self):
+    def get_pad_param(self,image_input_size):
         dst_w = self.model_input_size[0]
         dst_h = self.model_input_size[1]
         # 计算最小的缩放比例，等比例缩放
-        ratio_w = dst_w / self.rgb888p_size[0]
-        ratio_h = dst_h / self.rgb888p_size[1]
+        ratio_w = dst_w / image_input_size[0]
+        ratio_h = dst_h / image_input_size[1]
         if ratio_w < ratio_h:
             ratio = ratio_w
         else:
             ratio = ratio_h
-        new_w = (int)(ratio * self.rgb888p_size[0])
-        new_h = (int)(ratio * self.rgb888p_size[1])
+        new_w = (int)(ratio * image_input_size[0])
+        new_h = (int)(ratio * image_input_size[1])
         dw = (dst_w - new_w) / 2
         dh = (dst_h - new_h) / 2
         top = (int)(round(0))
