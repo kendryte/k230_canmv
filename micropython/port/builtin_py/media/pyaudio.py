@@ -1,9 +1,9 @@
-from mpp.vb import *
-from mpp import *
-from mpp.sys import *
-from media.media import *
 import uctypes
 import time
+from mpp import *
+from mpp.vb import *
+from mpp.sys import *
+from media.media import *
 
 DIV_NUM        = 5
 paInt16        = 0        #: 16 bit int
@@ -52,7 +52,7 @@ def _vb_buffer_init(frames_per_buffer=1024):
     config.comm_pool[1].blk_size =  int(frames_per_buffer * 2 * 2 * 4)
     config.comm_pool[1].mode = VB_REMAP_MODE_NOCACHE
 
-    media.buffer_config(config)
+    MediaManager._config(config)
 
 class Stream:
     def __init__(self,
