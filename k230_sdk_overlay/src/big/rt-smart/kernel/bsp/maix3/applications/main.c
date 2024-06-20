@@ -12,10 +12,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <dfs_fs.h>
-
-#if CONFIG_ENABLE_USB_DEVICE
+#ifdef PKG_CHERRYUSB_HOST
+#include "usbh_core.h"
+#endif
+#ifdef PKG_CHERRYUSB_DEVICE
 #include "usbd_core.h"
-#include "cdc_acm_msc_template.c"
 #endif
 
 int main(void)
@@ -26,9 +27,18 @@ int main(void)
     if (dfs_mount("sd", "/sdcard", "elm", 0, 0) != 0)
         rt_kprintf("Dir /sdcard mount failed!\n");
 #endif
-#if CONFIG_ENABLE_USB_DEVICE
-    extern void cdc_acm_msc_init(void);
-    cdc_acm_msc_init();
+#ifdef PKG_CHERRYUSB_HOST
+    void *usb_base;
+#ifdef CHERRYUSB_HOST_USING_USB1
+    usb_base = rt_ioremap((void *)0x91540000UL, 0x10000);
+#else
+    usb_base = rt_ioremap((void *)0x91500000UL, 0x10000);
+#endif
+    usbh_initialize(0, (uint32_t)usb_base);
+#endif
+#ifdef PKG_CHERRYUSB_DEVICE
+    extern void cdc_acm_mtp_init(void);
+    cdc_acm_mtp_init();
     rt_thread_delay(10);
 #endif
     msh_exec("/sdcard/app/micropython", 32);

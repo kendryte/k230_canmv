@@ -39,7 +39,7 @@ int read_usb(void * ctx, unsigned char * buffer, int maxsize)
     rt_uint32_t re;
 
     read_size = 0;
-    usbd_ep_start_read(mtp_ep_data[MTP_OUT_EP_IDX].ep_addr, buffer, maxsize);
+    usbd_ep_start_read(CDC_DEV_BUSID, mtp_ep_data[MTP_OUT_EP_IDX].ep_addr, buffer, maxsize);
     rt_event_recv(mtp_event, EV_BULK_READ_FINISH | EV_DISCONNECT, RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR, RT_WAITING_FOREVER, &re);
     if (re & EV_DISCONNECT)
         return -1;
@@ -53,10 +53,10 @@ int write_usb(void * ctx, int channel, unsigned char * buffer, int size)
 
     if (channel == MTP_IN_EP_IDX) {
         write_size = 0;
-        usbd_ep_start_write(mtp_ep_data[channel].ep_addr, buffer, size);
+        usbd_ep_start_write(CDC_DEV_BUSID, mtp_ep_data[channel].ep_addr, buffer, size);
         rt_event_recv(mtp_event, EV_BULK_WRITE_FINISH | EV_DISCONNECT, RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR, RT_WAITING_FOREVER, &re);
     } else {
-        usbd_ep_start_write(mtp_ep_data[channel].ep_addr, buffer, size);
+        usbd_ep_start_write(CDC_DEV_BUSID, mtp_ep_data[channel].ep_addr, buffer, size);
         rt_event_recv(mtp_event, EV_INT_WRITE_FINISH | EV_DISCONNECT, RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR, RT_WAITING_FOREVER, &re);
     }
     if (re & EV_DISCONNECT)
@@ -91,7 +91,7 @@ static void mtp_thread(void *arg)
     }
 }
 
-static int mtp_class_interface_request_handler(struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
+static int mtp_class_interface_request_handler(uint8_t busid, struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
 {
     USB_LOG_DBG("MTP Class request: "
                 "bRequest 0x%02x\r\n",
@@ -119,24 +119,24 @@ static int mtp_class_interface_request_handler(struct usb_setup_packet *setup, u
     return 0;
 }
 
-static void usbd_mtp_bulk_out(uint8_t ep, uint32_t nbytes)
+static void usbd_mtp_bulk_out(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
     read_size = nbytes;
     rt_event_send(mtp_event, EV_BULK_READ_FINISH);
 }
 
-static void usbd_mtp_bulk_in(uint8_t ep, uint32_t nbytes)
+static void usbd_mtp_bulk_in(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
     write_size = nbytes;
     rt_event_send(mtp_event, EV_BULK_WRITE_FINISH);
 }
 
-static void usbd_mtp_int_in(uint8_t ep, uint32_t nbytes)
+static void usbd_mtp_int_in(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
     rt_event_send(mtp_event, EV_INT_WRITE_FINISH);
 }
 
-static void mtp_notify_handler(uint8_t event, void *arg)
+static void mtp_notify_handler(uint8_t busid, uint8_t event, void *arg)
 {
     switch (event) {
         case USBD_EVENT_RESET:
@@ -215,7 +215,8 @@ struct usbd_interface *usbd_mtp_init_intf(struct usbd_interface *intf,
     mtp_set_usb_handle(mtp_context, NULL, MTP_BULK_EP_MPS);
     mtp_add_storage(mtp_context, "/sdcard", "sdcard", 0, 0, UMTP_STORAGE_READWRITE);
     mtp_event = rt_event_create("mtp", RT_IPC_FLAG_FIFO);
-    mtp_tid = usb_osal_thread_create("mtp", CONFIG_USBDEV_MTP_STACKSIZE, CONFIG_USBDEV_MTP_PRIO, mtp_thread, mtp_context);
+    mtp_tid = rt_thread_create("mtp", mtp_thread, mtp_context, CONFIG_USBDEV_MTP_STACKSIZE, CONFIG_USBDEV_MTP_PRIO, 10);
+	rt_thread_startup(mtp_tid);
 
     intf->class_interface_handler = mtp_class_interface_request_handler;
     intf->class_endpoint_handler = NULL;
@@ -229,9 +230,9 @@ struct usbd_interface *usbd_mtp_init_intf(struct usbd_interface *intf,
     mtp_ep_data[MTP_INT_EP_IDX].ep_addr = int_ep;
     mtp_ep_data[MTP_INT_EP_IDX].ep_cb = usbd_mtp_int_in;
 
-    usbd_add_endpoint(&mtp_ep_data[MTP_OUT_EP_IDX]);
-    usbd_add_endpoint(&mtp_ep_data[MTP_IN_EP_IDX]);
-    usbd_add_endpoint(&mtp_ep_data[MTP_INT_EP_IDX]);
+    usbd_add_endpoint(CDC_DEV_BUSID, &mtp_ep_data[MTP_OUT_EP_IDX]);
+    usbd_add_endpoint(CDC_DEV_BUSID, &mtp_ep_data[MTP_IN_EP_IDX]);
+    usbd_add_endpoint(CDC_DEV_BUSID, &mtp_ep_data[MTP_INT_EP_IDX]);
 
     return intf;
 }
