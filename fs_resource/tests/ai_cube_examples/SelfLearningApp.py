@@ -57,7 +57,7 @@ class SelfLearningApp(AIBase):
         self.config_preprocess([img.shape[2],img.shape[1]])
         # 预处理，推理，输出特征入库，特征标签入库
         tensor=self.preprocess(img)
-        results=self.inference([tensor])
+        results=self.inference(tensor)
         self.embeddings.append(results[0][0])
         self.embeddings_labels.append(label)
         # 重置为视频流的预处理

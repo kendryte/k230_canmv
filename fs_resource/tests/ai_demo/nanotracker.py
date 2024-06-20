@@ -72,9 +72,9 @@ class TrackCropApp(AIBase):
     def preprocess(self,input_np):
         if self.need_pad:
             pad_output=self.ai2d_pad.run(input_np).to_numpy()
-            return self.ai2d_crop.run(pad_output)
+            return [self.ai2d_crop.run(pad_output)]
         else:
-            return self.ai2d_crop.run(input_np)
+            return [self.ai2d_crop.run(input_np)]
 
     # 自定义后处理，results是模型输出array的列表
     def postprocess(self,results):
@@ -102,15 +102,9 @@ class TrackCropApp(AIBase):
     #重写deinit
     def deinit(self):
         with ScopedTiming("deinit",self.debug_mode > 0):
-            del self.kpu
             del self.ai2d_pad
             del self.ai2d_crop
-            self.tensors.clear()
-            del self.tensors
-            gc.collect()
-            nn.shrink_memory_pool()
-            os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
-            time.sleep_ms(100)
+            super().deinit()
 
 # 自定义跟踪实时任务类
 class TrackSrcApp(AIBase):
@@ -169,9 +163,9 @@ class TrackSrcApp(AIBase):
         with ScopedTiming("preprocess",self.debug_mode>0):
             if self.need_pad:
                 pad_output=self.ai2d_pad.run(input_np).to_numpy()
-                return self.ai2d_crop.run(pad_output)
+                return [self.ai2d_crop.run(pad_output)]
             else:
-                return self.ai2d_crop.run(input_np)
+                return [self.ai2d_crop.run(input_np)]
 
     # 自定义后处理，results是模型输出array的列表
     def postprocess(self,results):
@@ -199,15 +193,9 @@ class TrackSrcApp(AIBase):
     # 重写deinit
     def deinit(self):
         with ScopedTiming("deinit",self.debug_mode > 0):
-            del self.kpu
             del self.ai2d_pad
             del self.ai2d_crop
-            self.tensors.clear()
-            del self.tensors
-            gc.collect()
-            nn.shrink_memory_pool()
-            os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
-            time.sleep_ms(100)
+            super().deinit()
 
 
 class TrackerApp(AIBase):

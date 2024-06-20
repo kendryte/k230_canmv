@@ -41,7 +41,7 @@ class AIBase:
     
     def preprocess(self,input_np):
         with ScopedTiming("preprocess",self.debug_mode > 0):
-            return self.ai2d.run(input_np)
+            return [self.ai2d.run(input_np)]
 
     def inference(self,tensors):
         with ScopedTiming("kpu run & get output",self.debug_mode > 0):
@@ -67,7 +67,7 @@ class AIBase:
     def run(self,input_np):
         self.cur_img=input_np
         self.tensors.clear()
-        self.tensors.append(self.preprocess(input_np))
+        self.tensors=self.preprocess(input_np)
         self.results=self.inference(self.tensors)
         return self.postprocess(self.results)
 
@@ -75,7 +75,8 @@ class AIBase:
     def deinit(self):
         with ScopedTiming("deinit",self.debug_mode > 0):
             del self.kpu
-            del self.ai2d
+            if hasattr(self,"ai2d"):
+                del self.ai2d
             self.tensors.clear()
             del self.tensors
             gc.collect()
