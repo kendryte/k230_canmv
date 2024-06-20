@@ -44,11 +44,11 @@ INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/comm
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/ioctl
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/api
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/common/cdk/user/component/ipcmsg/include/
-INC += -I$(K230_CANMV_ROOT)/micropython_port/ulab
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/components/drivers
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/mp4_format/include
+INC += -Iulab
 INC += -I3d-party
 INC += -I3d-party/freetype/freetype/include
 INC += -I3d-party/wrap
@@ -148,7 +148,7 @@ OMV_SRC_C += $(wildcard omv/*/*.c)
 INC += -Iomv/alloc -Iomv/boards/canmv -Iomv/common -Iomv/imlib -Iomv/modules
 
 # LVGL build rules
-LVGL_BINDING_DIR = $(K230_CANMV_ROOT)/micropython_port/3d-party/lvgl/lv_binding_micropython
+LVGL_BINDING_DIR = 3d-party/lvgl/lv_binding_micropython
 LVGL_DIR = $(LVGL_BINDING_DIR)/lvgl
 LVGL_GENERIC_DRV_DIR = $(LVGL_BINDING_DIR)/driver/generic
 INC += -I$(LVGL_BINDING_DIR)

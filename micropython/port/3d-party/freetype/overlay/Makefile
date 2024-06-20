@@ -2,7 +2,7 @@ include ${K230_CANMV_BUILD_DIR}/include/config/auto.conf
 
 CROSS_COMPILE = ${K230_CANMV_ROOT}/k230_sdk/toolchain/riscv64-linux-musleabi_for_x86_64-pc-linux-gnu/bin/riscv64-unknown-linux-musl-
 
-FREETYPE_DIR = ${K230_CANMV_ROOT}/micropython_port/3d-party/freetype/freetype/
+FREETYPE_DIR = ${K230_CANMV_ROOT}/micropython/port/3d-party/freetype/freetype/
 BUILD = ${K230_CANMV_BUILD_DIR}/micropython/freetype/
 
 RM = rm
@@ -94,15 +94,18 @@ LIB_FREETYPE = libfreetype.a
 
 .PHONY: all lib prepare
 
-all: prepare lib
+all: prepare $(BUILD)/$(LIB_FREETYPE)
 
-lib: $(OBJS) 
+$(BUILD)/$(LIB_FREETYPE): $(OBJS) 
 	@$(ECHO) "Link $(LIB_FREETYPE)"
-	@$(LD) -r -o $(BUILD)/$(LIB_FREETYPE) $^
+	@$(LD) -r -o $@ $^
 
 prepare:
-	@$(MKDIR) -p $(BUILD)
-	@ln -sf $(FREETYPE_DIR)/include $(BUILD)
+	@set -e; \
+	if [ ! -f $(BUILD)/include/ft2build.h ]; then \
+		$(MKDIR) -p $(BUILD); \
+		ln -sf $(FREETYPE_DIR)/include $(BUILD); \
+      fi;
 
 clean: $(OBJS) $(DEPS)
 	@$(RM) $^

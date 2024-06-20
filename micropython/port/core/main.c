@@ -206,93 +206,36 @@ extern void mp_hal_stdout_tx_str_cooked(const char* str);
 volatile bool repl_script_running = false;
 
 STATIC int do_repl(void) {
+    #if MICROPY_USE_READLINE == 1
+    // use MicroPython supplied readline
+    for (;;) {
+      nlr_buf_t nlr;
+      if (nlr_push(&nlr) == 0)
+      {
+        if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL)
+        {
+          if (pyexec_raw_repl() != 0)
+          {
+            break;
+          }
+        }
+        else
+        {
+          if (pyexec_friendly_repl() != 0)
+          {
+            break;
+          }
+        }
+      }
+      nlr_pop();
+    }
+    return 0;
+    #else
     mp_hal_stdout_tx_str_cooked("CanMV version: "CANMV_VER);
     // mp_hal_stdout_tx_str_cooked("; " MICROPY_BANNER_MACHINE);
     mp_hal_stdout_tx_str_cooked("\nUse Ctrl-D to exit, Ctrl-E for paste mode\n");
 
-    #if MICROPY_USE_READLINE == 1
-
-    // use MicroPython supplied readline
-
-    vstr_t line;
-    vstr_init(&line, 16);
-    for (;;) {
-        // mp_hal_stdio_mode_raw();
-
-    input_restart:
-        vstr_reset(&line);
-        int ret = readline(&line, mp_repl_get_ps1());
-        mp_parse_input_kind_t parse_input_kind = MP_PARSE_SINGLE_INPUT;
-
-        if (ret == CHAR_CTRL_C) {
-            // cancel input
-            mp_hal_stdout_tx_str("\r\n");
-            goto input_restart;
-        } else if (ret == CHAR_CTRL_D) {
-            // EOF
-            printf("\n");
-            mp_hal_stdio_mode_orig();
-            vstr_clear(&line);
-            return 0;
-        } else if (ret == CHAR_CTRL_E) {
-            // paste mode
-            mp_hal_stdout_tx_str("\npaste mode; Ctrl-C to cancel, Ctrl-D to finish\n=== ");
-            vstr_reset(&line);
-            for (;;) {
-                char c = mp_hal_stdin_rx_chr();
-                if (c == CHAR_CTRL_C) {
-                    // cancel everything
-                    mp_hal_stdout_tx_str("\n");
-                    goto input_restart;
-                } else if (c == CHAR_CTRL_D) {
-                    // end of input
-                    mp_hal_stdout_tx_str("\n");
-                    break;
-                } else {
-                    // add char to buffer and echo
-                    vstr_add_byte(&line, c);
-                    if (c == '\r') {
-                        mp_hal_stdout_tx_str("\n=== ");
-                    } else {
-                        mp_hal_stdout_tx_strn(&c, 1);
-                    }
-                }
-            }
-            parse_input_kind = MP_PARSE_FILE_INPUT;
-        } else if (line.len == 0) {
-            if (ret != 0) {
-                printf("\n");
-            }
-            goto input_restart;
-        } else {
-            // got a line with non-zero length, see if it needs continuing
-            while (mp_repl_continue_with_input(vstr_null_terminated_str(&line))) {
-                vstr_add_byte(&line, '\n');
-                ret = readline(&line, mp_repl_get_ps2());
-                if (ret == CHAR_CTRL_C) {
-                    // cancel everything
-                    printf("\n");
-                    goto input_restart;
-                } else if (ret == CHAR_CTRL_D) {
-                    // stop entering compound statement
-                    break;
-                }
-            }
-        }
-
-        mp_hal_stdio_mode_orig();
-        repl_script_running = true;
-        ret = execute_from_lexer(LEX_SRC_VSTR, &line, parse_input_kind, true);
-        repl_script_running = false;
-        if (ret & FORCED_EXIT) {
-            return ret;
-        }
-    }
-
-    #else
-
     // use simple readline
-
     for (;;) {
         char *line = prompt((char *)mp_repl_get_ps1());
         if (line == NULL) {
@@ -834,6 +777,8 @@ main_thread_exit:
     #endif
 
     // vb_mgmt_py_at_exit();
+
+    mp_hal_stdout_tx_str("MPY: soft reboot\r\n");
 
     #if MICROPY_PY_SYS_ATEXIT
     // Beware, the sys.settrace callback should be disabled before running sys.atexit.

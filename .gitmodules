@@ -1,15 +1,15 @@
 [submodule "micropython"]
-	path = micropython
+	path = micropython/micropython
 	url = https://github.com/micropython/micropython.git
 [submodule "k230_sdk"]
 	path = k230_sdk
 	url = https://github.com/kendryte/k230_sdk.git
 [submodule "micropython_port/lvgl/lv_binding_micropython"]
-	path = micropython_port/3d-party/lvgl/lv_binding_micropython
+	path = micropython/port/3d-party/lvgl/lv_binding_micropython
 	url = https://github.com/lvgl/lv_binding_micropython.git
 [submodule "micropython_port/3d-party/freetype/freetype"]
-	path = micropython_port/3d-party/freetype/freetype
+	path = micropython/port/3d-party/freetype/freetype
 	url = https://github.com/freetype/freetype.git
 [submodule "micropython_port/3d-party/wrap/micropython-wrap"]
-	path = micropython_port/3d-party/wrap/micropython-wrap
+	path = micropython/port/3d-party/wrap/micropython-wrap
 	url = https://github.com/stinos/micropython-wrap.git
