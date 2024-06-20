@@ -16,5 +16,5 @@ __pycache__
 .vscode/
 
 # lvgl build files
-micropython_port/lextab.py
-micropython_port/yacctab.py
+micropython/port/lextab.py
+micropython/port/yacctab.py

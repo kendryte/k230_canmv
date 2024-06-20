@@ -106,17 +106,17 @@ micropython_freetype: .sync_overlay
 	@cp -f fs_resource/font/SourceHanSansSC-Normal-Min.ttf $(K230_CANMV_BUILD_DIR)/images/res/font
 	@cp -f fs_resource/font/LICENSE.txt $(K230_CANMV_BUILD_DIR)/images/res/font/LICENSE.txt
 	@cp -f fs_resource/font/readme.txt $(K230_CANMV_BUILD_DIR)/images/res/font/readme.txt
-	@make -C micropython_port/3d-party/freetype/freetype
+	@make -C micropython/port/3d-party/freetype/freetype
 
 .PHONY: micropython_freetype_clean
 micropython_freetype_clean: .sync_overlay
-	@make -C micropython_port/3d-party/freetype/freetype clean
+	@make -C micropython/port/3d-party/freetype/freetype clean
 
 .PHONY: micropython
 micropython: k230_sdk_build micropython_freetype
-	@make -C micropython_port
+	@make -C micropython/port
 	@mkdir -p $(K230_CANMV_BUILD_DIR)/images/app/tests/kmodel/
-	@cd $(K230_CANMV_BUILD_DIR); cp micropython/micropython images/app
+	@cp -f $(K230_CANMV_BUILD_DIR)/micropython/micropython $(K230_CANMV_BUILD_DIR)/images/app
 
 .PHONY: build-image
 build-image: micropython
