@@ -270,7 +270,7 @@ static bool _dma_dev_init_flag = false;
 static void* wbc_jpeg_buffer = NULL;
 static size_t wbc_jpeg_buffer_size = 0;
 static uint32_t wbc_jpeg_size = 0;
-static k_connector_type connector_type = 0;
+static uint16_t wbc_width, wbc_height;
 static k_video_frame_info frame_info;
 #if ENABLE_BUFFER_ROTATION
 static int vo_wbc_flag = 0; // no set
@@ -379,14 +379,13 @@ int kd_mpi_vo_osd_rotation(int flag, k_video_frame_info *in, k_video_frame_info 
     return 0;
 }
 
-int ide_dbg_set_vo_wbc(int enable, k_connector_type _connector_type, int flag)
+int ide_dbg_set_vo_wbc(int enable, int width, int height)
 {
-    printf("[omv] %s, enable(%d), type (%d), flag (%x)\n", __func__, enable, _connector_type, flag);
-
     fb_from = enable ? FB_FROM_VO_WRITEBACK : FB_FROM_NONE;
 
 #if ENABLE_VO_WRITEBACK
-        connector_type = _connector_type;
+    wbc_width = width;
+    wbc_height = height;
 #endif // ENABLE_VO_WRITEBACK
 
 #if ENABLE_BUFFER_ROTATION
@@ -406,8 +405,6 @@ int ide_dbg_set_vo_wbc(int enable, k_connector_type _connector_type, int flag)
 }
 
 int ide_dbg_vo_wbc_init(void) {
-    k_connector_info vo_info;
-
 #if ENABLE_VO_WRITEBACK
     if (fb_from != FB_FROM_VO_WRITEBACK) {
         return 0;
@@ -418,21 +415,19 @@ int ide_dbg_vo_wbc_init(void) {
         return 0;
     }
 
-    kd_mpi_get_connector_info(connector_type, &vo_info);
-
     k_vo_wbc_attr attr = {
         .target_size = {
-            .width = vo_info.resolution.hdisplay,
-            .height = vo_info.resolution.vdisplay
+            .width = wbc_width,
+            .height = wbc_height
         }
     };
 
-    pr_verb("[omv] %s(%d), %ux%u", __func__, connector_type, vo_info.resolution.hdisplay, vo_info.resolution.vdisplay);
+    pr_verb("[omv] %s(%d), %ux%u", __func__, connector_type, wbc_width, wbc_height);
 
 #if ENABLE_BUFFER_ROTATION
     if (vo_wbc_flag != 0x00) {
         // allocate rotation buffer
-        uint32_t buf_size = ALIGN_UP(vo_info.resolution.hdisplay * vo_info.resolution.vdisplay, 0x1000);
+        uint32_t buf_size = ALIGN_UP(wbc_width * wbc_height, 0x1000);
         buf_size = ALIGN_UP(buf_size + buf_size / 2, 0x1000);
 
         memset(&rotation_block_info, 0, sizeof(rotation_block_info));
@@ -442,12 +437,12 @@ int ide_dbg_vo_wbc_init(void) {
             pr_err("can't get vb for rotation");
             vo_wbc_flag = 0x00;
         } else {
-            unsigned ysize = vo_info.resolution.hdisplay * vo_info.resolution.vdisplay;
+            unsigned ysize = wbc_width * wbc_height;
 
             rotation_buffer.mod_id = K_ID_MMZ;
             rotation_buffer.pool_id = rotation_block_info.pool_id;
-            rotation_buffer.v_frame.width = vo_info.resolution.vdisplay;
-            rotation_buffer.v_frame.height = vo_info.resolution.hdisplay;
+            rotation_buffer.v_frame.width = wbc_height;
+            rotation_buffer.v_frame.height = wbc_width;
             rotation_buffer.v_frame.pixel_format = PIXEL_FORMAT_YVU_SEMIPLANAR_420;
             rotation_buffer.v_frame.stride[0] = rotation_buffer.v_frame.width;
             rotation_buffer.v_frame.stride[1] = rotation_buffer.v_frame.width;
