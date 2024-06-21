@@ -9,6 +9,8 @@
 #include "k_vicap_comm.h"
 #include "k_sensor_ioctl.h"
 
+#include "mpi_vicap_api.h"
+
 
 #define pr_debug(...) //printf(__VA_ARGS__)
 #define pr_info(...) //printf(__VA_ARGS__)
@@ -85,6 +87,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV9732_MIPI_1280X720_30FPS_10BIT_MCLK_16M_LINEAR
     },
     {
@@ -101,6 +104,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV9732_MIPI_1280X720_30FPS_10BIT_MCLK_16M_LINEAR_V2
     },
     {
@@ -117,6 +121,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV9732_MIPI_1280X720_30FPS_10BIT_LINEAR
     },
     {
@@ -133,6 +138,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_FOLLOW_STROBE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV9286_MIPI_1280X720_30FPS_10BIT_MCLK_25M_LINEAR_SPECKLE
     },
     {
@@ -149,6 +155,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_FOLLOW_STROBE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV9286_MIPI_1280X720_30FPS_10BIT_MCLK_25M_LINEAR_IR
     },
     {
@@ -165,6 +172,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_FOLLOW_STROBE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV9286_MIPI_1280X720_30FPS_10BIT_MCLK_25M_LINEAR_SPECKLE_V2
     },
     {
@@ -181,6 +189,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_FOLLOW_STROBE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV9286_MIPI_1280X720_30FPS_10BIT_MCLK_25M_LINEAR_IR_V2
     },
     {
@@ -213,6 +222,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_FOLLOW_STROBE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV9286_MIPI_1280X720_30FPS_10BIT_LINEAR_SPECKLE
     },
     {
@@ -229,6 +239,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV9286_MIPI_1280X720_30FPS_10BIT_LINEAR_IR_SPECKLE
     },
     {
@@ -245,6 +256,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        60,
         OV_OV9286_MIPI_1280X720_60FPS_10BIT_LINEAR_IR_SPECKLE
     },
     {
@@ -261,6 +273,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         IMX335_MIPI_2LANE_RAW12_1920X1080_30FPS_LINEAR
     },
     {
@@ -277,6 +290,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         IMX335_MIPI_2LANE_RAW12_2592X1944_30FPS_LINEAR
     },
     {
@@ -293,6 +307,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         IMX335_MIPI_4LANE_RAW12_2592X1944_30FPS_LINEAR,
     },
     {
@@ -309,6 +324,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         IMX335_MIPI_2LANE_RAW12_1920X1080_30FPS_MCLK_7425_LINEAR
     },
     {
@@ -325,6 +341,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         IMX335_MIPI_2LANE_RAW12_2592X1944_30FPS_MCLK_7425_LINEAR
     },
     {
@@ -341,6 +358,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         IMX335_MIPI_4LANE_RAW12_2592X1944_30FPS_MCLK_7425_LINEAR,
     },
     {
@@ -357,6 +375,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        15,
         IMX335_MIPI_4LANE_RAW10_2XDOL,
     },
     {
@@ -373,6 +392,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        15,
         IMX335_MIPI_4LANE_RAW10_3XDOL,
     },
     {
@@ -389,6 +409,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        120,
         SC_SC035HGS_MIPI_1LANE_RAW10_640X480_120FPS_LINEAR
     },
     {
@@ -405,6 +426,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        60,
         SC_SC035HGS_MIPI_1LANE_RAW10_640X480_60FPS_LINEAR
     },
     {
@@ -421,6 +443,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         SC_SC035HGS_MIPI_1LANE_RAW10_640X480_30FPS_LINEAR
     },
     {
@@ -437,6 +460,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_FOLLOW_STROBE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        60,
         OV_OV9286_MIPI_1280X720_60FPS_10BIT_LINEAR_IR
     },
     {
@@ -453,6 +477,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_FOLLOW_STROBE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        60,
         OV_OV9286_MIPI_1280X720_60FPS_10BIT_LINEAR_SPECKLE
     },
     {
@@ -469,6 +494,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV5647_MIPI_1920X1080_30FPS_10BIT_LINEAR,
     },
     {
@@ -485,15 +511,16 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        15,
         OV_OV5647_MIPI_2592x1944_10FPS_10BIT_LINEAR,
     },
     {
         "ov5647",
         640,
         480,
-        VICAP_CSI2,
+        VICAP_CSI0,
         VICAP_MIPI_2LANE,
-        VICAP_SOURCE_CSI2,
+        VICAP_SOURCE_CSI0,
         K_TRUE,
         VICAP_MIPI_PHY_800M,
         VICAP_CSI_DATA_TYPE_RAW10,
@@ -501,6 +528,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        90,
         OV_OV5647_MIPI_640x480_60FPS_10BIT_LINEAR,
     },
     {
@@ -517,6 +545,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV5647_MIPI_CSI0_1920X1080_30FPS_10BIT_LINEAR,
     },
     {
@@ -533,6 +562,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         SC_SC201CS_MIPI_1LANE_RAW10_1600X1200_30FPS_LINEAR,
     },
     {
@@ -549,6 +579,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         SC_SC201CS_SLAVE_MODE_MIPI_1LANE_RAW10_1600X1200_30FPS_LINEAR,
     },
 
@@ -566,6 +597,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,         
         VICAP_VI_FIRST_FRAME_FS_TR0,         
         0,         
+        30,
         OV_OV5647_MIPI_CSI2_1920X1080_30FPS_10BIT_LINEAR,     
     },
     {         
@@ -582,6 +614,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,         
         VICAP_VI_FIRST_FRAME_FS_TR0,         
         0,         
+        30,
         OV_OV5647_MIPI_CSI1_1920X1080_30FPS_10BIT_LINEAR,     
     },
     {
@@ -598,7 +631,42 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV5647_MIPI_CSI0_1920X1080_30FPS_10BIT_LINEAR_V2,
+    },
+    {
+        "ov5647",
+        1280,
+        720,
+        VICAP_CSI0,
+        VICAP_MIPI_2LANE,
+        VICAP_SOURCE_CSI0,
+        K_TRUE,
+        VICAP_MIPI_PHY_800M,
+        VICAP_CSI_DATA_TYPE_RAW10,
+        VICAP_LINERA_MODE,
+        VICAP_FLASH_DISABLE,
+        VICAP_VI_FIRST_FRAME_FS_TR0,
+        0,
+        60,
+        OV_OV5647_MIPI_CSI0_1280X720_60FPS_10BIT_LINEAR,
+    },
+    {
+        "ov5647",
+        1280,
+        960,
+        VICAP_CSI0,
+        VICAP_MIPI_2LANE,
+        VICAP_SOURCE_CSI0,
+        K_TRUE,
+        VICAP_MIPI_PHY_800M,
+        VICAP_CSI_DATA_TYPE_RAW10,
+        VICAP_LINERA_MODE,
+        VICAP_FLASH_DISABLE,
+        VICAP_VI_FIRST_FRAME_FS_TR0,
+        0,
+        60,
+        OV_OV5647_MIPI_CSI0_1280X960_60FPS_10BIT_LINEAR,
     },
     {
         "ov5647_csi1",
@@ -614,7 +682,59 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV5647_MIPI_CSI1_1920X1080_30FPS_10BIT_LINEAR_V2,
+    },
+    {
+        "ov5647_csi1",
+        640,
+        480,
+        VICAP_CSI1,
+        VICAP_MIPI_2LANE,
+        VICAP_SOURCE_CSI1,
+        K_TRUE,
+        VICAP_MIPI_PHY_800M,
+        VICAP_CSI_DATA_TYPE_RAW10,
+        VICAP_LINERA_MODE,
+        VICAP_FLASH_DISABLE,
+        VICAP_VI_FIRST_FRAME_FS_TR0,
+        0,
+        90,
+        OV_OV5647_MIPI_CSI1_640x480_90FPS_10BIT_LINEAR,
+    },
+    {
+        "ov5647_csi1",
+        1280,
+        720,
+        VICAP_CSI1,
+        VICAP_MIPI_2LANE,
+        VICAP_SOURCE_CSI1,
+        K_TRUE,
+        VICAP_MIPI_PHY_800M,
+        VICAP_CSI_DATA_TYPE_RAW10,
+        VICAP_LINERA_MODE,
+        VICAP_FLASH_DISABLE,
+        VICAP_VI_FIRST_FRAME_FS_TR0,
+        0,
+        60,
+        OV_OV5647_MIPI_CSI1_1280X720_60FPS_10BIT_LINEAR,
+    },
+    {
+        "ov5647_csi1",
+        1280,
+        960,
+        VICAP_CSI1,
+        VICAP_MIPI_2LANE,
+        VICAP_SOURCE_CSI1,
+        K_TRUE,
+        VICAP_MIPI_PHY_800M,
+        VICAP_CSI_DATA_TYPE_RAW10,
+        VICAP_LINERA_MODE,
+        VICAP_FLASH_DISABLE,
+        VICAP_VI_FIRST_FRAME_FS_TR0,
+        0,
+        60,
+        OV_OV5647_MIPI_CSI1_1280X960_60FPS_10BIT_LINEAR,
     },
     {
         "ov5647_csi2",
@@ -630,25 +750,76 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV5647_MIPI_CSI2_1920X1080_30FPS_10BIT_LINEAR_V2,
     },
-
     {
-        "xs9922b",
-        1280,
-        720,
-        VICAP_CSI0,
-        VICAP_MIPI_2LANE,   //VICAP_MIPI_4LANE
-        VICAP_SOURCE_CSI0,
-        K_FALSE,
-        VICAP_MIPI_PHY_1200M,   //VICAP_MIPI_PHY_1200M
-        VICAP_CSI_DATA_TYPE_YUV422_8,
-        VICAP_LINERA_MODE,//VICAP_VCID_HDR_3FRAME,  VICAP_LINERA_MODE
+        "ov5647_csi2",
+        640,
+        480,
+        VICAP_CSI2,
+        VICAP_MIPI_2LANE,
+        VICAP_SOURCE_CSI2,
+        K_TRUE,
+        VICAP_MIPI_PHY_800M,
+        VICAP_CSI_DATA_TYPE_RAW10,
+        VICAP_LINERA_MODE,
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
-        XS9922B_MIPI_CSI0_1280X720_30FPS_YUV422_DOL3,
+        90,
+        OV_OV5647_MIPI_CSI2_640x480_90FPS_10BIT_LINEAR,
     },
+    {
+        "ov5647_csi2",
+        1280,
+        720,
+        VICAP_CSI2,
+        VICAP_MIPI_2LANE,
+        VICAP_SOURCE_CSI2,
+        K_TRUE,
+        VICAP_MIPI_PHY_800M,
+        VICAP_CSI_DATA_TYPE_RAW10,
+        VICAP_LINERA_MODE,
+        VICAP_FLASH_DISABLE,
+        VICAP_VI_FIRST_FRAME_FS_TR0,
+        0,
+        60,
+        OV_OV5647_MIPI_CSI2_1280X720_60FPS_10BIT_LINEAR,
+    },
+    {
+        "ov5647_csi2",
+        1280,
+        960,
+        VICAP_CSI2,
+        VICAP_MIPI_2LANE,
+        VICAP_SOURCE_CSI2,
+        K_TRUE,
+        VICAP_MIPI_PHY_800M,
+        VICAP_CSI_DATA_TYPE_RAW10,
+        VICAP_LINERA_MODE,
+        VICAP_FLASH_DISABLE,
+        VICAP_VI_FIRST_FRAME_FS_TR0,
+        0,
+        60,
+        OV_OV5647_MIPI_CSI2_1280X960_60FPS_10BIT_LINEAR,
+    },
+    // {
+    //     "xs9922b",
+    //     1280,
+    //     720,
+    //     VICAP_CSI0,
+    //     VICAP_MIPI_2LANE,   //VICAP_MIPI_4LANE
+    //     VICAP_SOURCE_CSI0,
+    //     K_FALSE,
+    //     VICAP_MIPI_PHY_1200M,   //VICAP_MIPI_PHY_1200M
+    //     VICAP_CSI_DATA_TYPE_YUV422_8,
+    //     VICAP_LINERA_MODE,//VICAP_VCID_HDR_3FRAME,  VICAP_LINERA_MODE
+    //     VICAP_FLASH_DISABLE,
+    //     VICAP_VI_FIRST_FRAME_FS_TR0,
+    //     0,
+    //     XS9922B_MIPI_CSI0_1280X720_30FPS_YUV422_DOL3,
+    // },
     {
         "xs9950_csi1",
         1280,
@@ -663,6 +834,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         XS9950_MIPI_CSI1_1280X720_30FPS_YUV422,
     },
     {
@@ -679,6 +851,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         XS9950_MIPI_CSI0_1280X720_30FPS_YUV422,
     },
     {
@@ -695,6 +868,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         XS9950_MIPI_CSI2_1280X720_30FPS_YUV422,
     },
     {
@@ -711,6 +885,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         XS9950_MIPI_CSI0_1920X1080_30FPS_YUV422,
     },
     {
@@ -727,6 +902,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_DISABLE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         GC2053_MIPI_CSI0_1920X1080_30FPS_10BIT_LINEAR,
     },
 };
@@ -833,7 +1009,7 @@ k_s32 kd_mpi_sensor_id_get(k_s32 fd, k_u32 *sensor_id)
 
     ret = ioctl(fd, KD_IOC_SENSOR_G_ID, sensor_id);
     if (ret != 0) {
-        pr_err("%s, error(%d)\n", __func__, ret);
+        // pr_err("%s, error(%d)\n", __func__, ret);
         return K_ERR_VICAP_NOT_SUPPORT;
     }
 
@@ -1257,6 +1433,83 @@ k_s32 kd_mpi_sensor_mirror_set(k_s32 fd, k_vicap_mirror_mode mirror)
     }
 
     return ret;
+}
+
+
+k_s32 kd_mpi_sensor_adapt_get(k_vicap_adapt_id *csi0_adapt_id, k_vicap_adapt_id *csi1_adapt_id, k_vicap_adapt_id *csi2_adapt_id)
+{
+    k_s32 i = 0, j = 0;
+    k_s32 ret = 0;
+    k_s32 sensor_fd = -1;
+    k_u32 chip_id;
+    k_vicap_sensor_info sensor_info;
+    k_sensor_mode mode;
+
+    csi0_adapt_id->adapt_len = 0;
+    csi1_adapt_id->adapt_len = 0;
+    csi2_adapt_id->adapt_len = 0;
+
+    for (i = 0; i != SENSOR_TYPE_MAX; i++) 
+    {
+       memset(&sensor_info, 0, sizeof(k_vicap_sensor_info));
+       memset(&mode, 0, sizeof(k_sensor_mode));
+
+       ret = kd_mpi_vicap_get_sensor_info((k_vicap_sensor_type)i , &sensor_info);
+       if (ret) {
+            printf("kd_mpi_vicap_adapt_config, the sensor type not supported! i is %d \n", i);
+            continue;
+       }    
+
+       // open sensor 
+        sensor_fd = kd_mpi_sensor_open(sensor_info.sensor_name);
+        if (sensor_fd < 0) {
+            pr_err("%s, sensor open failed.\n", __func__);
+        }
+
+        mode.sensor_type = sensor_info.sensor_type;
+        ret = kd_mpi_sensor_mode_get(sensor_fd, &mode);
+        if (ret) {
+            pr_err("%s, sensor mode get failed. i is %d \n", __func__, i);
+        }
+
+        // check sensor need mclk
+        for(k_s32 idx = 0; idx < SENSOR_MCLK_MAX - 1; idx++)
+        {
+            if(mode.mclk_setting[idx].mclk_setting_en)
+            {
+                ret = kd_mpi_vicap_sensor_set_mclk(mode.mclk_setting[idx].setting);
+            }
+        }
+
+        // ret = kd_mpi_sensor_power_set(sensor_fd, K_TRUE);
+        ret = kd_mpi_sensor_id_get(sensor_fd, &chip_id);
+        if(ret == 0)
+        {
+            // chip ok
+            switch(sensor_info.csi_num)
+            {
+                case VICAP_CSI0 :
+                    csi0_adapt_id->adapt_id[csi0_adapt_id->adapt_len] = i;
+                    csi0_adapt_id->adapt_len = csi0_adapt_id->adapt_len + 1;
+                    break;
+                case VICAP_CSI1 :
+                    csi1_adapt_id->adapt_id[csi1_adapt_id->adapt_len] = i;
+                    csi1_adapt_id->adapt_len = csi1_adapt_id->adapt_len + 1;
+                    break;
+                case VICAP_CSI2 :
+                    csi2_adapt_id->adapt_id[csi2_adapt_id->adapt_len] = i;
+                    csi2_adapt_id->adapt_len = csi2_adapt_id->adapt_len + 1;
+                    break;
+                default : 
+                    printf("csi num err \n");
+                    break;
+            }
+        }
+
+        kd_mpi_sensor_close(sensor_fd);
+    }
+
+    return 0;
 }
 
 
