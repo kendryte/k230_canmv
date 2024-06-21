@@ -277,57 +277,66 @@ static const k_sensor_reg  ov5647_2592x1944_10bpp[] = {
     {REG_NULL, 0x00},
 };
 
+//90 fps ok
 static const k_sensor_reg ov5647_640x480_10bpp[] = {
-    //pixel_rate = 55000000
-    {0x0100, 0x00},
+   //pixel_rate = 95833333 Hz, 1852 x 575 x 90fps
     {0x0103, 0x01},
-    {0x3035, 0x11},
-    {0x3036, 0x46},
+    {0x0100, 0x00},
+    {0x3034, 0x1a},
+    {0x3035, 0x21},
+    {0x3036, 0x73},
     {0x303c, 0x11},
-    {0x3821, 0x01},
-    {0x3820, 0x41},
+    {0x3106, 0xf5},
+	{0x3820, 0x01},	//horizontal, bit1: mirror, bit0: bining
+	{0x3821, 0x03},	//verticall, bit1: flip, bit0: bining
+    {0x3827, 0xec},
     {0x370c, 0x03},
     {0x3612, 0x59},
     {0x3618, 0x00},
     {0x5000, 0x06},
-    {0x5001, 0x00},         // set awb disble
-    {0x5002, 0x00},
+    {0x5001, 0x00}, 	// set awb disble
+    {0x5002, 0x00},	//disable win, otp and awb gain
     {0x5003, 0x08},
     {0x5a00, 0x08},
-    {0x3000, 0xff},
-    {0x3001, 0xff},
-    {0x3002, 0xff},
+    {0x3000, 0x00},
+    {0x3001, 0x00},
+    {0x3002, 0x00},
+    {0x3016, 0x08},
+    {0x3017, 0xe0},
+    {0x3018, 0x44},	//2 lane, MIPI
+    {0x301c, 0xf8},
     {0x301d, 0xf0},
-    {0x3a18, 0x03},
-    {0x3a19, 0xff},
+    {0x3a18, 0x03},	//gain_celling, max gain value 
+    {0x3a19, 0xff},		//gain_celling
     {0x3c01, 0x80},
     {0x3b07, 0x0c},
-    {0x380c, 0x07},         // 73c = 1852
+    {0x380c, 0x07},	// HTS = 1852
     {0x380d, 0x3c},
-
-    {0x380e, 0x01},         // v totle high
-     {0x380f, 0xf8},         // v totle lo  504
-
-    {0x3814, 0x35},
-    {0x3815, 0x35},
+    {0x380e, 0x02},	//VTS = 575
+     {0x380f, 0x3f},
+    {0x3814, 0x35},	//horizontal subsampling, 8/2
+    {0x3815, 0x35},	//vertical subsampling, 8/2
     {0x3708, 0x64},
     {0x3709, 0x52},
-    {0x3808, 0x02},
+    {0x3808, 0x02},	// x output size: 640
     {0x3809, 0x80},
-    {0x380a, 0x01},
+    {0x380a, 0x01},	// y output size: 480
     {0x380b, 0xe0},
-    {0x3800, 0x00},
+    {0x3800, 0x00},	//x start = 0x10 = 16
     {0x3801, 0x10},
-    {0x3802, 0x00},
+    {0x3802, 0x00},	//y start = 0
     {0x3803, 0x00},
-    {0x3804, 0x0a},
+    {0x3804, 0x0a},	//x end = 0xa2f = 2607, x size = 2607 - 16 + 1 = 2592 (648 x 4)
     {0x3805, 0x2f},
-    {0x3806, 0x07},
+    {0x3806, 0x07},	//y end = 0x79f = 1951, y size = 1951 - 0 + 1 = 1952 (488 x 4)
     {0x3807, 0x9f},
+	//{0x3811, 0x04},	//x offset: 4
+	//{0x3813, 0x02},	//y offset: 2
     {0x3630, 0x2e},
     {0x3632, 0xe2},
     {0x3633, 0x23},
     {0x3634, 0x44},
+    {0x3636, 0x06},
     {0x3620, 0x64},
     {0x3621, 0xe0},
     {0x3600, 0x37},
@@ -341,10 +350,10 @@ static const k_sensor_reg ov5647_640x480_10bpp[] = {
     {0x3f05, 0x02},
     {0x3f06, 0x10},
     {0x3f01, 0x0a},
-    {0x3a00, 0x00},
-    {0x3a08, 0x01},
+    {0x3a00, 0x00},	//AEC control, all disable
+    {0x3a08, 0x01},	//50Hz step
     {0x3a09, 0x2e},
-    {0x3a0a, 0x00},
+    {0x3a0a, 0x00},	//60Hz step
     {0x3a0b, 0xfb},
     {0x3a0d, 0x02},
     {0x3a0e, 0x01},
@@ -355,25 +364,15 @@ static const k_sensor_reg ov5647_640x480_10bpp[] = {
     {0x3a11, 0x60},
     {0x3a1f, 0x28},
     {0x4001, 0x02},
-    {0x4004, 0x02},
+    {0x4004, 0x02},	//blc line number
     {0x4000, 0x09},
-    {0x3000, 0x00},
-    {0x3001, 0x00},
-    {0x3002, 0x00},
-    {0x3017, 0xe0},
-    {0x301c, 0xfc},
-    {0x3636, 0x06},
-    {0x3016, 0x08},
-    {0x3827, 0xec},
-    {0x3018, 0x44},
-    {0x3035, 0x21},
-    {0x3106, 0xf5},
-    {0x3034, 0x1a},
-    {0x301c, 0xf8},
+    //{0x4837, 0x15},
     {0x4800, 0x34},
+    {0x3501, 0x02},	//ET = 42 lines
+    {0x3502, 0xa0},
     {0x3503, 0x07},         //0x0f
     {0x350b, 0x10},         // gain
-    {0x0100, 0x01},
+    //{0x0100, 0x01},
     {REG_NULL, 0x00},
 };
 
@@ -477,6 +476,216 @@ static const k_sensor_reg ov5647_mipi2lane_1080p_30fps_flip_linear[] = {
 };
 
 
+// 60 fps  binning ok
+static const k_sensor_reg mode_1280x720_60fps[] = {
+	//PCLK = 95833333 Hz, 1796 x 886 x 60
+    {0x0100, 0x00},
+	{0x0103, 0x01},
+	{0x3034, 0x1a},
+    {0x3035, 0x21},
+    {0x3036, 0x73},	//PLL multiplier
+	{0x303c, 0x11},
+	{0x3106, 0xf5},
+	{0x3820, 0x01},	//horizontal, bit1: mirror, bit0: bining
+	{0x3821, 0x03},	//verticall, bit1: flip, bit0: bining
+	{0x3827, 0xec},
+	{0x370c, 0x03},
+	{0x3612, 0x59},
+	{0x3618, 0x00},
+	{0x5000, 0x06},	//blc enable
+    {0x5001, 0x00},	// set awb disble
+	{0x5002, 0x00},	//disable win, otp and awb gain
+	{0x5003, 0x08},
+	{0x5a00, 0x08},
+	{0x3000, 0x00},
+	{0x3001, 0x00},
+	{0x3002, 0x00},
+	{0x3016, 0x08},
+	{0x3017, 0xe0},
+	{0x3018, 0x44},	//2 lane, MIPI
+	{0x301c, 0xf8},
+	{0x301d, 0xf0},
+    {0x3a18, 0x03},	//gain_celling, max gain value 
+    {0x3a19, 0xff},		//gain_celling
+	{0x3c01, 0x80},
+	{0x3b07, 0x0c},
+
+	{0x380c, 0x07},     //  HTS=  0x768 = 1896 - 100 --> 1796 = 0x704
+	{0x380d, 0x04},     
+    {0x380e, 0x03},     //  VTS=  0x7b0 = 1968 - 300 = 1,668 = 0x684 - 688 = 1000 = 0x3e8 - 150 = 850 = 0x352 + 36 = 886 = 0x376
+	{0x380f, 0x76},
+	{0x3814, 0x31},
+	{0x3815, 0x31},
+	{0x3808, 0x05},     // x output size: 1280,   1280 * 2 = 2,560 
+	{0x3809, 0x00},    
+	{0x380a, 0x02},     // y output size: 720,   720 * 2 = 1,440 
+	{0x380b, 0xd0},
+    {0x3800, 0x00},     // x start = 32
+	{0x3801, 0x20},
+	{0x3802, 0x01},     // y start = 258
+	{0x3803, 0x02},
+	{0x3804, 0x0a},     // x end = 2623
+	{0x3805, 0x3f},     
+	{0x3806, 0x07},     // y end = 0x73f + 52 = 1907 = 0x779
+	{0x3807, 0x79}, 
+	{0x3811, 0x0c},	//x offset: 4
+	{0x3813, 0x06},	//y offset: 2
+
+	{0x3630, 0x2e},
+	{0x3632, 0xe2},
+	{0x3633, 0x23},
+	{0x3634, 0x44},
+	{0x3636, 0x06},
+	{0x3620, 0x64},
+	{0x3621, 0xe0},
+	{0x3600, 0x37},
+	{0x3704, 0xa0},
+	{0x3703, 0x5a},
+	{0x3715, 0x78},
+	{0x3717, 0x01},
+	{0x3731, 0x02},
+	{0x370b, 0x60},
+	{0x3705, 0x1a},
+	{0x3f05, 0x02},
+	{0x3f06, 0x10},
+	{0x3f01, 0x0a},
+    {0x3a00, 0x00},	//AEC control, all disable
+	{0x3a08, 0x01},
+	{0x3a09, 0x28},
+	{0x3a0a, 0x00},
+	{0x3a0b, 0xf6},
+	{0x3a0d, 0x08},
+	{0x3a0e, 0x06},
+	{0x3a0f, 0x58},
+	{0x3a10, 0x50},
+	{0x3a1b, 0x58},
+	{0x3a1e, 0x50},
+	{0x3a11, 0x60},
+	{0x3a1f, 0x28},
+	{0x4001, 0x02},
+	{0x4004, 0x04},	//blc line number
+	{0x4000, 0x09},
+	{0x4837, 0x16},
+	{0x4800, 0x24},
+
+    {0x3501, 0x02},	//ET = 42 lines
+    {0x3502, 0xa0},
+    {0x3503, 0x07},         //0x03
+	{0x350b, 0x10},
+	{0x3212, 0xa0},
+	//{0x0100, 0x01},
+    {REG_NULL, 0x00},
+};
+
+// 960p60 10bpp
+static const k_sensor_reg ov5647_1280x960p30_10bpp[] = {
+    {0x0100, 0x00},
+	{0x0103, 0x01},
+	{0x3034, 0x1a},
+
+    {0x3035, 0x21},
+    {0x3036, 0x73},
+
+	{0x303c, 0x11},
+	{0x3106, 0xf5},
+	{0x3827, 0xec},
+	{0x370c, 0x03},
+	{0x3612, 0x59},
+	{0x3618, 0x00},
+	{0x5000, 0x06},
+	{0x5002, 0x41},
+	{0x5003, 0x08},
+	{0x5a00, 0x08},
+	{0x3000, 0x00},
+	{0x3001, 0x00},
+	{0x3002, 0x00},
+	{0x3016, 0x08},
+	{0x3017, 0xe0},
+	{0x3018, 0x44},
+	{0x301c, 0xf8},
+	{0x301d, 0xf0},
+	{0x3a18, 0x00},
+	{0x3a19, 0xf8},
+	{0x3c01, 0x80},
+	{0x3b07, 0x0c},
+
+	{0x3800, 0x00},     // x start 0 
+	{0x3801, 0x00},
+
+	{0x3802, 0x00},     // y star 0
+	{0x3803, 0x00}, 
+
+	{0x3804, 0x0a},     // x end 0xa3f
+	{0x3805, 0x3f},
+
+	{0x3806, 0x07},     // y end 0x7a3
+	{0x3807, 0xa3},
+
+	{0x3808, 0x05},     // x size 0x510
+	{0x3809, 0x10},
+
+	{0x380a, 0x03},     // y size 0x3cc
+	{0x380b, 0xcc},
+
+	{0x380c, 0x07},     // x total  0x768 = 1896
+	{0x380d, 0x68},
+
+    {0x380e, 0x05},     // v total  0x7b0 = 1968 -500 = 1468 = 0x5bc
+	{0x380f, 0xbc},
+
+	{0x3811, 0x0c},
+	{0x3813, 0x06},
+	{0x3814, 0x31},
+	{0x3815, 0x31},
+	{0x3630, 0x2e},
+	{0x3632, 0xe2},
+	{0x3633, 0x23},
+	{0x3634, 0x44},
+	{0x3636, 0x06},
+	{0x3620, 0x64},
+	{0x3621, 0xe0},
+	{0x3600, 0x37},
+	{0x3704, 0xa0},
+	{0x3703, 0x5a},
+	{0x3715, 0x78},
+	{0x3717, 0x01},
+	{0x3731, 0x02},
+	{0x370b, 0x60},
+	{0x3705, 0x1a},
+	{0x3f05, 0x02},
+	{0x3f06, 0x10},
+	{0x3f01, 0x0a},
+	{0x3a08, 0x01},
+	{0x3a09, 0x28},
+	{0x3a0a, 0x00},
+	{0x3a0b, 0xf6},
+	{0x3a0d, 0x08},
+	{0x3a0e, 0x06},
+	{0x3a0f, 0x58},
+	{0x3a10, 0x50},
+	{0x3a1b, 0x58},
+	{0x3a1e, 0x50},
+	{0x3a11, 0x60},
+	{0x3a1f, 0x28},
+	{0x4001, 0x02},
+	{0x4004, 0x04},
+	{0x4000, 0x09},
+	{0x4837, 0x16},
+	{0x4800, 0x24},
+	{0x3503, 0x03},
+	{0x3821, 0x01},
+    {0x3820, 0x41},
+	{0x350a, 0x00},
+	{0x350b, 0x10},
+	{0x3500, 0x00},
+	{0x3501, 0x1a},
+	{0x3502, 0xf0},
+	{0x3212, 0xa0},
+	{0x0100, 0x01},
+    {REG_NULL, 0x00},
+};
+
+
 static k_sensor_mode ov5647_mode_info[] = {
     {
         .index = 0,
@@ -526,7 +735,7 @@ static k_sensor_mode ov5647_mode_info[] = {
     },
     {
         .index = 2,
-        .sensor_type = OV_OV5647_MIPI_640x480_60FPS_10BIT_LINEAR,
+        .sensor_type = OV_OV5647_MIPI_CSI2_640x480_90FPS_10BIT_LINEAR,
         .size = {
             .bounds_width = 640,
             .bounds_height = 480,
@@ -535,7 +744,7 @@ static k_sensor_mode ov5647_mode_info[] = {
             .width = 640,
             .height = 480,
         },
-        .fps = 60000,
+        .fps = 90000,
         .hdr_mode = SENSOR_MODE_LINEAR,
         .bit_width = 10,
         .bayer_pattern = BAYER_PAT_BGGR,
@@ -622,6 +831,79 @@ static k_sensor_mode ov5647_mode_info[] = {
             {K_FALSE},
         },
     },
+    {
+        .index = 5,
+        .sensor_type = OV_OV5647_MIPI_CSI2_1280X720_60FPS_10BIT_LINEAR,
+        .size = {
+            .bounds_width = 1280,
+            .bounds_height = 720,
+            .top = 0,
+            .left = 0,
+            .width = 1280,
+            .height = 720,
+        },
+        .fps = 60000,
+        .hdr_mode = SENSOR_MODE_LINEAR,
+        .bit_width = 10,
+        .bayer_pattern = BAYER_PAT_GBRG,
+        .mipi_info = {
+            .csi_id = 0,
+            .mipi_lanes = 2,
+            .data_type = 0x2B, //RAW10
+        },
+        .reg_list = mode_1280x720_60fps, //mode_1280x720_60fps,
+#if defined(CONFIG_BOARD_K230_CANMV)
+        .mclk_setting = {{K_FALSE}, {K_FALSE}, {K_FALSE}},    
+#else
+        .mclk_setting = {
+            {
+                .mclk_setting_en = K_TRUE,
+                .setting.id = SENSOR_MCLK0,
+                .setting.mclk_sel = SENSOR_PLL0_CLK_DIV4,
+                .setting.mclk_div = 16,
+            },
+            {K_FALSE},
+            {K_FALSE},
+        },
+#endif
+    },
+    {
+        .index = 6,
+        .sensor_type = OV_OV5647_MIPI_CSI2_1280X960_60FPS_10BIT_LINEAR,
+        .size = {
+            .bounds_width = 1280,
+            .bounds_height = 960,
+            .top = 0,
+            .left = 0,
+            .width = 1280,
+            .height = 960,
+        },
+        .fps = 60000,
+        .hdr_mode = SENSOR_MODE_LINEAR,
+        .bit_width = 10,
+        .bayer_pattern = BAYER_PAT_BGGR,
+        .mipi_info = {
+            .csi_id = 0,
+            .mipi_lanes = 2,
+            .data_type = 0x2B, //RAW10
+        },
+        .reg_list = ov5647_1280x960p30_10bpp, //mode_1280x720_60fps,
+#if defined(CONFIG_BOARD_K230_CANMV)
+        .mclk_setting = {{K_FALSE}, {K_FALSE}, {K_FALSE}},
+        
+#else
+        .mclk_setting = {
+            {
+                .mclk_setting_en = K_TRUE,
+                .setting.id = SENSOR_MCLK0,
+                .setting.mclk_sel = SENSOR_PLL0_CLK_DIV4,
+                .setting.mclk_div = 16,
+            },
+            {K_FALSE},
+            {K_FALSE},
+        },
+#endif
+    },
 
 };
 
@@ -654,28 +936,6 @@ static int ov5647_power_rest(k_s32 on)
     return 0;
 }
 
-static k_s32 ov5647_sensor_get_chip_id(void *ctx, k_u32 *chip_id)
-{
-    k_s32 ret = 0;
-    k_u16 id_high = 0;
-    k_u16 id_low = 0;
-    struct sensor_driver_dev *dev = ctx;
-    pr_info("%s enter\n", __func__);
-
-    ret = sensor_reg_read(&dev->i2c_info, OV5647_REG_CHIP_ID_H, &id_high);
-    ret |= sensor_reg_read(&dev->i2c_info, OV5647_REG_CHIP_ID_L, &id_low);
-    if (ret) {
-        rt_kprintf("%s error\n", __func__);;
-        return -1;
-    }
-
-    *chip_id = (id_high << 8) | id_low;
-    pr_info("%s chip_id[0x%08X]\n", __func__, *chip_id);
-
-    return ret;
-}
-
-
 static int ov5647_i2c_init(k_sensor_i2c_info *i2c_info)
 {
     i2c_info->i2c_bus = rt_i2c_bus_device_find(i2c_info->i2c_name);
@@ -688,6 +948,35 @@ static int ov5647_i2c_init(k_sensor_i2c_info *i2c_info)
     return 0;
 }
 
+static k_s32 ov5647_sensor_get_chip_id(void *ctx, k_u32 *chip_id)
+{
+    k_s32 ret = 0;
+    k_u16 id_high = 0;
+    k_u16 id_low = 0;
+    struct sensor_driver_dev *dev = ctx;
+    pr_info("%s enter\n", __func__);
+
+    ov5647_i2c_init(&dev->i2c_info);
+
+    kd_pin_mode(OV5647_CAM_PIN_CSI2, GPIO_DM_OUTPUT);
+    kd_pin_write(OV5647_CAM_PIN_CSI2, GPIO_PV_HIGH);
+
+    ret = sensor_reg_read(&dev->i2c_info, OV5647_REG_CHIP_ID_H, &id_high);
+    ret |= sensor_reg_read(&dev->i2c_info, OV5647_REG_CHIP_ID_L, &id_low);
+    if (ret) {
+        // rt_kprintf("%s error\n", __func__);;
+        return -1;
+    }
+
+    *chip_id = (id_high << 8) | id_low;
+    pr_info("%s chip_id[0x%08X]\n", __func__, *chip_id);
+
+    return ret;
+}
+
+
+
+
 static k_s32 ov5647_sensor_power_on(void *ctx, k_s32 on)
 {
     k_s32 ret = 0;
@@ -699,7 +988,11 @@ static k_s32 ov5647_sensor_power_on(void *ctx, k_s32 on)
     if (on) {
         ov5647_power_rest(on);
         ov5647_i2c_init(&dev->i2c_info);
-        ov5647_sensor_get_chip_id(ctx, &chip_id);
+        ret = ov5647_sensor_get_chip_id(ctx, &chip_id);
+        if(ret < 0)
+        {
+            pr_err("%s, iic read chip id err \n", __func__);
+        }
         // write power on
         // ret = sensor_reg_list_write(&dev->i2c_info, sensor_oe_enable_regs);
     } else {
@@ -964,6 +1257,218 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
         current_mode->ae_info.cur_fps = current_mode->fps;
         current_mode->sensor_again = 0;
         current_mode->et_line = 0;
+        break;
+
+        case 2:
+        ret = sensor_reg_list_write(&dev->i2c_info, current_mode->reg_list);
+
+        current_mode->ae_info.frame_length = 575;
+        current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
+        current_mode->ae_info.one_line_exp_time = 0.000027808;//0.00003025
+        current_mode->ae_info.gain_accuracy = 1024;
+
+        current_mode->ae_info.min_gain = 1.0;
+        current_mode->ae_info.max_gain = 8.0;//63.9375;
+
+        current_mode->ae_info.int_time_delay_frame = 2;
+        current_mode->ae_info.gain_delay_frame = 2;
+        current_mode->ae_info.color_type = SENSOR_COLOR;    //color sensor
+
+        current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time;
+        current_mode->ae_info.gain_increment = (1.0f/16.0f);
+
+        current_mode->ae_info.max_long_integraion_line = current_mode->ae_info.frame_length - 12;
+        current_mode->ae_info.min_long_integraion_line = 2;
+
+        current_mode->ae_info.max_integraion_line = current_mode->ae_info.frame_length - 12;
+        current_mode->ae_info.min_integraion_line = 2;
+
+        current_mode->ae_info.max_long_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.max_long_integraion_line;
+
+        current_mode->ae_info.min_long_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.min_long_integraion_line;
+
+        current_mode->ae_info.max_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.max_integraion_line;
+
+        current_mode->ae_info.min_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.min_integraion_line;
+
+        current_mode->ae_info.cur_long_integration_time = 0.0;
+        current_mode->ae_info.cur_integration_time = 0.0;
+
+        current_mode->ae_info.cur_long_again = 0.0;
+        current_mode->ae_info.cur_long_dgain = 0.0;
+
+        current_mode->ae_info.cur_again = 0.0;
+        current_mode->ae_info.cur_dgain = 0.0;
+
+        current_mode->ae_info.a_long_gain.min = 1.0;
+        current_mode->ae_info.a_long_gain.max = 8.0;
+        current_mode->ae_info.a_long_gain.step = (1.0f/16.0f);
+
+        current_mode->ae_info.a_gain.min = 1.0;
+        current_mode->ae_info.a_gain.max = 8.0;
+        current_mode->ae_info.a_gain.step = (1.0f/16.0f);
+
+        current_mode->ae_info.d_long_gain.max = 1.0;
+        current_mode->ae_info.d_long_gain.min = 1.0;
+        current_mode->ae_info.d_long_gain.step = (1.0f/1024.0f);
+
+        current_mode->ae_info.d_gain.max = 1.0;
+        current_mode->ae_info.d_gain.min = 1.0;
+        current_mode->ae_info.d_gain.step = (1.0f/1024.0f);
+
+        current_mode->ae_info.cur_fps = current_mode->fps;
+        current_mode->sensor_again = 0;
+        current_mode->et_line = 0;
+
+        break;
+
+    case 6:	
+        // 960p
+        ret = sensor_reg_list_write(&dev->i2c_info, current_mode->reg_list);
+
+        current_mode->ae_info.frame_length = 630;
+        current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
+        current_mode->ae_info.one_line_exp_time = 0.000017636;
+        current_mode->ae_info.gain_accuracy = 1024;
+
+        current_mode->ae_info.min_gain = 1.0;
+        current_mode->ae_info.max_gain = 8.0;//63.9375;
+
+        current_mode->ae_info.int_time_delay_frame = 2;
+        current_mode->ae_info.gain_delay_frame = 2;
+        current_mode->ae_info.color_type = SENSOR_COLOR;    //color sensor
+
+        current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time;
+        current_mode->ae_info.gain_increment = (1.0f/16.0f);
+
+        current_mode->ae_info.max_long_integraion_line = current_mode->ae_info.frame_length - 12;
+        current_mode->ae_info.min_long_integraion_line = 2;
+
+        current_mode->ae_info.max_integraion_line = current_mode->ae_info.frame_length - 12;
+        current_mode->ae_info.min_integraion_line = 2;
+
+                current_mode->ae_info.max_long_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.max_long_integraion_line;
+
+        current_mode->ae_info.min_long_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.min_long_integraion_line;
+
+        current_mode->ae_info.max_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.max_integraion_line;
+
+        current_mode->ae_info.min_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.min_integraion_line;
+
+        current_mode->ae_info.cur_long_integration_time = 0.0;
+        current_mode->ae_info.cur_integration_time = 0.0;
+
+        current_mode->ae_info.cur_long_again = 0.0;
+        current_mode->ae_info.cur_long_dgain = 0.0;
+
+        current_mode->ae_info.cur_again = 0.0;
+        current_mode->ae_info.cur_dgain = 0.0;
+
+        current_mode->ae_info.a_long_gain.min = 1.0;
+        current_mode->ae_info.a_long_gain.max = 8.0;
+        current_mode->ae_info.a_long_gain.step = (1.0f/16.0f);
+
+        current_mode->ae_info.a_gain.min = 1.0;
+        current_mode->ae_info.a_gain.max = 8.0;
+        current_mode->ae_info.a_gain.step = (1.0f/16.0f);
+
+        current_mode->ae_info.d_long_gain.max = 1.0;
+        current_mode->ae_info.d_long_gain.min = 1.0;
+        current_mode->ae_info.d_long_gain.step = (1.0f/1024.0f);
+
+        current_mode->ae_info.d_gain.max = 1.0;
+        current_mode->ae_info.d_gain.min = 1.0;
+        current_mode->ae_info.d_gain.step = (1.0f/1024.0f);
+
+        current_mode->ae_info.cur_fps = current_mode->fps;
+        current_mode->sensor_again = 0;
+        current_mode->et_line = 0;
+        break;
+    case 5:	//720P
+        ret = sensor_reg_list_write(&dev->i2c_info, current_mode->reg_list);
+
+        current_mode->ae_info.frame_length = 886;
+        current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
+        current_mode->ae_info.one_line_exp_time = 0.000027808;//0.00003025
+        current_mode->ae_info.gain_accuracy = 1024;
+
+        current_mode->ae_info.min_gain = 1.0;
+        current_mode->ae_info.max_gain = 8.0;//63.9375;
+
+        current_mode->ae_info.int_time_delay_frame = 2;
+        current_mode->ae_info.gain_delay_frame = 2;
+        current_mode->ae_info.color_type = SENSOR_COLOR;    //color sensor
+
+        current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time;
+        current_mode->ae_info.gain_increment = (1.0f/16.0f);
+
+        current_mode->ae_info.max_long_integraion_line = current_mode->ae_info.frame_length - 12;
+        current_mode->ae_info.min_long_integraion_line = 2;
+
+        current_mode->ae_info.max_integraion_line = current_mode->ae_info.frame_length - 12;
+        current_mode->ae_info.min_integraion_line = 2;
+
+        current_mode->ae_info.max_long_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.max_long_integraion_line;
+
+        current_mode->ae_info.min_long_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.min_long_integraion_line;
+
+        current_mode->ae_info.max_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.max_integraion_line;
+
+        current_mode->ae_info.min_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.min_integraion_line;
+
+        current_mode->ae_info.cur_long_integration_time = 0.0;
+        current_mode->ae_info.cur_integration_time = 0.0;
+
+        current_mode->ae_info.cur_long_again = 0.0;
+        current_mode->ae_info.cur_long_dgain = 0.0;
+
+        current_mode->ae_info.cur_again = 0.0;
+        current_mode->ae_info.cur_dgain = 0.0;
+
+        current_mode->ae_info.a_long_gain.min = 1.0;
+        current_mode->ae_info.a_long_gain.max = 8.0;
+        current_mode->ae_info.a_long_gain.step = (1.0f/16.0f);
+
+        current_mode->ae_info.a_gain.min = 1.0;
+        current_mode->ae_info.a_gain.max = 8.0;
+        current_mode->ae_info.a_gain.step = (1.0f/16.0f);
+
+        current_mode->ae_info.d_long_gain.max = 1.0;
+        current_mode->ae_info.d_long_gain.min = 1.0;
+        current_mode->ae_info.d_long_gain.step = (1.0f/1024.0f);
+
+        current_mode->ae_info.d_gain.max = 1.0;
+        current_mode->ae_info.d_gain.min = 1.0;
+        current_mode->ae_info.d_gain.step = (1.0f/1024.0f);
+
+        current_mode->ae_info.cur_fps = current_mode->fps;
+        current_mode->sensor_again = 0;
+        current_mode->et_line = 0;
+
         break;
     }
 

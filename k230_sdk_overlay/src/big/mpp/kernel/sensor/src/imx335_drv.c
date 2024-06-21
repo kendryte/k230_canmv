@@ -891,6 +891,16 @@ static k_sensor_mode imx335_mode_info[] = {
             .data_type = 0x2C,
         },
         .reg_list = imx335_mipi_2lane_raw12_1920x1080_30fps_mclk_74_25_regs,
+        .mclk_setting = {
+            {
+                .mclk_setting_en = K_TRUE,
+                .setting.id = SENSOR_MCLK0,
+                .setting.mclk_sel = SENSOR_PLL1_CLK_DIV4,
+                .setting.mclk_div = 8,
+            },
+            {K_FALSE},
+            {K_FALSE},
+        },
     },
     {
         .index = 4,
@@ -913,6 +923,16 @@ static k_sensor_mode imx335_mode_info[] = {
             .data_type = 0x2C,
         },
         .reg_list = imx335_mipi_2lane_raw12_2592x1944_30fps_mclk_74_25_regs,
+        .mclk_setting = {
+            {
+                .mclk_setting_en = K_TRUE,
+                .setting.id = SENSOR_MCLK0,
+                .setting.mclk_sel = SENSOR_PLL1_CLK_DIV4,
+                .setting.mclk_div = 8,
+            },
+            {K_FALSE},
+            {K_FALSE},
+        },
     },
     {
         .index = 5,
@@ -935,6 +955,16 @@ static k_sensor_mode imx335_mode_info[] = {
             .data_type = 0x2C,
         },
         .reg_list = imx335_mipi_4lane_raw12_2592x1944_30fps_mclk_74_25_regs,
+        .mclk_setting = {
+            {
+                .mclk_setting_en = K_TRUE,
+                .setting.id = SENSOR_MCLK0,
+                .setting.mclk_sel = SENSOR_PLL1_CLK_DIV4,
+                .setting.mclk_div = 8,
+            },
+            {K_FALSE},
+            {K_FALSE},
+        },
     },
     {
         .index = 6,
@@ -1034,10 +1064,15 @@ static k_s32 imx335_sensor_get_chip_id(void* ctx, k_u32* chip_id)
     struct sensor_driver_dev* dev = ctx;
     pr_info("%s enter\n", __func__);
 
+    kd_pin_mode(VICAP_IMX335_RST_GPIO, GPIO_DM_OUTPUT);
+    kd_pin_write(VICAP_IMX335_RST_GPIO, GPIO_PV_HIGH); // GPIO_PV_HIGH
+
+    imx335_i2c_init(&dev->i2c_info);
+
     ret = sensor_reg_read(&dev->i2c_info, IMX335_REG_ID, &id_high);
     ret |= sensor_reg_read(&dev->i2c_info, IMX335_REG_ID + 1, &id_low);
     if (ret) {
-        rt_kprintf("%s error\n", __func__);
+        // rt_kprintf("%s error\n", __func__);
         return -1;
     }
 
@@ -1056,7 +1091,11 @@ static k_s32 imx335_sensor_power_on(void* ctx, k_s32 on)
         imx335_power_reset(0);
         imx335_i2c_init(&dev->i2c_info);
         imx335_power_reset(1);
-        imx335_sensor_get_chip_id(ctx, &chip_id);
+        ret = imx335_sensor_get_chip_id(ctx, &chip_id);
+        if(ret < 0)
+        {
+            pr_err("%s, iic read chip id err \n", __func__);
+        }
     } else {
         imx335_power_reset(on);
     }
@@ -1800,7 +1839,7 @@ static k_s32 imx335_sensor_mirror_set(void *ctx, k_vicap_mirror_mode mirror)
 struct sensor_driver_dev imx335_sensor_drv = {
     .i2c_info = {
         .i2c_bus = NULL,
-        .i2c_name = "i2c3",
+        .i2c_name = "i2c0",
         .slave_addr = 0x1a,
         .reg_addr_size = SENSOR_REG_VALUE_16BIT,
         .reg_val_size = SENSOR_REG_VALUE_8BIT,
