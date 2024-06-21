@@ -62,12 +62,12 @@ static k_s32 virtdev_init(void* ctx, k_connector_info* info)
         hact = resolution->hdisplay;
         vact = resolution->vdisplay;
         fps = resolution->pclk;
-        if (hact < 64 || hact > 4096 || vact < 64 || vact > 4096 || fps > 1000)
+        if (hact < 64 || hact > 4096 || vact < 64 || vact > 4096 || fps > 200)
             return -1;
         intr_line = 32 - __builtin_clz(vact);
         vtotal_min = (1UL << intr_line) + 15;
         if (vtotal_min < (vact + 45))
-            vtotal_min = vact + 15;
+            vtotal_min = vact + 45;
         htotal_min = hact + 96;
         pixclk_div = 594000000 / (vtotal_min * htotal_min * fps);
         if (pixclk_div == 0)
@@ -82,7 +82,7 @@ static k_s32 virtdev_init(void* ctx, k_connector_info* info)
             else if (htotal < htotal_min)
                 return -1;
         }
-        info->pixclk_div = pixclk_div - 1;
+        info->pixclk_div = pixclk_div;
         info->intr_line = intr_line;
         resolution->htotal = htotal;
         resolution->hsync_len = 32;
