@@ -60,6 +60,7 @@ class Display:
     LT9611 = const(300)
     HX8377 = const(301)
     ST7701 = const(302)
+    VIRTDEV = const(303)
 
     # define VO channel
     LAYER_VIDEO1 = K_VO_DISPLAY_CHN_ID1
@@ -168,7 +169,7 @@ class Display:
     # to_ide
     # osd_num
     @classmethod
-    def init(cls, type = None, width = None, height = None, osd_num = 1, to_ide = False, flag = None):
+    def init(cls, type = None, width = None, height = None, fps = None, osd_num = 1, to_ide = False, flag = None):
         if cls._is_inited:
             print("Already run Display.init()")
             return
@@ -223,6 +224,8 @@ class Display:
                 _width = None
                 _height = None
                 _flag = None
+            elif _type == Display.VIRTDEV:
+                cls._connector_type = VIRTUAL_DISPLAY_DEVICE
             else:
                 raise AssertionError(f"Unsupport display type {_type}")
         else:
@@ -230,6 +233,15 @@ class Display:
 
         cls._connector_info = k_connector_info()
         kd_mpi_get_connector_info(cls._connector_type, cls._connector_info)
+        if cls._connector_type == VIRTUAL_DISPLAY_DEVICE:
+            _width = width if width is not None else 640
+            _fps = fps if fps is not None else 90
+            _height = height if height is not None else 480
+            if _width & 7:
+                raise ValueError("width must be an integral multiple of 8 pixels")
+            cls._connector_info.resolution.hdisplay = _width
+            cls._connector_info.resolution.vdisplay = _height
+            cls._connector_info.resolution.pclk = _fps
         cls._width = cls._connector_info.resolution.hdisplay
         cls._height = cls._connector_info.resolution.vdisplay
 
@@ -260,7 +272,7 @@ class Display:
                 raise RuntimeError(f"Display configure buffer for ide failed.")
             config = None
 
-            ide_dbg_set_vo_wbc(True, cls._connector_type, cls._ide_vo_wbc_flag)
+            ide_dbg_set_vo_wbc(True, cls._width, cls._height)
         else:
             ide_dbg_set_vo_wbc(False, 0, 0)
 
@@ -304,6 +316,7 @@ class Display:
         kd_mpi_connector_close(connector_fd)
 
         ide_dbg_set_vo_wbc(False, 0, 0)
+        ide_dbg_vo_wbc_deinit()
         kd_display_reset()
 
         # unbind all layer

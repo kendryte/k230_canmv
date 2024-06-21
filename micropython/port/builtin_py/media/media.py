@@ -196,7 +196,6 @@ class MediaManager:
         if not force:
             return
 
-        ide_dbg_vo_wbc_deinit()
         ret = kd_mpi_vb_exit()
         if ret:
             raise RuntimeError(f"MediaManager, vb deinit failed({ret})")
