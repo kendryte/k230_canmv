@@ -15,7 +15,7 @@ include boards/mpconfigport.mk
 # This should be configured by the mpconfigvariant.mk
 PROG ?= micropython
 
-USER_C_MODULES = ulab
+USER_C_MODULES = 3d-party/ulab
 
 # include py core make definitions
 include $(TOP)/py/py.mk 
@@ -38,6 +38,10 @@ INC += -Iinclude/ai_cube
 INC += -Iinclude/ai_demo
 INC += -Iinclude/ai_demo/kws
 INC += -Iinclude/ai_demo/tts_zh
+INC += -I3d-party
+INC += -I3d-party/ulab
+INC += -I3d-party/freetype/freetype/include
+INC += -I3d-party/wrap
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/utils/lib/opencv/include/opencv4
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/include/comm
@@ -48,10 +52,6 @@ INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/components/drivers
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/mp4_format/include
-INC += -Iulab
-INC += -I3d-party
-INC += -I3d-party/freetype/freetype/include
-INC += -I3d-party/wrap
 
 -include $(BUILD)/CANMV_VER
 CANMV_VER = $(shell git describe --tags `git rev-list --tags --max-count=1`)-$(shell git rev-parse --short HEAD)

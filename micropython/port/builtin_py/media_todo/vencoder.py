@@ -1,9 +1,9 @@
+import uctypes
 from mpp.venc import *
 from mpp.sys import *
 from mpp.payload_struct import *
 from mpp.venc_struct import *
 from media.media import *
-import uctypes
 
 class ChnAttrStr:
     def __init__(self, payloadType, profile, picWidth, picHeight, gopLen = 30):
@@ -45,11 +45,11 @@ class Encoder:
         if buf_num and width and height:
             self.outbuf_num = buf_num
             config = k_vb_config()
-            config.max_pool_cnt = 64
+            config.max_pool_cnt = 1
             config.comm_pool[0].blk_cnt = buf_num
             config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
             config.comm_pool[0].blk_size = ALIGN_UP(width * height * 3 // 4, VENC_ALIGN_4K)
-            media.buffer_config(config)
+            MediaManager._config(config)
 
     def Create(self, chn, chnAttr):
         if (chn > VENC_CHN_ID_MAX - 1):

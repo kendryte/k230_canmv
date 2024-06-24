@@ -203,7 +203,7 @@ STATIC char *strjoin(const char *s1, int sep_char, const char *s2) {
 
 extern void mp_hal_stdout_tx_str_cooked(const char* str);
 
-volatile bool repl_script_running = false;
+extern volatile bool repl_script_running;
 
 STATIC int do_repl(void) {
     #if MICROPY_USE_READLINE == 1
@@ -253,7 +253,9 @@ STATIC int do_repl(void) {
             line = line3;
         }
 
+        repl_script_running = true;
         int ret = execute_from_lexer(LEX_SRC_STR, line, MP_PARSE_SINGLE_INPUT, true);
+        repl_script_running = false;
         if (ret & FORCED_EXIT) {
             return ret;
         }
@@ -264,7 +266,10 @@ STATIC int do_repl(void) {
 }
 
 STATIC int do_file(const char *file) {
-    return execute_from_lexer(LEX_SRC_FILENAME, file, MP_PARSE_FILE_INPUT, false);
+    repl_script_running = true;
+    int ret = execute_from_lexer(LEX_SRC_FILENAME, file, MP_PARSE_FILE_INPUT, false);
+    repl_script_running = false;
+    return ret;
 }
 
 STATIC int do_str(const char *str) {

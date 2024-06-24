@@ -246,3 +246,9 @@ extern const struct _mp_print_t mp_stderr_print;
 
 // ulab
 #define ULAB_MAX_DIMS   (4)
+
+extern void ide_before_python_run(int input_kind, mp_uint_t exec_flags);
+extern void ide_afer_python_run(int input_kind, mp_uint_t exec_flags, void *ret_val, int ret);
+
+#define MICROPY_BOARD_BEFORE_PYTHON_EXEC ide_before_python_run
+#define MICROPY_BOARD_AFTER_PYTHON_EXEC ide_afer_python_run

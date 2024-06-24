@@ -34,10 +34,10 @@ else
 freetype_download_url = $(SERVER)/downloads/canmv/freetype.tar.gz
 fast_dl:
 	@set -e; \
-	if [ ! -f freetype/.ready_dl_src ]; then \
+	if [ ! -f .ready_dl_src ]; then \
 		echo "download freetype, url: $(freetype_download_url)"; \
 		wget -c --show-progress $(freetype_download_url) -O - | tar -xz ; \
-		touch freetype/.ready_dl_src; \
+		touch .ready_dl_src; \
 	fi;
 endif # end ifeq ($(FAST_DL),0)
 endif # end ifeq ($(MAKECMDGOALS), fast_dl)

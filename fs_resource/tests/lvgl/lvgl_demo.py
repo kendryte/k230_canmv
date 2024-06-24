@@ -21,31 +21,31 @@ def display_deinit():
     MediaManager.deinit()
 
 def disp_drv_flush_cb(disp_drv, area, color):
-    global buf1, buf2
+    global disp_img1, disp_img2
 
     if disp_drv.flush_is_last() == True:
-        if buf1.virtaddr() == uctypes.addressof(color.__dereference__()):
-            Display.show_image(buf1)
+        if disp_img1.virtaddr() == uctypes.addressof(color.__dereference__()):
+            Display.show_image(disp_img1)
         else:
-            Display.show_image(buf2)
+            Display.show_image(disp_img2)
     disp_drv.flush_ready()
 
 def lvgl_init():
-    global buf1, buf2
+    global disp_img1, disp_img2
 
     lv.init()
     disp_drv = lv.disp_create(DISPLAY_WIDTH, DISPLAY_HEIGHT)
     disp_drv.set_flush_cb(disp_drv_flush_cb)
-    buf1 = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
-    buf2 = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
-    disp_drv.set_draw_buffers(buf1.bytearray(), buf2.bytearray(), buf1.size(), lv.DISP_RENDER_MODE.DIRECT)
+    disp_img1 = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
+    disp_img2 = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
+    disp_drv.set_draw_buffers(disp_img1.bytearray(), disp_img2.bytearray(), disp_img1.size(), lv.DISP_RENDER_MODE.DIRECT)
 
 def lvgl_deinit():
-    global buf1, buf2
+    global disp_img1, disp_img2
 
     lv.deinit()
-    del buf1
-    del buf2
+    del disp_img1
+    del disp_img2
 
 def user_gui_init():
     res_path = "/sdcard/app/tests/lvgl/data/"
@@ -99,9 +99,9 @@ def user_gui_init():
 
 def main():
     os.exitpoint(os.EXITPOINT_ENABLE)
-    display_init()
-    lvgl_init()
     try:
+        display_init()
+        lvgl_init()
         user_gui_init()
         while True:
             time.sleep_ms(lv.task_handler())
