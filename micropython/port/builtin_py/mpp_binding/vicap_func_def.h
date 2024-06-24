@@ -38,3 +38,4 @@ DEF_INT_FUNC_INT_STRUCTPTR_INT(kd_mpi_vicap_set_vi_drop_frame, k_vicap_drop_fram
 DEF_INT_FUNC_INT_INT(kd_mpi_vicap_set_database_parse_mode)
 DEF_INT_FUNC_INT(kd_mpi_vicap_tpg_enable)
 DEF_INT_FUNC_INT_ARRAY_INT(kd_mpi_vicap_load_image, void)
+DEF_INT_FUNC_STRUCTPTR_STRUCTPTR(kd_mpi_sensor_adapt_get, k_vicap_probe_config, k_vicap_sensor_info)

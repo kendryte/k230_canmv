@@ -1435,47 +1435,92 @@ k_s32 kd_mpi_sensor_mirror_set(k_s32 fd, k_vicap_mirror_mode mirror)
     return ret;
 }
 
+/*
+Sensor Name: Sensor1, FPS: 60, Width: 1920, Height: 1080
+Sensor Name: Sensor2, FPS: 60, Width: 1280, Height: 720
+Sensor Name: Sensor3, FPS: 30, Width: 1920, Height: 1080
+Sensor Name: Sensor4, FPS: 30, Width: 1280, Height: 720
+*/
+static int compare_sensor_info(const void *a, const void *b) {
+    k_vicap_sensor_info *sensorA = (k_vicap_sensor_info *)a;
+    k_vicap_sensor_info *sensorB = (k_vicap_sensor_info *)b;
 
-k_s32 kd_mpi_sensor_adapt_get(k_vicap_adapt_id *csi0_adapt_id, k_vicap_adapt_id *csi1_adapt_id, k_vicap_adapt_id *csi2_adapt_id)
+    // Compare fps
+    if (sensorA->fps != sensorB->fps) {
+        return sensorB->fps - sensorA->fps;
+    }
+    // If fps is the same, compare width
+    if (sensorA->width != sensorB->width) {
+        return sensorB->width - sensorA->width;
+    }
+    // If width is the same, compare height
+    return sensorB->height - sensorA->height;
+}
+
+k_s32 kd_mpi_sensor_adapt_get(k_vicap_probe_config *config, k_vicap_sensor_info *info)
 {
-    k_s32 i = 0, j = 0;
+#define MAX_SENSOR_COUNT (16)
+
     k_s32 ret = 0;
     k_s32 sensor_fd = -1;
     k_u32 chip_id;
-    k_vicap_sensor_info sensor_info;
     k_sensor_mode mode;
 
-    csi0_adapt_id->adapt_len = 0;
-    csi1_adapt_id->adapt_len = 0;
-    csi2_adapt_id->adapt_len = 0;
+    k_u32 sensor_info_count = 0;
+    k_vicap_sensor_info sensor_info, *p_sensor_info = NULL;
+    k_vicap_sensor_info sensor_info_list[MAX_SENSOR_COUNT];
 
-    for (i = 0; i != SENSOR_TYPE_MAX; i++) 
+    if (((void *)0 == config) || ((void *)0 == info))
     {
-       memset(&sensor_info, 0, sizeof(k_vicap_sensor_info));
-       memset(&mode, 0, sizeof(k_sensor_mode));
+        return 2;
+    }
+    sensor_info_count = 0;
+    memset(info, 0, sizeof(k_vicap_sensor_info));
+    memset(&sensor_info_list[0], 0, sizeof(sensor_info_list));
 
-       ret = kd_mpi_vicap_get_sensor_info((k_vicap_sensor_type)i , &sensor_info);
-       if (ret) {
-            printf("kd_mpi_vicap_adapt_config, the sensor type not supported! i is %d \n", i);
+    for (int sensor_idx = 0; sensor_idx != SENSOR_TYPE_MAX; sensor_idx++)
+    {
+        if (sensor_info_count >= MAX_SENSOR_COUNT)
+        {
+            printf("kd_mpi_sensor_adapt_get, too may ids\n");
+            break;
+        }
+
+        memset(&mode, 0, sizeof(k_sensor_mode));
+        memset(&sensor_info, 0, sizeof(k_vicap_sensor_info));
+
+        ret = kd_mpi_vicap_get_sensor_info((k_vicap_sensor_type)sensor_idx, &sensor_info);
+        if (ret)
+        {
+            printf("kd_mpi_vicap_adapt_config, the sensor type not supported! index is %d \n", sensor_idx);
             continue;
-       }    
+        }
 
-       // open sensor 
+        if (config->csi_num != sensor_info.csi_num)
+        {
+            continue;
+        }
+
+        // open sensor
         sensor_fd = kd_mpi_sensor_open(sensor_info.sensor_name);
-        if (sensor_fd < 0) {
-            pr_err("%s, sensor open failed.\n", __func__);
+        if (sensor_fd < 0)
+        {
+            printf("%s, sensor open failed.\n", __func__);
+            continue;
         }
 
         mode.sensor_type = sensor_info.sensor_type;
         ret = kd_mpi_sensor_mode_get(sensor_fd, &mode);
-        if (ret) {
-            pr_err("%s, sensor mode get failed. i is %d \n", __func__, i);
+        if (ret)
+        {
+            printf("%s, sensor mode get failed. i is %d \n", __func__, sensor_idx);
+            continue;
         }
 
         // check sensor need mclk
-        for(k_s32 idx = 0; idx < SENSOR_MCLK_MAX - 1; idx++)
+        for (k_s32 idx = 0; idx < SENSOR_MCLK_MAX - 1; idx++)
         {
-            if(mode.mclk_setting[idx].mclk_setting_en)
+            if (mode.mclk_setting[idx].mclk_setting_en)
             {
                 ret = kd_mpi_vicap_sensor_set_mclk(mode.mclk_setting[idx].setting);
             }
@@ -1483,33 +1528,60 @@ k_s32 kd_mpi_sensor_adapt_get(k_vicap_adapt_id *csi0_adapt_id, k_vicap_adapt_id 
 
         // ret = kd_mpi_sensor_power_set(sensor_fd, K_TRUE);
         ret = kd_mpi_sensor_id_get(sensor_fd, &chip_id);
-        if(ret == 0)
+        if (ret == 0)
         {
-            // chip ok
-            switch(sensor_info.csi_num)
-            {
-                case VICAP_CSI0 :
-                    csi0_adapt_id->adapt_id[csi0_adapt_id->adapt_len] = i;
-                    csi0_adapt_id->adapt_len = csi0_adapt_id->adapt_len + 1;
-                    break;
-                case VICAP_CSI1 :
-                    csi1_adapt_id->adapt_id[csi1_adapt_id->adapt_len] = i;
-                    csi1_adapt_id->adapt_len = csi1_adapt_id->adapt_len + 1;
-                    break;
-                case VICAP_CSI2 :
-                    csi2_adapt_id->adapt_id[csi2_adapt_id->adapt_len] = i;
-                    csi2_adapt_id->adapt_len = csi2_adapt_id->adapt_len + 1;
-                    break;
-                default : 
-                    printf("csi num err \n");
-                    break;
-            }
+            memcpy(&sensor_info_list[sensor_info_count], &sensor_info, sizeof(k_vicap_sensor_info));
+            sensor_info_count++;
         }
 
         kd_mpi_sensor_close(sensor_fd);
     }
 
-    return 0;
+    if (sensor_info_count)
+    {
+        qsort(&sensor_info_list[0], sensor_info_count, sizeof(k_vicap_sensor_info), compare_sensor_info);
+
+        /* first find wanted fps */
+        if(0x00 != config->fps)
+        {
+            for (int i = 0; i < sensor_info_count; i++)
+            {
+                p_sensor_info = &sensor_info_list[i];
+
+                if ((config->width == p_sensor_info->width) && (config->height == p_sensor_info->height) && (config->fps == p_sensor_info->fps))
+                {
+                    memcpy(info, p_sensor_info, sizeof(k_vicap_sensor_info));
+                    return 0;
+                }
+            }
+        }
+
+        /* find same resolution */
+        for (int i = 0; i < sensor_info_count; i++)
+        {
+            p_sensor_info = &sensor_info_list[i];
+
+            if ((config->width == p_sensor_info->width) && (config->height == p_sensor_info->height) /* && (config->fps == p_sensor_info->fps) */)
+            {
+                memcpy(info, p_sensor_info, sizeof(k_vicap_sensor_info));
+                return 0;
+            }
+        }
+
+        /* find a bigger resolution */
+        for (int i = 0; i < sensor_info_count; i++)
+        {
+            p_sensor_info = &sensor_info_list[i];
+
+            if ((config->width <= p_sensor_info->width) && (config->height <= p_sensor_info->height) /* && (config->fps == p_sensor_info->fps) */)
+            {
+                memcpy(info, p_sensor_info, sizeof(k_vicap_sensor_info));
+                return 0;
+            }
+        }
+    }
+
+    return 1;
+
+#undef MAX_SENSOR_COUNT
 }
-
-

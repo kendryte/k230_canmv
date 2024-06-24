@@ -20,8 +20,6 @@ CAM_OUT_HEIGHT_MIN = const(64)
 #      Don't edit it arbitrarily!!!
 
 class Sensor:
-    OV5647 = const(200)
-
     RGB565   = PIXEL_FORMAT_RGB_565
     RGB888   = PIXEL_FORMAT_RGB_888
     RGBP888  = PIXEL_FORMAT_RGB_888_PLANAR
@@ -134,35 +132,6 @@ class Sensor:
 
                 sensor._is_started = True
 
-    @staticmethod
-    def _get_the_senrsor_type(brd, _type, id):
-        if brd == "k230_canmv":
-            if _type == Sensor.OV5647:
-                if id == CAM_DEV_ID_0:
-                    return OV_OV5647_MIPI_CSI0_1920X1080_30FPS_10BIT_LINEAR, 0
-                elif id == CAM_DEV_ID_1:
-                    return OV_OV5647_MIPI_CSI1_1920X1080_30FPS_10BIT_LINEAR, 0
-                else:
-                    return OV_OV5647_MIPI_CSI2_1920X1080_30FPS_10BIT_LINEAR, 0
-            else:
-                raise NotImplementedError(f"Unsupport Sensor type {_type}")
-        elif brd == "k230_canmv_01studio":
-            if _type == Sensor.OV5647:
-                if id == CAM_DEV_ID_0:
-                    return OV_OV5647_MIPI_CSI0_1920X1080_30FPS_10BIT_LINEAR, 3
-                elif id == CAM_DEV_ID_1:
-                    return OV_OV5647_MIPI_CSI1_1920X1080_30FPS_10BIT_LINEAR, 3
-                else:
-                    return OV_OV5647_MIPI_CSI2_1920X1080_30FPS_10BIT_LINEAR, 3
-            else:
-                raise NotImplementedError(f"Unsupport Sensor type {_type}")
-        elif brd == "k230d_canmv":
-            raise NotImplementedError("TODO")
-        elif brd == "k230_evb":
-            raise NotImplementedError("TODO")
-        else:
-            raise AssertionError(f"invaild board type, please ask for support.")
-
     # id
     # type
     # force
@@ -171,7 +140,6 @@ class Sensor:
         self._dft_output_buff_num = 6
 
         dft_sensor_id = CAM_DEV_ID_0
-        dft_sensor_type = Sensor.OV5647
 
         brd = os.uname()[-1]
         if brd == "k230d_canmv":
@@ -188,11 +156,23 @@ class Sensor:
         if not force and Sensor._devs[self._dev_id] is not None:
             raise OSError(f"sensor({self._dev_id}) is already inited.")
 
-        mirror = 0
-        self._type = kwargs.get('type', dft_sensor_type)
+        arg_type = kwargs.get('type', None)
+        if arg_type is not None:
+            self._type = arg_type
+        else:
+            info = k_vicap_sensor_info()
+            cfg = k_vicap_probe_config()
+            cfg.csi = self._dev_id + 1 # convert to csi num
+            cfg.fps = kwargs.get('fps', 30)
+            cfg.width = kwargs.get('width', 1920)
+            cfg.height = kwargs.get('height', 1080)
 
-        if self._type >= Sensor.OV5647:
-            self._type, mirror = Sensor._get_the_senrsor_type(brd, self._type, self._dev_id) 
+            ret = kd_mpi_sensor_adapt_get(cfg, info)
+            if 0 != ret:
+                raise RuntimeError(f"Can not found sensor on {self._dev_id}")
+
+            self._type = info.type
+            print(f"use sensor {info.type}, output {info.width}x{info.height}@{info.fps}")
 
         if (self._type > SENSOR_TYPE_MAX - 1):
             raise AssertionError(f"invaild sensor type {self._type}, should < {SENSOR_TYPE_MAX - 1}")
@@ -206,7 +186,7 @@ class Sensor:
         self._dev_attr.mode = VICAP_WORK_ONLINE_MODE
         # self._dev_attr.mode = VICAP_WORK_OFFLINE_MODE
         self._dev_attr.input_type = VICAP_INPUT_TYPE_SENSOR
-        self._dev_attr.mirror = mirror
+        self._dev_attr.mirror = 0
 
         self._is_started = False
 
