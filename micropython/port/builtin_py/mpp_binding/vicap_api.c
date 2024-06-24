@@ -30,7 +30,9 @@
 #include <errno.h>
 #include "py/runtime.h"
 #include "py/obj.h"
+#include "k_vicap_comm.h"
 #include "mpi_vicap_api.h"
+#include "mpi_sensor_api.h"
 
 #define DEF_FUNC_ADD(x) { MP_ROM_QSTR(MP_QSTR_##x), MP_ROM_PTR(&x##_obj) },
 

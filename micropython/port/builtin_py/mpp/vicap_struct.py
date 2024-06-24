@@ -200,3 +200,10 @@ def k_vicap_chn_set_info(**kwargs):
     s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_chn_set_info_desc, layout)
     vicap_def.k_vicap_chn_set_info_parse(s, kwargs)
     return s
+
+def k_vicap_probe_config(**kwargs):
+    layout = uctypes.NATIVE
+    buf = bytearray(uctypes.sizeof(vicap_def.k_vicap_probe_config_desc, layout))
+    s = uctypes.struct(uctypes.addressof(buf), vicap_def.k_vicap_probe_config_desc, layout)
+    vicap_def.k_vicap_probe_config_parse(s, kwargs)
+    return s

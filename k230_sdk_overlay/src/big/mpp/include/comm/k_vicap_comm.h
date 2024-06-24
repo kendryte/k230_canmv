@@ -620,9 +620,11 @@ typedef struct
 } k_vicap_mcm_chn_vf_info;
 
 typedef struct {
-    k_u32 adapt_id[16];
-    k_u32 adapt_len;
-}k_vicap_adapt_id;
+    k_u32 csi_num;
+    k_u32 width;
+    k_u32 height;
+    k_u32 fps;
+} k_vicap_probe_config;
 
 #define K_ERR_VICAP_INVALID_DEVID     K_DEF_ERR(K_ID_VICAP, K_ERR_LEVEL_ERROR, K_ERR_INVALID_DEVID)
 #define K_ERR_VICAP_INVALID_CHNID     K_DEF_ERR(K_ID_VICAP, K_ERR_LEVEL_ERROR, K_ERR_INVALID_CHNID)

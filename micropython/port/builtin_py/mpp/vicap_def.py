@@ -97,7 +97,7 @@ def k_vicap_isp_pipe_ctrl_parse(s, kwargs):
     s.data = kwargs.get("data", 0)
 
 k_vicap_sensor_info_desc = {
-    "sensor_name": 0 | uctypes.UINT64,
+    "name": 0 | uctypes.UINT64,
     "width": 8 | uctypes.UINT16,
     "height": 10 | uctypes.UINT16,
     "csi_num": 12 | uctypes.UINT32,
@@ -110,11 +110,12 @@ k_vicap_sensor_info_desc = {
     "flash_mode": 40 | uctypes.UINT32,
     "first_frame": 44 | uctypes.UINT32,
     "glitch_filter": 48 | uctypes.UINT16,
-    "sensor_type": 52 | uctypes.UINT32,
+    "fps": 50 | uctypes.UINT16,
+    "type": 52 | uctypes.UINT32,
 }
 
 def k_vicap_sensor_info_parse(s, kwargs):
-    s.sensor_name = kwargs.get("sensor_name", 0)
+    s.name = kwargs.get("name", 0)
     s.width = kwargs.get("width", 0)
     s.height = kwargs.get("height", 0)
     s.csi_num = kwargs.get("csi_num", 0)
@@ -127,7 +128,8 @@ def k_vicap_sensor_info_parse(s, kwargs):
     s.flash_mode = kwargs.get("flash_mode", 0)
     s.first_frame = kwargs.get("first_frame", 0)
     s.glitch_filter = kwargs.get("glitch_filter", 0)
-    s.sensor_type = kwargs.get("sensor_type", 0)
+    s.fps = kwargs.get("fps", 0)
+    s.type = kwargs.get("type", 0)
 
 k_vicap_chn_attr_desc = {
     "out_win": (0, k_vicap_window_desc),
@@ -324,3 +326,16 @@ def k_vicap_chn_set_info_parse(s, kwargs):
     s.pixel_format = kwargs.get("pixel_format", 0)
     s.buf_size = kwargs.get("buf_size", 0)
     s.alignment = kwargs.get("alignment", 0)
+
+k_vicap_probe_config_desc = {
+    "csi": 0 | uctypes.UINT32,
+    "width": 4 | uctypes.UINT32,
+    "height": 8 | uctypes.UINT32,
+    "fps": 12 | uctypes.UINT32,
+}
+
+def k_vicap_probe_config_parse(s, kwargs):
+    s.csi = kwargs.get("csi", 0)
+    s.width = kwargs.get("width", 0)
+    s.height = kwargs.get("height", 0)
+    s.fps = kwargs.get("fps", 0)
