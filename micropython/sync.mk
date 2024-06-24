@@ -45,17 +45,16 @@ micropython_download_url = $(SERVER)/downloads/canmv/micropython.tar.gz
 
 micropython_fast_dl:
 	@set -e; \
-	if [ ! -f micropython/.ready_dl_src ]; then \
+	if [ ! -f .ready_dl_src ]; then \
 		echo "download micropython, url: $(micropython_download_url)"; \
 		wget -c --show-progress $(micropython_download_url) -O - | tar -xz ; \
-		touch micropython/.ready_dl_src; \
+		touch .ready_dl_src; \
 	fi;
 
 fast_dl: micropython_fast_dl
 	@make -C port/3d-party/freetype -f sync.mk SERVER=$(SERVER) FAST_DL=$(FAST_DL) fast_dl
 	@make -C port/3d-party/lvgl -f sync.mk SERVER=$(SERVER) FAST_DL=$(FAST_DL) fast_dl
 	@make -C port/3d-party/wrap -f sync.mk SERVER=$(SERVER) FAST_DL=$(FAST_DL) fast_dl
-	@ls -alht $(pwd)
 
 endif # end ifeq ($(FAST_DL),0)
 endif # end ifeq ($(MAKECMDGOALS), fast_dl)

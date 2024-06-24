@@ -180,7 +180,7 @@ k_s32 vb_mgmt_get_block(vb_block_info *info)
         return 6;
     }
 
-    info->handle = kd_mpi_vb_get_block(VB_INVALID_POOLID, info->size, (void *)0);
+    info->handle = kd_mpi_vb_get_block(info->pool_id, info->size, (void *)0);
     if (VB_INVALID_HANDLE == info->handle)
     {
         return 2;

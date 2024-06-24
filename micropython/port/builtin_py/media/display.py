@@ -60,7 +60,7 @@ class Display:
     LT9611 = const(300)
     HX8377 = const(301)
     ST7701 = const(302)
-    VIRTDEV = const(303)
+    VIRT = const(303)
 
     # define VO channel
     LAYER_VIDEO1 = K_VO_DISPLAY_CHN_ID1
@@ -169,7 +169,7 @@ class Display:
     # to_ide
     # osd_num
     @classmethod
-    def init(cls, type = None, width = None, height = None, fps = None, osd_num = 1, to_ide = False, flag = None):
+    def init(cls, type = None, width = None, height = None, osd_num = 1, to_ide = False, flag = None, fps = None):
         if cls._is_inited:
             print("Already run Display.init()")
             return
@@ -224,7 +224,8 @@ class Display:
                 _width = None
                 _height = None
                 _flag = None
-            elif _type == Display.VIRTDEV:
+            elif _type == Display.VIRT:
+                cls._write_back_to_ide = True
                 cls._connector_type = VIRTUAL_DISPLAY_DEVICE
             else:
                 raise AssertionError(f"Unsupport display type {_type}")
@@ -235,8 +236,8 @@ class Display:
         kd_mpi_get_connector_info(cls._connector_type, cls._connector_info)
         if cls._connector_type == VIRTUAL_DISPLAY_DEVICE:
             _width = width if width is not None else 640
-            _fps = fps if fps is not None else 90
             _height = height if height is not None else 480
+            _fps = fps if fps is not None else 90
             if _width & 7:
                 raise ValueError("width must be an integral multiple of 8 pixels")
             cls._connector_info.resolution.hdisplay = _width

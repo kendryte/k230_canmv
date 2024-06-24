@@ -9,7 +9,7 @@ DISPLAY_HEIGHT = 480
 
 def display_init():
     # use hdmi for display
-    Display.init(Display.ST7701, 480, 800)
+    Display.init(Display.ST7701, width = 800, height = 480, to_ide = True)
     # init media manager
     MediaManager.init()
 
@@ -22,13 +22,17 @@ def display_deinit():
     MediaManager.deinit()
 
 def disp_drv_flush_cb(disp_drv, area, color):
-    global buf1, buf2
+    global disp_img1, disp_img2
 
     if disp_drv.flush_is_last() == True:
-        if buf1.virtaddr() == uctypes.addressof(color.__dereference__()):
-            Display.show_image(buf1)
+        if disp_img1.virtaddr() == uctypes.addressof(color.__dereference__()):
+            Display.show_image(disp_img1)
+            print(f"disp disp_img1 {disp_img1}")
         else:
-            Display.show_image(buf2)
+            Display.show_image(disp_img2)
+            print(f"disp disp_img2 {disp_img2}")
+        time.sleep(0.01)
+
     disp_drv.flush_ready()
 
 class touch_screen():
@@ -53,20 +57,22 @@ class touch_screen():
         data.state = state
 
 def lvgl_init():
-    global buf1, buf2
+    global disp_img1, disp_img2
 
     lv.init()
     disp_drv = lv.disp_create(DISPLAY_WIDTH, DISPLAY_HEIGHT)
     disp_drv.set_flush_cb(disp_drv_flush_cb)
-    buf1 = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
-    buf2 = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
-    disp_drv.set_draw_buffers(buf1.bytearray(), buf2.bytearray(), buf1.size(), lv.DISP_RENDER_MODE.DIRECT)
+    disp_img1 = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
+    disp_img2 = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
+    disp_drv.set_draw_buffers(disp_img1.bytearray(), disp_img2.bytearray(), disp_img1.size(), lv.DISP_RENDER_MODE.DIRECT)
     tp = touch_screen()
 
 def lvgl_deinit():
+    global disp_img1, disp_img2
+
     lv.deinit()
-    del globals()["buf1"]
-    del globals()["buf2"]
+    del disp_img1
+    del disp_img2
 
 def btn_clicked_event(event):
     btn = lv.btn.__cast__(event.get_target())
@@ -135,9 +141,9 @@ def user_gui_init():
 
 def main():
     os.exitpoint(os.EXITPOINT_ENABLE)
-    display_init()
-    lvgl_init()
     try:
+        display_init()
+        lvgl_init()
         user_gui_init()
         while True:
             time.sleep_ms(lv.task_handler())

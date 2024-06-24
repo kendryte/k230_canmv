@@ -504,6 +504,8 @@ int ide_dbg_vo_wbc_deinit(void) {
 
 #endif //ENABLE_VO_WRITEBACK
 
+    kd_display_reset();
+
     return 0;
 }
 
@@ -941,7 +943,18 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
     return IDE_DBG_STATUS_OK;
 }
 
-extern volatile bool repl_script_running;
+volatile bool repl_script_running = false;
+
+void ide_before_python_run(int input_kind, mp_uint_t exec_flags)
+{
+    mp_hal_stdio_mode_orig();
+    repl_script_running = true;
+}
+
+void ide_afer_python_run(int input_kind, mp_uint_t exec_flags, void *ret_val, int ret)
+{
+    repl_script_running = false;
+}
 
 static void* ide_dbg_task(void* args) {
     ide_dbg_state_t state;

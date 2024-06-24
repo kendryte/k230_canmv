@@ -129,12 +129,13 @@ class MediaManager:
             return f"MediaManager.Buffer: handle {self.handle}, size {self.size}, poolId {self.pool_id}, phyAddr {self.phys_addr}, virtAddr {self.virt_addr:x}"
 
         @staticmethod
-        def get(size):
+        def get(size, pool_id = VB_INVALID_POOLID):
             if not MediaManager._is_inited:
                 raise AssertionError("please run MediaManager.Buffer() after MediaManager.init()")
 
             info = vb_block_info()
             info.size = size
+            info.pool_id = pool_id
 
             ret = vb_mgmt_get_block(info)
             if ret != 0:

@@ -34,10 +34,10 @@ else
 lvgl_download_url = $(SERVER)/downloads/canmv/lv_binding_micropython.tar.gz
 fast_dl:
 	@set -e; \
-	if [ ! -f lv_binding_micropython/.ready_dl_src ]; then \
+	if [ ! -f .ready_dl_src ]; then \
 		echo "download lvgl, url: $(lvgl_download_url)"; \
 		wget -c --show-progress $(lvgl_download_url) -O - | tar -xz ; \
-		touch lv_binding_micropython/.ready_dl_src; \
+		touch .ready_dl_src; \
 	fi;
 endif # end ifeq ($(FAST_DL),0)
 endif # end ifeq ($(MAKECMDGOALS), fast_dl)
