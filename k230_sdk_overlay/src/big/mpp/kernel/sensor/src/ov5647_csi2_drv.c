@@ -754,7 +754,20 @@ static k_sensor_mode ov5647_mode_info[] = {
             .data_type = 0x2B, //RAW10
         },
         .reg_list = ov5647_640x480_10bpp,
-        .mclk_setting = {{K_FALSE}, {K_FALSE}, {K_FALSE}},
+#if defined(CONFIG_BOARD_K230_CANMV) || defined(CONFIG_BOARD_K230D_CANMV)
+        .mclk_setting = {{K_FALSE}, {K_FALSE}, {K_FALSE}},    
+#else
+        .mclk_setting = {
+            {
+                .mclk_setting_en = K_TRUE,
+                .setting.id = SENSOR_MCLK2,
+                .setting.mclk_sel = SENSOR_PLL0_CLK_DIV4,
+                .setting.mclk_div = 16,
+            },
+            {K_FALSE},
+            {K_FALSE},
+        },
+#endif
     },
     {
         .index = 3,
@@ -852,13 +865,13 @@ static k_sensor_mode ov5647_mode_info[] = {
             .data_type = 0x2B, //RAW10
         },
         .reg_list = mode_1280x720_60fps, //mode_1280x720_60fps,
-#if defined(CONFIG_BOARD_K230_CANMV)
+#if defined(CONFIG_BOARD_K230_CANMV) || defined(CONFIG_BOARD_K230D_CANMV)
         .mclk_setting = {{K_FALSE}, {K_FALSE}, {K_FALSE}},    
 #else
         .mclk_setting = {
             {
                 .mclk_setting_en = K_TRUE,
-                .setting.id = SENSOR_MCLK0,
+                .setting.id = SENSOR_MCLK2,
                 .setting.mclk_sel = SENSOR_PLL0_CLK_DIV4,
                 .setting.mclk_div = 16,
             },
@@ -888,14 +901,14 @@ static k_sensor_mode ov5647_mode_info[] = {
             .data_type = 0x2B, //RAW10
         },
         .reg_list = ov5647_1280x960p30_10bpp, //mode_1280x720_60fps,
-#if defined(CONFIG_BOARD_K230_CANMV)
+#if defined(CONFIG_BOARD_K230_CANMV) || defined(CONFIG_BOARD_K230D_CANMV)
         .mclk_setting = {{K_FALSE}, {K_FALSE}, {K_FALSE}},
         
 #else
         .mclk_setting = {
             {
                 .mclk_setting_en = K_TRUE,
-                .setting.id = SENSOR_MCLK0,
+                .setting.id = SENSOR_MCLK2,
                 .setting.mclk_sel = SENSOR_PLL0_CLK_DIV4,
                 .setting.mclk_div = 16,
             },
