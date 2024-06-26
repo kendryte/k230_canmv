@@ -206,6 +206,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         VICAP_FLASH_FOLLOW_STROBE,
         VICAP_VI_FIRST_FRAME_FS_TR0,
         0,
+        30,
         OV_OV9286_MIPI_1280X720_30FPS_10BIT_LINEAR_IR
     },
     {
@@ -481,7 +482,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         OV_OV9286_MIPI_1280X720_60FPS_10BIT_LINEAR_SPECKLE
     },
     {
-        "ov5647",
+        "ov5647_csi2",
         1920,
         1080,
         VICAP_CSI2,
