@@ -9,7 +9,10 @@ from media.sensor import *
 from media.display import *
 from media.media import *
 
-def camera_test():
+sensor0 = None
+sensor1 = None
+
+try:
     print("camera_test")
 
     sensor0 = Sensor(id = 0)
@@ -22,14 +25,14 @@ def camera_test():
     bind_info = sensor0.bind_info(x = 0, y = 0)
     Display.bind_layer(**bind_info, layer = Display.LAYER_VIDEO1)
 
-    sensro1 = Sensor(id = 1)
-    sensro1.reset()
+    sensor1 = Sensor(id = 1)
+    sensor1.reset()
     # set chn0 output size, 960x540
-    sensro1.set_framesize(width = 960, height = 540)
+    sensor1.set_framesize(width = 960, height = 540)
     # set chn0 out format
-    sensro1.set_pixformat(Sensor.YUV420SP)
+    sensor1.set_pixformat(Sensor.YUV420SP)
 
-    bind_info = sensro1.bind_info(x = 960, y = 540)
+    bind_info = sensor1.bind_info(x = 960, y = 540)
     Display.bind_layer(**bind_info, layer = Display.LAYER_VIDEO2)
 
     # use hdmi as display output
@@ -40,18 +43,21 @@ def camera_test():
     # multiple sensor only need one excute run()
     sensor0.run()
 
-    try:
-        while True:
-            os.exitpoint()
-            time.sleep(5)
-    except KeyboardInterrupt as e:
-        print("user stop: ", e)
-    except BaseException as e:
-        print(f"Exception {e}")
-
+    while True:
+        os.exitpoint()
+        time.sleep(1)
+except KeyboardInterrupt as e:
+    print("user stop")
+except BaseException as e:
+    print(f"Exception '{e}'")
+finally:
     # multiple sensor all need excute stop()
-    sensor0.stop()
-    sensro1.stop()
+    if isinstance(sensor0, Sensor):
+        sensor0.stop()
+    if isinstance(sensor1, Sensor):
+        sensor1.stop()
+    # or call Sensor.deinit()
+    # Sensor.deinit()
 
     # deinit display
     Display.deinit()
@@ -60,7 +66,3 @@ def camera_test():
     time.sleep_ms(100)
     # deinit media buffer
     MediaManager.deinit()
-
-if __name__ == "__main__":
-    os.exitpoint(os.EXITPOINT_ENABLE)
-    camera_test()

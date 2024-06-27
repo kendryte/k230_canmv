@@ -1,9 +1,6 @@
-# Histogram of Oriented Gradients (HoG) Example
+# Find Blobs Example
 #
-# This example demonstrates HoG visualization.
-#
-# Note: Due to JPEG artifacts, the HoG visualization looks blurry. To see the
-# image without JPEG artifacts, uncomment the lines that save the image to uSD.
+# This example shows off how to find blobs in the image.
 import time, os, gc, sys
 
 from media.sensor import *
@@ -30,8 +27,7 @@ def camera_init():
     # set chn0 output size
     sensor.set_framesize(width=DETECT_WIDTH,height=DETECT_HEIGHT)
     # set chn0 output format
-    sensor.set_pixformat(Sensor.GRAYSCALE)
-
+    sensor.set_pixformat(Sensor.RGB565)
     # use IDE as display output
     Display.init(Display.VIRT, width= DETECT_WIDTH, height = DETECT_HEIGHT,fps=100,to_ide = True)
     # init media manager
@@ -41,7 +37,6 @@ def camera_init():
 
 def camera_deinit():
     global sensor
-
     # sensor stop run
     sensor.stop()
     # deinit display
@@ -53,19 +48,28 @@ def camera_deinit():
     MediaManager.deinit()
 
 def capture_picture():
+
     fps = time.clock()
     while True:
         fps.tick()
         try:
             os.exitpoint()
-
             global sensor
             img = sensor.snapshot()
-            img.find_hog()
+
+            # select color
+            thresholds = [[0, 80, 40, 80, 10, 80]]      # red
+            # thresholds = [[0, 80, -120, -10, 0, 30]]    # green
+            # thresholds = [[0, 80, 30, 100, -120, -60]]  # blue
+            # find all blobs，and draw rectangles
+            blobs=img.find_blobs(thresholds ,pixels_threshold= 500)
+            for blob in blobs:
+                img.draw_rectangle(blob[0], blob[1], blob[2], blob[3], color = (255, 255, 0))
+
             # draw result to screen
             Display.show_image(img)
+            img = None
 
-            del img
             gc.collect()
             print(fps.fps())
         except KeyboardInterrupt as e:

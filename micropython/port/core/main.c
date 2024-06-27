@@ -203,6 +203,7 @@ STATIC char *strjoin(const char *s1, int sep_char, const char *s2) {
 
 extern void mp_hal_stdout_tx_str_cooked(const char* str);
 
+volatile bool is_repl_intr = false;
 extern volatile bool repl_script_running;
 
 STATIC int do_repl(void) {
@@ -467,6 +468,8 @@ MP_NOINLINE int main_(int argc, char **argv) {
     param.sched_priority = 30;
     pthread_setschedparam(pthread_self(), SCHED_FIFO, &param);
 
+    is_repl_intr = false;
+
     // Define a reasonable stack limit to detect stack overflow.
     mp_uint_t stack_limit = 128 * 1024 * (sizeof(void *) / 4);
     soft_reset:
@@ -707,7 +710,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
     extern bool ide_dbg_attach(void);
     extern void ide_dbg_on_script_start(void);
     extern void ide_dbg_on_script_end(void);
-    if (!ide_dbg_attach()) {
+    if (!ide_dbg_attach() && !is_repl_intr) {
         // boot.py
 
         FILE* script_file;
@@ -747,9 +750,15 @@ MP_NOINLINE int main_(int argc, char **argv) {
         skip_mainpy:
         // pass
         ;
+
+        if(is_repl_intr) {
+            goto main_thread_exit;
+        }
     }
 
     if (ide_dbg_attach()) {
+        is_repl_intr = false;
+
         fprintf(stdout, "[mpy] enter script\n");
         nlr_buf_t nlr;
         if (nlr_push(&nlr) == 0) {

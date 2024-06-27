@@ -24,6 +24,7 @@ class Sensor:
     RGB888   = PIXEL_FORMAT_RGB_888
     RGBP888  = PIXEL_FORMAT_RGB_888_PLANAR
     YUV420SP = PIXEL_FORMAT_YUV_SEMIPLANAR_420
+    GRAYSCALE = PIXEL_FORMAT_GRAYSCALE
 
     # QQSIF           #: 88x60
     # QQQQVGA         #: 40x30
@@ -68,7 +69,7 @@ class Sensor:
     _devs = [None for i in range(0, CAM_DEV_ID_MAX)]
 
     @classmethod
-    def _deinit(cls):
+    def deinit(cls):
         for i in range(0, CAM_DEV_ID_MAX):
             if isinstance(cls._devs[i], Sensor):
                 cls._devs[i].stop(is_del = True)
@@ -139,6 +140,7 @@ class Sensor:
         self._dft_input_buff_num = 4
         self._dft_output_buff_num = 6
 
+        def_mirror = 0
         dft_sensor_id = CAM_DEV_ID_0
 
         brd = os.uname()[-1]
@@ -171,6 +173,7 @@ class Sensor:
             if 0 != ret:
                 raise RuntimeError(f"Can not found sensor on {self._dev_id}")
 
+            # def_mirror = cfg.def_mirror
             self._type = info.type
             print(f"use sensor {info.type}, output {info.width}x{info.height}@{info.fps}")
 
@@ -186,7 +189,7 @@ class Sensor:
         self._dev_attr.mode = VICAP_WORK_ONLINE_MODE
         # self._dev_attr.mode = VICAP_WORK_OFFLINE_MODE
         self._dev_attr.input_type = VICAP_INPUT_TYPE_SENSOR
-        self._dev_attr.mirror = 0
+        self._dev_attr.mirror = def_mirror
 
         self._is_started = False
 
@@ -195,6 +198,7 @@ class Sensor:
 
         self._imgs = [None for i in range(0, VICAP_CHN_ID_MAX)]
         self._is_rgb565 = [False for i in range(0, VICAP_CHN_ID_MAX)]
+        self._is_grayscale = [False for i in range(0, VICAP_CHN_ID_MAX)]
 
         self._framesize = [Sensor.FRAME_SIZE_INVAILD for i in range(0, VICAP_CHN_ID_MAX)]
 
@@ -351,6 +355,8 @@ class Sensor:
 
                 if self._is_rgb565[chn] and (img_fmt == image.RGB888):
                     img = image.Image(img_width, img_height, img_fmt, cvt_565 = True, alloc=image.ALLOC_VB, phyaddr=phys_addr, virtaddr=virt_addr, poolid=frame_info.pool_id)
+                elif self._is_grayscale[chn] and (img_fmt == image.YUV420):
+                    img = image.Image(img_width, img_height, image.GRAYSCALE, cvt_565 = False, alloc=image.ALLOC_VB, phyaddr=phys_addr, virtaddr=virt_addr, poolid=frame_info.pool_id)
                 else:
                     img = image.Image(img_width, img_height, img_fmt, alloc=image.ALLOC_VB, phyaddr=phys_addr, virtaddr=virt_addr, poolid=frame_info.pool_id)
             else:
@@ -424,9 +430,12 @@ class Sensor:
             raise AssertionError(f"invaild chn id {chn}, should < {CAM_CHN_ID_MAX - 1}")
 
         self._is_rgb565[chn] = False
-        if pix_format == PIXEL_FORMAT_RGB_565:
+        if pix_format == Sensor.RGB565:
             self._is_rgb565[chn] = True
             pix_format = PIXEL_FORMAT_RGB_888
+        elif pix_format == Sensor.GRAYSCALE:
+            self._is_grayscale[chn] = True
+            pix_format = PIXEL_FORMAT_YUV_SEMIPLANAR_420
 
         self._chn_attr[chn].pix_format = pix_format
         self._chn_attr[chn].chn_enable = True

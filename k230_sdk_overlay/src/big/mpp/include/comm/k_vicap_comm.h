@@ -624,6 +624,7 @@ typedef struct {
     k_u32 width;
     k_u32 height;
     k_u32 fps;
+    k_u32 mirror; /* default mirror setting */
 } k_vicap_probe_config;
 
 #define K_ERR_VICAP_INVALID_DEVID     K_DEF_ERR(K_ID_VICAP, K_ERR_LEVEL_ERROR, K_ERR_INVALID_DEVID)

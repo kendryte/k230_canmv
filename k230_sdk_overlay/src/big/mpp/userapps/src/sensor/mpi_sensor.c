@@ -1458,6 +1458,8 @@ static int compare_sensor_info(const void *a, const void *b) {
     return sensorB->height - sensorA->height;
 }
 
+extern k_u32 get_mirror_by_sensor_type(k_vicap_sensor_type type);
+
 k_s32 kd_mpi_sensor_adapt_get(k_vicap_probe_config *config, k_vicap_sensor_info *info)
 {
 #define MAX_SENSOR_COUNT (16)
@@ -1552,7 +1554,7 @@ k_s32 kd_mpi_sensor_adapt_get(k_vicap_probe_config *config, k_vicap_sensor_info 
                 if ((config->width == p_sensor_info->width) && (config->height == p_sensor_info->height) && (config->fps == p_sensor_info->fps))
                 {
                     memcpy(info, p_sensor_info, sizeof(k_vicap_sensor_info));
-                    return 0;
+                    goto _on_success;
                 }
             }
         }
@@ -1565,7 +1567,7 @@ k_s32 kd_mpi_sensor_adapt_get(k_vicap_probe_config *config, k_vicap_sensor_info 
             if ((config->width == p_sensor_info->width) && (config->height == p_sensor_info->height) /* && (config->fps == p_sensor_info->fps) */)
             {
                 memcpy(info, p_sensor_info, sizeof(k_vicap_sensor_info));
-                return 0;
+                goto _on_success;
             }
         }
 
@@ -1577,12 +1579,18 @@ k_s32 kd_mpi_sensor_adapt_get(k_vicap_probe_config *config, k_vicap_sensor_info 
             if ((config->width <= p_sensor_info->width) && (config->height <= p_sensor_info->height) /* && (config->fps == p_sensor_info->fps) */)
             {
                 memcpy(info, p_sensor_info, sizeof(k_vicap_sensor_info));
-                return 0;
+                goto _on_success;
             }
         }
     }
 
     return 1;
+
+_on_success:
+
+    config->mirror = get_mirror_by_sensor_type(info->sensor_type);
+
+    return 0;
 
 #undef MAX_SENSOR_COUNT
 }

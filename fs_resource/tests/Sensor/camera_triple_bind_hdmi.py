@@ -9,7 +9,11 @@ from media.sensor import *
 from media.display import *
 from media.media import *
 
-def camera_test():
+sensor0 = None
+sensor1 = None
+sensor2 = None
+
+try:
     print("camera_test")
 
     # sensor0
@@ -24,25 +28,25 @@ def camera_test():
     Display.bind_layer(**bind_info, layer = Display.LAYER_VIDEO1)
 
     # sensor1
-    sensro1 = Sensor(id = 1)
-    sensro1.reset()
+    sensor1 = Sensor(id = 1)
+    sensor1.reset()
     # set chn0 output size
-    sensro1.set_framesize(width = 960, height = 540)
+    sensor1.set_framesize(width = 960, height = 540)
     # set chn0 out format
-    sensro1.set_pixformat(Sensor.YUV420SP)
+    sensor1.set_pixformat(Sensor.YUV420SP)
 
-    bind_info = sensro1.bind_info(x = 960, y = 540)
+    bind_info = sensor1.bind_info(x = 960, y = 540)
     Display.bind_layer(**bind_info, layer = Display.LAYER_VIDEO2)
 
     # sensor2
-    sensro2 = Sensor(id = 2)
-    sensro2.reset()
+    sensor2 = Sensor(id = 2)
+    sensor2.reset()
     # set chn0 output size
-    sensro2.set_framesize(width = 960, height = 540)
+    sensor2.set_framesize(width = 960, height = 540)
     # set chn0 out format
-    sensro2.set_pixformat(Sensor.YUV420SP)
+    sensor2.set_pixformat(Sensor.RGB888)
 
-    bind_info = sensro2.bind_info(x = 0, y = 540)
+    bind_info = sensor2.bind_info(x = 0, y = 540)
     Display.bind_layer(**bind_info, layer = Display.LAYER_OSD0)
 
     # use hdmi as display output
@@ -53,18 +57,20 @@ def camera_test():
     # multiple sensor only need one excute run()
     sensor0.run()
 
-    try:
-        while True:
-            os.exitpoint()
-            time.sleep(5)
-    except KeyboardInterrupt as e:
-        print("user stop: ", e)
-    except BaseException as e:
-        print(f"Exception {e}")
+    while True:
+        os.exitpoint()
+        time.sleep(5)
+except KeyboardInterrupt as e:
+    print("user stop: ", e)
+except BaseException as e:
+    print(f"Exception {e}")
+finally:
     # multiple sensor all need excute stop()
     sensor0.stop()
-    sensro1.stop()
-    sensro2.stop()
+    sensor1.stop()
+    sensor2.stop()
+    # or call Sensor.deinit()
+    # Sensor.deinit()
 
     # deinit display
     Display.deinit()
@@ -73,7 +79,3 @@ def camera_test():
     time.sleep_ms(100)
     # deinit media buffer
     MediaManager.deinit()
-
-if __name__ == "__main__":
-    os.exitpoint(os.EXITPOINT_ENABLE)
-    camera_test()

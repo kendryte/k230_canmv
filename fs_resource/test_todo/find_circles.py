@@ -11,11 +11,8 @@ from media.sensor import *
 from media.display import *
 from media.media import *
 
-DISPLAY_WIDTH = ALIGN_UP(1920, 16)
-DISPLAY_HEIGHT = 1080
-SCALE = 4
-DETECT_WIDTH = DISPLAY_WIDTH // SCALE
-DETECT_HEIGHT = DISPLAY_HEIGHT // SCALE
+DETECT_WIDTH = ALIGN_UP(320, 16)
+DETECT_HEIGHT = 240
 
 sensor = None
 
@@ -23,7 +20,7 @@ def camera_init():
     global sensor
 
     # construct a Sensor object with default configure
-    sensor = Sensor()
+    sensor = Sensor(width=DETECT_WIDTH,height=DETECT_HEIGHT)
     # sensor reset
     sensor.reset()
     # set hmirror
@@ -31,20 +28,13 @@ def camera_init():
     # sensor vflip
     # sensor.set_vflip(False)
 
-    # set chn0 output size, 1920x1080
-    sensor.set_framesize(Sensor.FHD)
+    # set chn0 output size
+    sensor.set_framesize(width=DETECT_WIDTH,height=DETECT_HEIGHT)
     # set chn0 output format
-    sensor.set_pixformat(Sensor.YUV420SP)
-    # bind sensor chn0 to display layer video 1
-    bind_info = sensor.bind_info()
-    Display.bind_layer(**bind_info, layer = Display.LAYER_VIDEO1)
-
-    # set chn1 output format
-    sensor.set_framesize(width= DETECT_WIDTH, height = DETECT_HEIGHT, chn = CAM_CHN_ID_1)
-    sensor.set_pixformat(Sensor.RGB565, chn = CAM_CHN_ID_1)
+    sensor.set_pixformat(Sensor.RGB565)
 
     # use hdmi as display output
-    Display.init(Display.LT9611, to_ide = True)
+    Display.init(Display.VIRT, width= DETECT_WIDTH, height = DETECT_HEIGHT,fps=100,to_ide = True)
     # init media manager
     MediaManager.init()
     # sensor start run
@@ -52,7 +42,6 @@ def camera_init():
 
 def camera_deinit():
     global sensor
-
     # sensor stop run
     sensor.stop()
     # deinit display
@@ -71,7 +60,7 @@ def capture_picture():
             os.exitpoint()
 
             global sensor
-            img = sensor.snapshot(chn = CAM_CHN_ID_1)
+            img = sensor.snapshot()
 
             # Circle objects have four values: x, y, r (radius), and magnitude. The
             # magnitude is the strength of the detection of the circle. Higher is
@@ -88,7 +77,7 @@ def capture_picture():
 
             for c in img.find_circles(threshold = 2000, x_margin = 10, y_margin = 10, r_margin = 10,
                                         r_min = 2, r_max = 100, r_step = 2):
-                img.draw_circle(c.x()*SCALE, c.y()*SCALE, c.r()*SCALE, color = (255, 0, 0))
+                img.draw_circle(c.x(), c.y(), c.r(), color = (255, 255, 0))
                 print(c)
 
             # draw result to screen

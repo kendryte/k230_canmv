@@ -5,7 +5,9 @@ from media.sensor import *
 from media.display import *
 from media.media import *
 
-def camera_test():
+sensor = None
+
+try:
     print("camera_test")
 
     # construct a Sensor object with default configure
@@ -32,22 +34,19 @@ def camera_test():
     # sensor start run
     sensor.run()
 
-    try:
-        while True:
-            os.exitpoint()
-    except KeyboardInterrupt as e:
-        print("user stop: ", e)
-    except BaseException as e:
-        print(f"Exception {e}")
+    while True:
+        os.exitpoint()
+except KeyboardInterrupt as e:
+    print("user stop: ", e)
+except BaseException as e:
+    print(f"Exception {e}")
+finally:
     # sensor stop run
-    sensor.stop()
+    if isinstance(sensor, Sensor):
+        sensor.stop()
     # deinit display
     Display.deinit()
     os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
     time.sleep_ms(100)
     # release media buffer
     MediaManager.deinit()
-
-if __name__ == "__main__":
-    os.exitpoint(os.EXITPOINT_ENABLE)
-    camera_test()
