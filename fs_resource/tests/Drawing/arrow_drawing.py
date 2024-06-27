@@ -6,16 +6,44 @@ import time, os, gc, sys, urandom
 from media.display import *
 from media.media import *
 
-DISPLAY_WIDTH = ALIGN_UP(1920, 16)
-DISPLAY_HEIGHT = 1080
+DISPLAY_IS_HDMI = True
+DISPLAY_IS_LCD = False
+DISPLAY_IS_IDE = False
 
-def draw():
+try:
+    # default size
+    width = 640
+    height = 480
+    if DISPLAY_IS_HDMI:
+        # use hdmi as display output, set to 1080P
+        Display.init(Display.LT9611, width = 1920, height = 1080, to_ide = True)
+        width = 1920
+        height = 1080
+    elif DISPLAY_IS_LCD:
+        # use lcd as display output
+        Display.init(Display.ST7701, width = 800, height = 480, to_ide = True)
+        width = 800
+        height = 480
+    elif DISPLAY_IS_IDE:
+        # use IDE as output
+        Display.init(Display.VIRT, width = 800, height = 480, fps = 100)
+        width = 800
+        height = 480
+    else:
+        raise ValueError("Shoule select a display.")
+    # init media manager
+    MediaManager.init()
+
     fps = time.clock()
     # create image for drawing
-    img = image.Image(DISPLAY_WIDTH, DISPLAY_HEIGHT, image.ARGB8888)
+    img = image.Image(width, height, image.ARGB8888)
 
     while True:
         fps.tick()
+
+        # check if should exit.
+        os.exitpoint()
+
         img.clear()
         for i in range(10):
             x0 = (urandom.getrandbits(30) % (2*img.width())) - (img.width()//2)
@@ -28,30 +56,24 @@ def draw():
             # If the first argument is a scaler then this method expects
             # to see x0, y0, x1, and y1. Otherwise, it expects a (x0,y0,x1,y1) tuple.
             img.draw_arrow(x0, y0, x1, y1, color = (r, g, b), size = 30, thickness = 2)
+
         # draw result to screen
         Display.show_image(img)
 
-        time.sleep(1)
-        os.exitpoint()
+        print(fps.fps())
 
-def main():
-    os.exitpoint(os.EXITPOINT_ENABLE)
+        # max 100 fps
+        time.sleep_ms(10)
+except KeyboardInterrupt as e:
+    print(f"user stop")
+except BaseException as e:
+    print(f"Exception '{e}'")
+finally:
+    # deinit display
+    Display.deinit()
 
-    try:
-        print("camera init")
-        # use hdmi as display output
-        Display.init(Display.LT9611, to_ide = True)
-        # init media manager
-        MediaManager.init()
-        print("draw")
-        draw()
-    except KeyboardInterrupt as e:
-        print("user stop: ", e)
-    except BaseException as e:
-        print(f"Exception {e}")
-    finally:
-        Display.deinit()
-        MediaManager.deinit()
+    os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
+    time.sleep_ms(100)
 
-if __name__ == "__main__":
-    main()
+    # release media buffer
+    MediaManager.deinit()

@@ -7,19 +7,16 @@ from media.sensor import *
 from media.display import *
 from media.media import *
 
-DISPLAY_WIDTH = ALIGN_UP(1920, 16)
-DISPLAY_HEIGHT = 1080
-SCALE = 4
-DETECT_WIDTH = DISPLAY_WIDTH // SCALE
-DETECT_HEIGHT = DISPLAY_HEIGHT // SCALE
+
+DETECT_WIDTH = ALIGN_UP(640, 16)
+DETECT_HEIGHT = 480
 
 sensor = None
 
 def camera_init():
     global sensor
-
     # construct a Sensor object with default configure
-    sensor = Sensor()
+    sensor = Sensor(width=DETECT_WIDTH,height=DETECT_HEIGHT)
     # sensor reset
     sensor.reset()
     # set hmirror
@@ -27,20 +24,13 @@ def camera_init():
     # sensor vflip
     # sensor.set_vflip(False)
 
-    # set chn0 output size, 1920x1080
-    sensor.set_framesize(Sensor.FHD)
+    # set chn0 output size
+    sensor.set_framesize(width=DETECT_WIDTH,height=DETECT_HEIGHT)
     # set chn0 output format
-    sensor.set_pixformat(Sensor.YUV420SP)
-    # bind sensor chn0 to display layer video 1
-    bind_info = sensor.bind_info()
-    Display.bind_layer(**bind_info, layer = Display.LAYER_VIDEO1)
+    sensor.set_pixformat(Sensor.GRAYSCALE)
 
-    # set chn1 output format
-    sensor.set_framesize(width= DETECT_WIDTH, height = DETECT_HEIGHT, chn = CAM_CHN_ID_1)
-    sensor.set_pixformat(Sensor.YUV420SP, chn = CAM_CHN_ID_1)
-
-    # use hdmi as display output
-    Display.init(Display.LT9611, to_ide = True)
+    # use IDE as display output
+    Display.init(Display.VIRT, width= DETECT_WIDTH, height = DETECT_HEIGHT,fps=100,to_ide = True)
     # init media manager
     MediaManager.init()
     # sensor start run
@@ -61,16 +51,12 @@ def camera_deinit():
 
 def capture_picture():
     fps = time.clock()
-
     while True:
         fps.tick()
         try:
             os.exitpoint()
-
             global sensor
-            yuv420_img = sensor.snapshot(chn = CAM_CHN_ID_1)
-            dect_img = image.Image(yuv420_img.width(), yuv420_img.height(), image.GRAYSCALE, alloc=image.ALLOC_HEAP, data=yuv420_img)
-
+            dect_img = sensor.snapshot()
             # Use Canny edge detector
             dect_img.find_edges(image.EDGE_CANNY, threshold=(50, 80))
             # Faster simpler edge detection

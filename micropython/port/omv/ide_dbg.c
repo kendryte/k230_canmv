@@ -175,6 +175,8 @@ static void print_sha256(const uint8_t sha256[32]) {
     #endif
 }
 
+volatile bool repl_script_running = false;
+
 void mpy_start_script(char* filepath);
 void mpy_stop_script();
 static char *script_string = NULL;
@@ -198,6 +200,7 @@ bool ide_dbg_attach(void) {
 
 void ide_dbg_on_script_start(void) {
     ide_script_running = 1;
+    repl_script_running = true;
 }
 
 void ide_dbg_on_script_end(void) {
@@ -217,6 +220,8 @@ void ide_dbg_on_script_end(void) {
         ide_attached = false;
     }
     fb_from = FB_FROM_NONE;
+
+    repl_script_running = false;
 }
 
 void interrupt_repl(void) {
@@ -943,7 +948,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
     return IDE_DBG_STATUS_OK;
 }
 
-volatile bool repl_script_running = false;
+extern volatile bool is_repl_intr;
 
 void ide_before_python_run(int input_kind, mp_uint_t exec_flags)
 {
@@ -1060,6 +1065,7 @@ static void* ide_dbg_task(void* args) {
                 pr_verb("[usb] read %lu bytes ", size);
                 print_raw(usb_cdc_read_buf, size);
                 if ((size == 1) && (usb_cdc_read_buf[0] == CHAR_CTRL_C) && repl_script_running) {
+                    is_repl_intr = true;
                     // terminate script running
                     #if MICROPY_KBD_EXCEPTION
                     mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));

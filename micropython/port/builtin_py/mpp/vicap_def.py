@@ -332,6 +332,7 @@ k_vicap_probe_config_desc = {
     "width": 4 | uctypes.UINT32,
     "height": 8 | uctypes.UINT32,
     "fps": 12 | uctypes.UINT32,
+    "def_mirror": 16 | uctypes.UINT32,
 }
 
 def k_vicap_probe_config_parse(s, kwargs):
@@ -339,3 +340,4 @@ def k_vicap_probe_config_parse(s, kwargs):
     s.width = kwargs.get("width", 0)
     s.height = kwargs.get("height", 0)
     s.fps = kwargs.get("fps", 0)
+    s.def_mirror = kwargs.get("def_mirror", 0)

@@ -25,7 +25,7 @@ def save_img(img, chn):
     print("save capture image to file:", filename)
     img.save(filename)
 
-def camera_test():
+try:
     print("camera_test")
     # construct a Sensor object with default configure
     sensor = Sensor()
@@ -63,34 +63,29 @@ def camera_test():
     for i in range(100):
         sensor.snapshot()
 
-    try:
-        os.exitpoint()
-        time.sleep(5)
+    # snapshot and save
+    img = sensor.snapshot(chn = CAM_CHN_ID_0)
+    save_img(img, 0)
 
-        img = sensor.snapshot(chn = CAM_CHN_ID_0)
-        save_img(img, 0)
+    img = sensor.snapshot(chn = CAM_CHN_ID_1)
+    save_img(img, 1)
 
-        img = sensor.snapshot(chn = CAM_CHN_ID_1)
-        save_img(img, 1)
+    img = sensor.snapshot(chn = CAM_CHN_ID_2)
+    save_img(img, 2)
 
-        img = sensor.snapshot(chn = CAM_CHN_ID_2)
-        save_img(img, 2)
-
-    except KeyboardInterrupt as e:
-        print("user stop: ", e)
-    except BaseException as e:
-        print(f"Exception {e}")
-    
-    print("save image end.")
+except KeyboardInterrupt as e:
+    print(f"user stop")
+except BaseException as e:
+    print(f"Exception '{e}'")
+finally:
     # sensor stop run
-    sensor.stop()
+    if isinstance(sensor, Sensor):
+        sensor.stop()
     # deinit display
     Display.deinit()
+
     os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
     time.sleep_ms(100)
+
     # release media buffer
     MediaManager.deinit()
-
-if __name__ == "__main__":
-    os.exitpoint(os.EXITPOINT_ENABLE)
-    camera_test()
