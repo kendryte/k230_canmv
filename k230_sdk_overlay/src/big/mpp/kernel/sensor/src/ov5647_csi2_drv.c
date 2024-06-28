@@ -63,12 +63,6 @@
 
 static k_bool mirror_flag = 0;
 
-static k_sensor_reg sensor_mirror_reg[] = {
-    {0x3820, 0x00},
-    {0x3821, 0x00},
-    {REG_NULL, 0x00},
-};
-
 static const k_sensor_reg sensor_oe_disable_regs[] = {
     {0x3000, 0x00},
     {0x3001, 0x00},
@@ -83,6 +77,12 @@ static const k_sensor_reg sensor_oe_enable_regs[] = {
     {REG_NULL, 0x00},
 };
 
+static k_sensor_reg sensor_mirror_reg[] = {
+    {0x3820, 0x00},
+    {0x3821, 0x00},
+    {REG_NULL, 0x00},
+};
+
 
 static const k_sensor_reg ov5647_mipi2lane_1080p_30fps_linear[] = {
     //pixel_rate = 81666700
@@ -90,18 +90,18 @@ static const k_sensor_reg ov5647_mipi2lane_1080p_30fps_linear[] = {
     {0x0100, 0x00},
     {0x3034, 0x1a},
     {0x3035, 0x21},
-    {0x3036, 0x62},
-    {0x303c, 0x11},
-    {0x3106, 0xf5},
-    {0x3821, 0x02},
-    {0x3820, 0x00},
+    {0x3036, 0x62},	//PLL multiplier
+    {0x303c, 0x11},	//plls_sys_div
+    {0x3106, 0xf5},	//PLL clock divider
+    {0x3821, 0x02},	//verticall, bit1: flip, bit0: bining
+    {0x3820, 0x00},	//horizontal, bit1: mirror, bit0: bining
     {0x3827, 0xec},
     {0x370c, 0x03},
     {0x3612, 0x5b},
     {0x3618, 0x04},
-    {0x5000, 0x06},
-    {0x5001, 0x00},         // set awb disble
-    {0x5002, 0x00},//41
+    {0x5000, 0x06},	//blc enable
+    {0x5001, 0x00},	// set awb disble
+	{0x5002, 0x00},	//disable win, otp and awb gain
     {0x5003, 0x08},
     {0x5a00, 0x08},
     {0x3000, 0x00},
@@ -109,35 +109,35 @@ static const k_sensor_reg ov5647_mipi2lane_1080p_30fps_linear[] = {
     {0x3002, 0x00},
     {0x3016, 0x08},
     {0x3017, 0xe0},
-    {0x3018, 0x44},
+    {0x3018, 0x44},	//2 lane, MIPI
     {0x301c, 0xf8},
     {0x301d, 0xf0},
-    {0x3a18, 0x03},//00
-    {0x3a19, 0xff},//f8
+    {0x3a18, 0x03},	//gain_celling, max gain value 
+    {0x3a19, 0xff},		//gain_celling
     {0x3c01, 0x80},
     {0x3b07, 0x0c},
-    {0x380c, 0x09},         // h totle  high
-    {0x380d, 0x70},         // h totle low
-    {0x380e, 0x04},         // v totle high
-    {0x380f, 0x66},         // v totle lo 50   0x66
-    {0x3814, 0x11},
-    {0x3815, 0x11},
+    {0x380c, 0x08},         // HTS = 2271
+    {0x380d, 0xdf},         //
+    {0x380e, 0x04},         //VTS = 1199
+    {0x380f, 0xaf},         //
+	{0x3814, 0x11},	//horizontal subsampling
+	{0x3815, 0x11},	//vertical subsampling
     {0x3708, 0x64},
     {0x3709, 0x12},
-    {0x3808, 0x07},
+    {0x3808, 0x07},	// x output size: 1920
     {0x3809, 0x80},
-    {0x380a, 0x04},
+    {0x380a, 0x04},	// y output size: 1080
     {0x380b, 0x38},
-    {0x3800, 0x01},
+    {0x3800, 0x01},	//x start = 0x15c = 348
     {0x3801, 0x5c},
-    {0x3802, 0x01},
+    {0x3802, 0x01},	//y start = 0x1b2 = 434
     {0x3803, 0xb2},
-    {0x3804, 0x08},
+    {0x3804, 0x08},	//x end = 0x8e3 = 2275, x size = 2275 - 348 +1 = 1928
     {0x3805, 0xe3},
-    {0x3806, 0x05},
+    {0x3806, 0x05},	//y end = 0x5f1 = 1521, y size = 1521 - 434 + 1 = 1088
     {0x3807, 0xf1},
-    {0x3811, 0x04},
-    {0x3813, 0x02},
+	{0x3811, 0x04},	//x offset: 4
+	{0x3813, 0x02},	//y offset: 2
     {0x3630, 0x2e},
     {0x3632, 0xe2},
     {0x3633, 0x23},
@@ -156,10 +156,10 @@ static const k_sensor_reg ov5647_mipi2lane_1080p_30fps_linear[] = {
     {0x3f05, 0x02},
     {0x3f06, 0x10},
     {0x3f01, 0x0a},
-    {0x3a00, 0x00},
-    {0x3a08, 0x01},
+    {0x3a00, 0x00},	//AEC control, all disable
+    {0x3a08, 0x01},	//50Hz step
     {0x3a09, 0x4b},
-    {0x3a0a, 0x01},
+    {0x3a0a, 0x01},	//60Hz step
     {0x3a0b, 0x13},
     {0x3a0d, 0x04},
     {0x3a0e, 0x03},
@@ -170,10 +170,12 @@ static const k_sensor_reg ov5647_mipi2lane_1080p_30fps_linear[] = {
     {0x3a11, 0x60},
     {0x3a1f, 0x28},
     {0x4001, 0x02},
-    {0x4004, 0x04},
+    {0x4004, 0x04},	//blc line number
     {0x4000, 0x09},
     {0x4837, 0x19},
     {0x4800, 0x34},
+    {0x3501, 0x02},	//ET = 42 lines
+    {0x3502, 0xa0},
     {0x3503, 0x07},         //0x0f
     {0x350b, 0x10},         // gain
     // {0x0100, 0x01},
@@ -279,12 +281,12 @@ static const k_sensor_reg  ov5647_2592x1944_10bpp[] = {
 
 //90 fps ok
 static const k_sensor_reg ov5647_640x480_10bpp[] = {
-   //pixel_rate = 95833333 Hz, 1852 x 575 x 90fps
+   //pixel_rate = 92.5 MHz, 1792 x 573 x 90fps
     {0x0103, 0x01},
     {0x0100, 0x00},
     {0x3034, 0x1a},
     {0x3035, 0x21},
-    {0x3036, 0x73},
+    {0x3036, 0x6f},
     {0x303c, 0x11},
     {0x3106, 0xf5},
 	{0x3820, 0x01},	//horizontal, bit1: mirror, bit0: bining
@@ -306,14 +308,14 @@ static const k_sensor_reg ov5647_640x480_10bpp[] = {
     {0x3018, 0x44},	//2 lane, MIPI
     {0x301c, 0xf8},
     {0x301d, 0xf0},
-    {0x3a18, 0x03},	//gain_celling, max gain value 
+    {0x3a18, 0x03},	//gain_celling, max gain value
     {0x3a19, 0xff},		//gain_celling
     {0x3c01, 0x80},
     {0x3b07, 0x0c},
-    {0x380c, 0x07},	// HTS = 1852
-    {0x380d, 0x3c},
-    {0x380e, 0x02},	//VTS = 575
-     {0x380f, 0x3f},
+    {0x380c, 0x07},	// HTS = 1792
+    {0x380d, 0x00},
+    {0x380e, 0x02},	//VTS = 573
+     {0x380f, 0x3d},
     {0x3814, 0x35},	//horizontal subsampling, 8/2
     {0x3815, 0x35},	//vertical subsampling, 8/2
     {0x3708, 0x64},
@@ -322,16 +324,16 @@ static const k_sensor_reg ov5647_640x480_10bpp[] = {
     {0x3809, 0x80},
     {0x380a, 0x01},	// y output size: 480
     {0x380b, 0xe0},
-    {0x3800, 0x00},	//x start = 0x10 = 16
-    {0x3801, 0x10},
-    {0x3802, 0x00},	//y start = 0
-    {0x3803, 0x00},
-    {0x3804, 0x0a},	//x end = 0xa2f = 2607, x size = 2607 - 16 + 1 = 2592 (648 x 4)
-    {0x3805, 0x2f},
-    {0x3806, 0x07},	//y end = 0x79f = 1951, y size = 1951 - 0 + 1 = 1952 (488 x 4)
-    {0x3807, 0x9f},
-	//{0x3811, 0x04},	//x offset: 4
-	//{0x3813, 0x02},	//y offset: 2
+	{0x3800, 0x00},     // x start 24
+	{0x3801, 0x18},
+	{0x3802, 0x00},     // y start 12
+	{0x3803, 0x0c}, 
+	{0x3804, 0x0a},     //x end = 0xa1f = 2607, x size = 2607 +1 - 24 = 2584 (648 x 2 + 640 x 2 + 8)
+	{0x3805, 0x2f},
+	{0x3806, 0x07},     //y end = 0x7a3 = 1955, y size = 1955 +1 - 12 = 1944(486 x 4)
+	{0x3807, 0xa3},
+	{0x3811, 0x04},	//x offset: 4
+	{0x3813, 0x02},	//y offset: 2
     {0x3630, 0x2e},
     {0x3632, 0xe2},
     {0x3633, 0x23},
@@ -372,10 +374,9 @@ static const k_sensor_reg ov5647_640x480_10bpp[] = {
     {0x3502, 0xa0},
     {0x3503, 0x07},         //0x0f
     {0x350b, 0x10},         // gain
-    //{0x0100, 0x01},
+    {0x0100, 0x01},
     {REG_NULL, 0x00},
 };
-
 
 static const k_sensor_reg ov5647_mipi2lane_1080p_30fps_flip_linear[] = {
     //pixel_rate = 81666700
@@ -383,18 +384,18 @@ static const k_sensor_reg ov5647_mipi2lane_1080p_30fps_flip_linear[] = {
     {0x0100, 0x00},
     {0x3034, 0x1a},
     {0x3035, 0x21},
-    {0x3036, 0x62},
-    {0x303c, 0x11},
-    {0x3106, 0xf5},
-    {0x3821, 0x00},
-    {0x3820, 0x02},  //0x00
+    {0x3036, 0x62},	//PLL multiplier
+    {0x303c, 0x11},	//plls_sys_div
+    {0x3106, 0xf5},	//PLL clock divider
+    {0x3821, 0x00},	//verticall, bit1: flip, bit0: bining
+    {0x3820, 0x02},	//horizontal, bit1: mirror, bit0: bining
     {0x3827, 0xec},
     {0x370c, 0x03},
     {0x3612, 0x5b},
     {0x3618, 0x04},
-    {0x5000, 0x06},
-    {0x5001, 0x00},         // set awb disble
-    {0x5002, 0x00},//41
+    {0x5000, 0x06},	//blc enable
+    {0x5001, 0x00},	// set awb disble
+	{0x5002, 0x00},	//disable win, otp and awb gain
     {0x5003, 0x08},
     {0x5a00, 0x08},
     {0x3000, 0x00},
@@ -402,35 +403,35 @@ static const k_sensor_reg ov5647_mipi2lane_1080p_30fps_flip_linear[] = {
     {0x3002, 0x00},
     {0x3016, 0x08},
     {0x3017, 0xe0},
-    {0x3018, 0x44},
+    {0x3018, 0x44},	//2 lane, MIPI
     {0x301c, 0xf8},
     {0x301d, 0xf0},
-    {0x3a18, 0x03},//00
-    {0x3a19, 0xff},//f8
+    {0x3a18, 0x03},	//gain_celling, max gain value 
+    {0x3a19, 0xff},		//gain_celling
     {0x3c01, 0x80},
     {0x3b07, 0x0c},
-    {0x380c, 0x08},         // h totle  high
-    {0x380d, 0xdf},         // h totle low
-    {0x380e, 0x04},         // v totle high
-    {0x380f, 0xaf},         // v totle low
-    {0x3814, 0x11},
-    {0x3815, 0x11},
+    {0x380c, 0x08},         // HTS = 2271
+    {0x380d, 0xdf},         //
+    {0x380e, 0x04},         //VTS = 1199
+    {0x380f, 0xaf},         //
+	{0x3814, 0x11},	//horizontal subsampling
+	{0x3815, 0x11},	//vertical subsampling
     {0x3708, 0x64},
     {0x3709, 0x12},
-    {0x3808, 0x07},
+    {0x3808, 0x07},	// x output size: 1920
     {0x3809, 0x80},
-    {0x380a, 0x04},
+    {0x380a, 0x04},	// y output size: 1080
     {0x380b, 0x38},
-    {0x3800, 0x01},
+    {0x3800, 0x01},	//x start = 0x15c = 348
     {0x3801, 0x5c},
-    {0x3802, 0x01},
+    {0x3802, 0x01},	//y start = 0x1b2 = 434
     {0x3803, 0xb2},
-    {0x3804, 0x08},
+    {0x3804, 0x08},	//x end = 0x8e3 = 2275, x size = 2275 - 348 +1 = 1928
     {0x3805, 0xe3},
-    {0x3806, 0x05},
+    {0x3806, 0x05},	//y end = 0x5f1 = 1521, y size = 1521 - 434 + 1 = 1088
     {0x3807, 0xf1},
-    {0x3811, 0x04},
-    {0x3813, 0x02},
+	{0x3811, 0x04},	//x offset: 4
+	{0x3813, 0x02},	//y offset: 2
     {0x3630, 0x2e},
     {0x3632, 0xe2},
     {0x3633, 0x23},
@@ -449,10 +450,10 @@ static const k_sensor_reg ov5647_mipi2lane_1080p_30fps_flip_linear[] = {
     {0x3f05, 0x02},
     {0x3f06, 0x10},
     {0x3f01, 0x0a},
-    {0x3a00, 0x00},
-    {0x3a08, 0x01},
+    {0x3a00, 0x00},	//AEC control, all disable
+    {0x3a08, 0x01},	//50Hz step
     {0x3a09, 0x4b},
-    {0x3a0a, 0x01},
+    {0x3a0a, 0x01},	//60Hz step
     {0x3a0b, 0x13},
     {0x3a0d, 0x04},
     {0x3a0e, 0x03},
@@ -463,7 +464,7 @@ static const k_sensor_reg ov5647_mipi2lane_1080p_30fps_flip_linear[] = {
     {0x3a11, 0x60},
     {0x3a1f, 0x28},
     {0x4001, 0x02},
-    {0x4004, 0x04},
+    {0x4004, 0x04},	//blc line number
     {0x4000, 0x09},
     {0x4837, 0x19},
     {0x4800, 0x34},
@@ -471,19 +472,18 @@ static const k_sensor_reg ov5647_mipi2lane_1080p_30fps_flip_linear[] = {
     {0x3502, 0xa0},
     {0x3503, 0x07},         //0x0f
     {0x350b, 0x10},         // gain
-    // {0x0100, 0x01},
+    //{0x0100, 0x01},
     {REG_NULL, 0x00},
 };
 
-
 // 60 fps  binning ok
 static const k_sensor_reg mode_1280x720_60fps[] = {
-	//PCLK = 95833333 Hz, 1796 x 886 x 60
+	//PCLK = 91666667 Hz, 1796 x 851 x 60
     {0x0100, 0x00},
 	{0x0103, 0x01},
 	{0x3034, 0x1a},
     {0x3035, 0x21},
-    {0x3036, 0x73},	//PLL multiplier
+    {0x3036, 0x6e},	//PLL multiplier
 	{0x303c, 0x11},
 	{0x3106, 0xf5},
 	{0x3820, 0x01},	//horizontal, bit1: mirror, bit0: bining
@@ -509,27 +509,26 @@ static const k_sensor_reg mode_1280x720_60fps[] = {
     {0x3a19, 0xff},		//gain_celling
 	{0x3c01, 0x80},
 	{0x3b07, 0x0c},
-
-	{0x380c, 0x07},     //  HTS=  0x768 = 1896 - 100 --> 1796 = 0x704
+	{0x380c, 0x07},     //  HTS=  1796 = 0x704
 	{0x380d, 0x04},     
-    {0x380e, 0x03},     //  VTS=  0x7b0 = 1968 - 300 = 1,668 = 0x684 - 688 = 1000 = 0x3e8 - 150 = 850 = 0x352 + 36 = 886 = 0x376
-	{0x380f, 0x76},
+    {0x380e, 0x03},     //  VTS=  0x032c = 851
+	{0x380f, 0x53},
 	{0x3814, 0x31},
 	{0x3815, 0x31},
-	{0x3808, 0x05},     // x output size: 1280,   1280 * 2 = 2,560 
+	{0x3808, 0x05},     // x output size: 1280,   1280 * 2 = 2,560
 	{0x3809, 0x00},    
-	{0x380a, 0x02},     // y output size: 720,   720 * 2 = 1,440 
+	{0x380a, 0x02},     // y output size: 720,   720 * 2 = 1,440
 	{0x380b, 0xd0},
-    {0x3800, 0x00},     // x start = 32
-	{0x3801, 0x20},
-	{0x3802, 0x01},     // y start = 258
-	{0x3803, 0x02},
-	{0x3804, 0x0a},     // x end = 2623
-	{0x3805, 0x3f},     
-	{0x3806, 0x07},     // y end = 0x73f + 52 = 1907 = 0x779
-	{0x3807, 0x79}, 
-	{0x3811, 0x0c},	//x offset: 4
-	{0x3813, 0x06},	//y offset: 2
+    {0x3800, 0x00},     // x start = 24
+	{0x3801, 0x18},
+	{0x3802, 0x00},     // y start = 252
+	{0x3803, 0xfc},
+	{0x3804, 0x0a},     // x end = 0x0a27 + 1 = 2576 + 24, x size = 1288 x 2 = 2576
+	{0x3805, 0x27},     
+	{0x3806, 0x06},     // y end = 0x6a7 +1 = 1452 + 252, y size = 726 x 2 = 1452
+	{0x3807, 0xa7}, 
+	{0x3811, 0x04},	//x offset: 4
+	{0x3813, 0x02},	//y offset: 2
 
 	{0x3630, 0x2e},
 	{0x3632, 0xe2},
@@ -573,27 +572,29 @@ static const k_sensor_reg mode_1280x720_60fps[] = {
     {0x3503, 0x07},         //0x03
 	{0x350b, 0x10},
 	{0x3212, 0xa0},
-	//{0x0100, 0x01},
+	{0x0100, 0x01},
     {REG_NULL, 0x00},
 };
 
-// 960p60 10bpp
-static const k_sensor_reg ov5647_1280x960p30_10bpp[] = {
+// 960p45 10bpp
+static const k_sensor_reg ov5647_1280x960p45_10bpp[] = {
+    //PCLK = 88333333 Hz, 1796 x 1093 x 45fps
     {0x0100, 0x00},
 	{0x0103, 0x01},
 	{0x3034, 0x1a},
-
-    {0x3035, 0x21},
-    {0x3036, 0x73},
-
+	{0x3035, 0x21},
+	{0x3036, 0x6a},	//PLL multiplier
 	{0x303c, 0x11},
 	{0x3106, 0xf5},
+	{0x3820, 0x01},	//horizontal, bit1: mirror, bit0: bining
+	{0x3821, 0x03},	//verticall, bit1: flip, bit0: bining
 	{0x3827, 0xec},
 	{0x370c, 0x03},
 	{0x3612, 0x59},
 	{0x3618, 0x00},
-	{0x5000, 0x06},
-	{0x5002, 0x41},
+	{0x5000, 0x06},	//blc enable
+    {0x5001, 0x00},	//set awb disble
+	{0x5002, 0x00},	//disable win, otp and awb gain
 	{0x5003, 0x08},
 	{0x5a00, 0x08},
 	{0x3000, 0x00},
@@ -601,42 +602,34 @@ static const k_sensor_reg ov5647_1280x960p30_10bpp[] = {
 	{0x3002, 0x00},
 	{0x3016, 0x08},
 	{0x3017, 0xe0},
-	{0x3018, 0x44},
+	{0x3018, 0x44},	//2 lane, MIPI
 	{0x301c, 0xf8},
 	{0x301d, 0xf0},
-	{0x3a18, 0x00},
-	{0x3a19, 0xf8},
+    {0x3a18, 0x03},	//gain_celling, max gain value 
+    {0x3a19, 0xff},		//gain_celling
 	{0x3c01, 0x80},
 	{0x3b07, 0x0c},
-
-	{0x3800, 0x00},     // x start 0 
-	{0x3801, 0x00},
-
-	{0x3802, 0x00},     // y star 0
-	{0x3803, 0x00}, 
-
-	{0x3804, 0x0a},     // x end 0xa3f
-	{0x3805, 0x3f},
-
-	{0x3806, 0x07},     // y end 0x7a3
-	{0x3807, 0xa3},
-
-	{0x3808, 0x05},     // x size 0x510
-	{0x3809, 0x10},
-
-	{0x380a, 0x03},     // y size 0x3cc
-	{0x380b, 0xcc},
-
-	{0x380c, 0x07},     // x total  0x768 = 1896
-	{0x380d, 0x68},
-
-    {0x380e, 0x05},     // v total  0x7b0 = 1968 -500 = 1468 = 0x5bc
-	{0x380f, 0xbc},
-
-	{0x3811, 0x0c},
-	{0x3813, 0x06},
+	{0x380c, 0x07},     // HTS = 0x768 = 1796 
+	{0x380d, 0x04},
+    {0x380e, 0x04},     // VTS = 0x7b0 = 1093
+	{0x380f, 0x45},
 	{0x3814, 0x31},
 	{0x3815, 0x31},
+	{0x3808, 0x05},     // x output size = 1280, 1280 x 2 = 2560
+	{0x3809, 0x00},
+	{0x380a, 0x03},     // y output size = 960, 960 x 2 = 1920
+	{0x380b, 0xc0},
+	{0x3800, 0x00},     // x start 24
+	{0x3801, 0x18},
+	{0x3802, 0x00},     // y start 12
+	{0x3803, 0x0c}, 
+	{0x3804, 0x0a},     // x end = 0xa27 +1 = 2600, x size = 2600 - 24 = 1288 x 2 = 2576
+	{0x3805, 0x27},
+	{0x3806, 0x07},     // y end = 0x797+1 = 1944, y size = 1944 - 12 = 966 x 2 = 1932
+	{0x3807, 0x97},
+	{0x3811, 0x04},	//x offset: 4
+	{0x3813, 0x02},	//y offset: 2
+
 	{0x3630, 0x2e},
 	{0x3632, 0xe2},
 	{0x3633, 0x23},
@@ -655,6 +648,7 @@ static const k_sensor_reg ov5647_1280x960p30_10bpp[] = {
 	{0x3f05, 0x02},
 	{0x3f06, 0x10},
 	{0x3f01, 0x0a},
+    {0x3a00, 0x00},	//AEC control, all disable
 	{0x3a08, 0x01},
 	{0x3a09, 0x28},
 	{0x3a0a, 0x00},
@@ -668,18 +662,15 @@ static const k_sensor_reg ov5647_1280x960p30_10bpp[] = {
 	{0x3a11, 0x60},
 	{0x3a1f, 0x28},
 	{0x4001, 0x02},
-	{0x4004, 0x04},
+	{0x4004, 0x04},	//blc line number
 	{0x4000, 0x09},
 	{0x4837, 0x16},
 	{0x4800, 0x24},
-	{0x3503, 0x03},
-	{0x3821, 0x01},
-    {0x3820, 0x41},
-	{0x350a, 0x00},
+
+    {0x3501, 0x02},	//ET = 42 lines
+    {0x3502, 0xa0},
+	{0x3503, 0x07},
 	{0x350b, 0x10},
-	{0x3500, 0x00},
-	{0x3501, 0x1a},
-	{0x3502, 0xf0},
 	{0x3212, 0xa0},
 	{0x0100, 0x01},
     {REG_NULL, 0x00},
@@ -747,27 +738,14 @@ static k_sensor_mode ov5647_mode_info[] = {
         .fps = 90000,
         .hdr_mode = SENSOR_MODE_LINEAR,
         .bit_width = 10,
-        .bayer_pattern = BAYER_PAT_BGGR,
+        .bayer_pattern = BAYER_PAT_GBRG,
         .mipi_info = {
             .csi_id = 0,
             .mipi_lanes = 2,
             .data_type = 0x2B, //RAW10
         },
         .reg_list = ov5647_640x480_10bpp,
-#if defined(CONFIG_BOARD_K230_CANMV) || defined(CONFIG_BOARD_K230D_CANMV)
-        .mclk_setting = {{K_FALSE}, {K_FALSE}, {K_FALSE}},    
-#else
-        .mclk_setting = {
-            {
-                .mclk_setting_en = K_TRUE,
-                .setting.id = SENSOR_MCLK2,
-                .setting.mclk_sel = SENSOR_PLL0_CLK_DIV4,
-                .setting.mclk_div = 16,
-            },
-            {K_FALSE},
-            {K_FALSE},
-        },
-#endif
+        .mclk_setting = {{K_FALSE}, {K_FALSE}, {K_FALSE}},
     },
     {
         .index = 3,
@@ -865,13 +843,13 @@ static k_sensor_mode ov5647_mode_info[] = {
             .data_type = 0x2B, //RAW10
         },
         .reg_list = mode_1280x720_60fps, //mode_1280x720_60fps,
-#if defined(CONFIG_BOARD_K230_CANMV) || defined(CONFIG_BOARD_K230D_CANMV)
+#if defined(CONFIG_BOARD_K230_CANMV)
         .mclk_setting = {{K_FALSE}, {K_FALSE}, {K_FALSE}},    
 #else
         .mclk_setting = {
             {
                 .mclk_setting_en = K_TRUE,
-                .setting.id = SENSOR_MCLK2,
+                .setting.id = SENSOR_MCLK0,
                 .setting.mclk_sel = SENSOR_PLL0_CLK_DIV4,
                 .setting.mclk_div = 16,
             },
@@ -882,7 +860,7 @@ static k_sensor_mode ov5647_mode_info[] = {
     },
     {
         .index = 6,
-        .sensor_type = OV_OV5647_MIPI_CSI2_1280X960_60FPS_10BIT_LINEAR,
+        .sensor_type = OV_OV5647_MIPI_CSI2_1280X960_45FPS_10BIT_LINEAR,
         .size = {
             .bounds_width = 1280,
             .bounds_height = 960,
@@ -891,24 +869,24 @@ static k_sensor_mode ov5647_mode_info[] = {
             .width = 1280,
             .height = 960,
         },
-        .fps = 60000,
+        .fps = 45000,
         .hdr_mode = SENSOR_MODE_LINEAR,
         .bit_width = 10,
-        .bayer_pattern = BAYER_PAT_BGGR,
+        .bayer_pattern = BAYER_PAT_GBRG,
         .mipi_info = {
             .csi_id = 0,
             .mipi_lanes = 2,
             .data_type = 0x2B, //RAW10
         },
-        .reg_list = ov5647_1280x960p30_10bpp, //mode_1280x720_60fps,
-#if defined(CONFIG_BOARD_K230_CANMV) || defined(CONFIG_BOARD_K230D_CANMV)
+        .reg_list = ov5647_1280x960p45_10bpp, //mode_1280x960_45fps,
+#if defined(CONFIG_BOARD_K230_CANMV)
         .mclk_setting = {{K_FALSE}, {K_FALSE}, {K_FALSE}},
         
 #else
         .mclk_setting = {
             {
                 .mclk_setting_en = K_TRUE,
-                .setting.id = SENSOR_MCLK2,
+                .setting.id = SENSOR_MCLK0,
                 .setting.mclk_sel = SENSOR_PLL0_CLK_DIV4,
                 .setting.mclk_div = 16,
             },
@@ -1060,6 +1038,9 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
     // }
 
     k_u16 channel_id;
+    k_u16 flip = 0;
+    k_u16 mirror_reg = 0;
+
     sensor_reg_read(&dev->i2c_info, OV5647_REG_MIPI_CTRL14, &channel_id);
     pr_info("ov5647_sensor_init OV5647_REG_MIPI_CTRL14 is %d \n", channel_id);
 
@@ -1071,7 +1052,7 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
     switch (current_mode->index) {
     case 0:
     case 3:
-    case 4:
+    case 4:	//1080P
 
         ret = sensor_reg_list_write(&dev->i2c_info, current_mode->reg_list);
 
@@ -1104,9 +1085,6 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
         current_mode->ae_info.max_integraion_line = current_mode->ae_info.frame_length - 12;
         current_mode->ae_info.min_integraion_line = 2;
 
-        current_mode->ae_info.max_vs_integraion_line = current_mode->ae_info.frame_length - 12;
-        current_mode->ae_info.min_vs_integraion_line = 2;
-
         current_mode->ae_info.max_long_integraion_time = \
             current_mode->ae_info.integration_time_increment * \
             current_mode->ae_info.max_long_integraion_line;
@@ -1123,26 +1101,14 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
             current_mode->ae_info.integration_time_increment * \
             current_mode->ae_info.min_integraion_line;
 
-        current_mode->ae_info.max_vs_integraion_time = \
-            current_mode->ae_info.integration_time_increment * \
-            current_mode->ae_info.max_vs_integraion_line;
-
-        current_mode->ae_info.min_vs_integraion_time = \
-            current_mode->ae_info.integration_time_increment * \
-            current_mode->ae_info.min_vs_integraion_line;
-
         current_mode->ae_info.cur_long_integration_time = 0.0;
         current_mode->ae_info.cur_integration_time = 0.0;
-        current_mode->ae_info.cur_vs_integration_time = 0.0;
 
         current_mode->ae_info.cur_long_again = 0.0;
         current_mode->ae_info.cur_long_dgain = 0.0;
 
         current_mode->ae_info.cur_again = 0.0;
         current_mode->ae_info.cur_dgain = 0.0;
-
-        current_mode->ae_info.cur_vs_again = 0.0;
-        current_mode->ae_info.cur_vs_dgain = 0.0;
 
         current_mode->ae_info.a_long_gain.min = 1.0;
         current_mode->ae_info.a_long_gain.max = 8.0;
@@ -1152,10 +1118,6 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
         current_mode->ae_info.a_gain.max = 8.0;
         current_mode->ae_info.a_gain.step = (1.0f/16.0f);
 
-        current_mode->ae_info.a_vs_gain.min = 1.0;
-        current_mode->ae_info.a_vs_gain.max = 8.0;
-        current_mode->ae_info.a_vs_gain.step = (1.0f/16.0f);
-
         current_mode->ae_info.d_long_gain.max = 1.0;
         current_mode->ae_info.d_long_gain.min = 1.0;
         current_mode->ae_info.d_long_gain.step = (1.0f/1024.0f);
@@ -1164,16 +1126,12 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
         current_mode->ae_info.d_gain.min = 1.0;
         current_mode->ae_info.d_gain.step = (1.0f/1024.0f);
 
-        current_mode->ae_info.d_vs_gain.max = 1.0;
-        current_mode->ae_info.d_vs_gain.min = 1.0;
-        current_mode->ae_info.d_vs_gain.step = (1.0f/1024.0f);
-
         current_mode->ae_info.cur_fps = current_mode->fps;
         current_mode->sensor_again = 0;
         current_mode->et_line = 0;
 
         break;
-    case 1:
+    case 1:	//5MP
 
         ret = sensor_reg_list_write(&dev->i2c_info, current_mode->reg_list);
 
@@ -1203,99 +1161,6 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
         current_mode->ae_info.max_integraion_line = current_mode->ae_info.frame_length - 12;
         current_mode->ae_info.min_integraion_line = 2;
 
-        current_mode->ae_info.max_vs_integraion_line = current_mode->ae_info.frame_length - 12;
-        current_mode->ae_info.min_vs_integraion_line = 2;
-
-        current_mode->ae_info.max_long_integraion_time = \
-            current_mode->ae_info.integration_time_increment * \
-            current_mode->ae_info.max_long_integraion_line;
-
-        current_mode->ae_info.min_long_integraion_time = \
-            current_mode->ae_info.integration_time_increment * \
-            current_mode->ae_info.min_long_integraion_line;
-
-        current_mode->ae_info.max_integraion_time = \
-            current_mode->ae_info.integration_time_increment * \
-            current_mode->ae_info.max_integraion_line;
-
-        current_mode->ae_info.min_integraion_time = \
-            current_mode->ae_info.integration_time_increment * \
-            current_mode->ae_info.min_integraion_line;
-
-        current_mode->ae_info.max_vs_integraion_time = \
-            current_mode->ae_info.integration_time_increment * \
-            current_mode->ae_info.max_vs_integraion_line;
-
-        current_mode->ae_info.min_vs_integraion_time = \
-            current_mode->ae_info.integration_time_increment * \
-            current_mode->ae_info.min_vs_integraion_line;
-
-        current_mode->ae_info.cur_long_integration_time = 0.0;
-        current_mode->ae_info.cur_integration_time = 0.0;
-        current_mode->ae_info.cur_vs_integration_time = 0.0;
-
-        current_mode->ae_info.cur_long_again = 0.0;
-        current_mode->ae_info.cur_long_dgain = 0.0;
-
-        current_mode->ae_info.cur_again = 0.0;
-        current_mode->ae_info.cur_dgain = 0.0;
-
-        current_mode->ae_info.cur_vs_again = 0.0;
-        current_mode->ae_info.cur_vs_dgain = 0.0;
-
-        current_mode->ae_info.a_long_gain.min = 1.0;
-        current_mode->ae_info.a_long_gain.max = 8.0;
-        current_mode->ae_info.a_long_gain.step = (1.0f/16.0f);
-
-        current_mode->ae_info.a_gain.min = 1.0;
-        current_mode->ae_info.a_gain.max = 8.0;
-        current_mode->ae_info.a_gain.step = (1.0f/16.0f);
-
-        current_mode->ae_info.a_vs_gain.min = 1.0;
-        current_mode->ae_info.a_vs_gain.max = 8.0;
-        current_mode->ae_info.a_vs_gain.step = (1.0f/16.0f);
-
-        current_mode->ae_info.d_long_gain.max = 1.0;
-        current_mode->ae_info.d_long_gain.min = 1.0;
-        current_mode->ae_info.d_long_gain.step = (1.0f/1024.0f);
-
-        current_mode->ae_info.d_gain.max = 1.0;
-        current_mode->ae_info.d_gain.min = 1.0;
-        current_mode->ae_info.d_gain.step = (1.0f/1024.0f);
-
-        current_mode->ae_info.d_vs_gain.max = 1.0;
-        current_mode->ae_info.d_vs_gain.min = 1.0;
-        current_mode->ae_info.d_vs_gain.step = (1.0f/1024.0f);
-
-        current_mode->ae_info.cur_fps = current_mode->fps;
-        current_mode->sensor_again = 0;
-        current_mode->et_line = 0;
-        break;
-
-        case 2:
-        ret = sensor_reg_list_write(&dev->i2c_info, current_mode->reg_list);
-
-        current_mode->ae_info.frame_length = 575;
-        current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
-        current_mode->ae_info.one_line_exp_time = 0.000027808;//0.00003025
-        current_mode->ae_info.gain_accuracy = 1024;
-
-        current_mode->ae_info.min_gain = 1.0;
-        current_mode->ae_info.max_gain = 8.0;//63.9375;
-
-        current_mode->ae_info.int_time_delay_frame = 2;
-        current_mode->ae_info.gain_delay_frame = 2;
-        current_mode->ae_info.color_type = SENSOR_COLOR;    //color sensor
-
-        current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time;
-        current_mode->ae_info.gain_increment = (1.0f/16.0f);
-
-        current_mode->ae_info.max_long_integraion_line = current_mode->ae_info.frame_length - 12;
-        current_mode->ae_info.min_long_integraion_line = 2;
-
-        current_mode->ae_info.max_integraion_line = current_mode->ae_info.frame_length - 12;
-        current_mode->ae_info.min_integraion_line = 2;
-
         current_mode->ae_info.max_long_integraion_time = \
             current_mode->ae_info.integration_time_increment * \
             current_mode->ae_info.max_long_integraion_line;
@@ -1340,20 +1205,31 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
         current_mode->ae_info.cur_fps = current_mode->fps;
         current_mode->sensor_again = 0;
         current_mode->et_line = 0;
-
         break;
 
-    case 6:	
-        // 960p
+        case 2:	//VGA
         ret = sensor_reg_list_write(&dev->i2c_info, current_mode->reg_list);
 
-        current_mode->ae_info.frame_length = 630;
+         if(mirror_flag == 1)
+        {
+            ret = sensor_reg_read(&dev->i2c_info, 0x3820, &flip);
+            ret = sensor_reg_read(&dev->i2c_info, 0x3821, &mirror_reg);
+
+            sensor_mirror_reg[0].val = sensor_mirror_reg[0].val | (flip & 0x1);
+            sensor_mirror_reg[1].val = sensor_mirror_reg[1].val | (mirror_reg & 0x1);
+
+            rt_kprintf("mirror val is %x  %x\n", sensor_mirror_reg[0].val, sensor_mirror_reg[1].val);
+
+            ret = sensor_reg_list_write(&dev->i2c_info, sensor_mirror_reg);
+        }
+
+        current_mode->ae_info.frame_length = 573;
         current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
-        current_mode->ae_info.one_line_exp_time = 0.000017636;
+        current_mode->ae_info.one_line_exp_time = 0.000019373;
         current_mode->ae_info.gain_accuracy = 1024;
 
         current_mode->ae_info.min_gain = 1.0;
-        current_mode->ae_info.max_gain = 8.0;//63.9375;
+        current_mode->ae_info.max_gain = 24.0;//63.9375;
 
         current_mode->ae_info.int_time_delay_frame = 2;
         current_mode->ae_info.gain_delay_frame = 2;
@@ -1368,7 +1244,7 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
         current_mode->ae_info.max_integraion_line = current_mode->ae_info.frame_length - 12;
         current_mode->ae_info.min_integraion_line = 2;
 
-                current_mode->ae_info.max_long_integraion_time = \
+        current_mode->ae_info.max_long_integraion_time = \
             current_mode->ae_info.integration_time_increment * \
             current_mode->ae_info.max_long_integraion_line;
 
@@ -1398,7 +1274,7 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
         current_mode->ae_info.a_long_gain.step = (1.0f/16.0f);
 
         current_mode->ae_info.a_gain.min = 1.0;
-        current_mode->ae_info.a_gain.max = 8.0;
+        current_mode->ae_info.a_gain.max = 24.0;//63.9375;
         current_mode->ae_info.a_gain.step = (1.0f/16.0f);
 
         current_mode->ae_info.d_long_gain.max = 1.0;
@@ -1412,17 +1288,32 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
         current_mode->ae_info.cur_fps = current_mode->fps;
         current_mode->sensor_again = 0;
         current_mode->et_line = 0;
+
         break;
+
     case 5:	//720P
         ret = sensor_reg_list_write(&dev->i2c_info, current_mode->reg_list);
 
-        current_mode->ae_info.frame_length = 886;
+         if(mirror_flag == 1)
+        {
+            ret = sensor_reg_read(&dev->i2c_info, 0x3820, &flip);
+            ret = sensor_reg_read(&dev->i2c_info, 0x3821, &mirror_reg);
+
+            sensor_mirror_reg[0].val = sensor_mirror_reg[0].val | (flip & 0x1);
+            sensor_mirror_reg[1].val = sensor_mirror_reg[1].val | (mirror_reg & 0x1);
+
+            rt_kprintf("mirror val is %x  %x\n", sensor_mirror_reg[0].val, sensor_mirror_reg[1].val);
+
+            ret = sensor_reg_list_write(&dev->i2c_info, sensor_mirror_reg);
+        }
+
+        current_mode->ae_info.frame_length = 851;
         current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
-        current_mode->ae_info.one_line_exp_time = 0.000027808;//0.00003025
+        current_mode->ae_info.one_line_exp_time = 0.000019593;
         current_mode->ae_info.gain_accuracy = 1024;
 
         current_mode->ae_info.min_gain = 1.0;
-        current_mode->ae_info.max_gain = 8.0;//63.9375;
+        current_mode->ae_info.max_gain = 24.0;//63.9375;
 
         current_mode->ae_info.int_time_delay_frame = 2;
         current_mode->ae_info.gain_delay_frame = 2;
@@ -1467,7 +1358,7 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
         current_mode->ae_info.a_long_gain.step = (1.0f/16.0f);
 
         current_mode->ae_info.a_gain.min = 1.0;
-        current_mode->ae_info.a_gain.max = 8.0;
+        current_mode->ae_info.a_gain.max = 24.0;//63.9375;
         current_mode->ae_info.a_gain.step = (1.0f/16.0f);
 
         current_mode->ae_info.d_long_gain.max = 1.0;
@@ -1482,6 +1373,89 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
         current_mode->sensor_again = 0;
         current_mode->et_line = 0;
 
+        break;
+
+    case 6:	// 960p
+        ret = sensor_reg_list_write(&dev->i2c_info, current_mode->reg_list);
+
+        if(mirror_flag == 1)
+        {
+            ret = sensor_reg_read(&dev->i2c_info, 0x3820, &flip);
+            ret = sensor_reg_read(&dev->i2c_info, 0x3821, &mirror_reg);
+
+            sensor_mirror_reg[0].val = sensor_mirror_reg[0].val | (flip & 0x1);
+            sensor_mirror_reg[1].val = sensor_mirror_reg[1].val | (mirror_reg & 0x1);
+
+            rt_kprintf("mirror val is %x  %x\n", sensor_mirror_reg[0].val, sensor_mirror_reg[1].val);
+
+            ret = sensor_reg_list_write(&dev->i2c_info, sensor_mirror_reg);
+        }
+
+        current_mode->ae_info.frame_length = 1093;
+        current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
+        current_mode->ae_info.one_line_exp_time = 0.000020332;
+        current_mode->ae_info.gain_accuracy = 1024;
+
+        current_mode->ae_info.min_gain = 1.0;
+        current_mode->ae_info.max_gain = 16.0;//63.9375;
+
+        current_mode->ae_info.int_time_delay_frame = 2;
+        current_mode->ae_info.gain_delay_frame = 2;
+        current_mode->ae_info.color_type = SENSOR_COLOR;    //color sensor
+
+        current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time;
+        current_mode->ae_info.gain_increment = (1.0f/16.0f);
+
+        current_mode->ae_info.max_long_integraion_line = current_mode->ae_info.frame_length - 12;
+        current_mode->ae_info.min_long_integraion_line = 2;
+
+        current_mode->ae_info.max_integraion_line = current_mode->ae_info.frame_length - 12;
+        current_mode->ae_info.min_integraion_line = 2;
+
+        current_mode->ae_info.max_long_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.max_long_integraion_line;
+
+        current_mode->ae_info.min_long_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.min_long_integraion_line;
+
+        current_mode->ae_info.max_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.max_integraion_line;
+
+        current_mode->ae_info.min_integraion_time = \
+            current_mode->ae_info.integration_time_increment * \
+            current_mode->ae_info.min_integraion_line;
+
+        current_mode->ae_info.cur_long_integration_time = 0.0;
+        current_mode->ae_info.cur_integration_time = 0.0;
+
+        current_mode->ae_info.cur_long_again = 0.0;
+        current_mode->ae_info.cur_long_dgain = 0.0;
+
+        current_mode->ae_info.cur_again = 0.0;
+        current_mode->ae_info.cur_dgain = 0.0;
+
+        current_mode->ae_info.a_long_gain.min = 1.0;
+        current_mode->ae_info.a_long_gain.max = 8.0;
+        current_mode->ae_info.a_long_gain.step = (1.0f/16.0f);
+
+        current_mode->ae_info.a_gain.min = 1.0;
+        current_mode->ae_info.a_gain.max = 16.0;//63.9375;
+        current_mode->ae_info.a_gain.step = (1.0f/16.0f);
+
+        current_mode->ae_info.d_long_gain.max = 1.0;
+        current_mode->ae_info.d_long_gain.min = 1.0;
+        current_mode->ae_info.d_long_gain.step = (1.0f/1024.0f);
+
+        current_mode->ae_info.d_gain.max = 1.0;
+        current_mode->ae_info.d_gain.min = 1.0;
+        current_mode->ae_info.d_gain.step = (1.0f/1024.0f);
+
+        current_mode->ae_info.cur_fps = current_mode->fps;
+        current_mode->sensor_again = 0;
+        current_mode->et_line = 0;
         break;
     }
 
