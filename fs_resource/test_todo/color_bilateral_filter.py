@@ -1,20 +1,14 @@
-# Cartoon Filter
+# Color Bilteral Filter Example
 #
-# This example shows off a simple cartoon filter on images. The cartoon
-# filter works by joining similar pixel areas of an image and replacing
-# the pixels in those areas with the area mean.
+# This example shows off using the bilateral filter on color images.
 import time, os, gc, sys
 
 from media.sensor import *
 from media.display import *
 from media.media import *
 
-DISPLAY_WIDTH = ALIGN_UP(1920, 16)
-DISPLAY_HEIGHT = 1080
-SCALE = 4
-DETECT_WIDTH = DISPLAY_WIDTH // SCALE
-DETECT_HEIGHT = DISPLAY_HEIGHT // SCALE
-
+DETECT_WIDTH = ALIGN_UP(640, 16)
+DETECT_HEIGHT = 480
 
 sensor = None
 
@@ -22,7 +16,7 @@ def camera_init():
     global sensor
 
     # construct a Sensor object with default configure
-    sensor = Sensor()
+    sensor = Sensor(width=DETECT_WIDTH,height=DETECT_HEIGHT)
     # sensor reset
     sensor.reset()
     # set hmirror
@@ -30,20 +24,13 @@ def camera_init():
     # sensor vflip
     # sensor.set_vflip(False)
 
-    # set chn0 output size, 1920x1080
-    sensor.set_framesize(Sensor.FHD)
+    # set chn0 output size
+    sensor.set_framesize(width=DETECT_WIDTH,height=DETECT_HEIGHT)
     # set chn0 output format
-    sensor.set_pixformat(Sensor.YUV420SP)
-    # bind sensor chn0 to display layer video 1
-    # bind_info = sensor.bind_info()
-    # Display.bind_layer(**bind_info, layer = Display.LAYER_VIDEO1)
+    sensor.set_pixformat(Sensor.RGB565)
 
-    # set chn1 output format
-    sensor.set_framesize(width= DETECT_WIDTH, height = DETECT_HEIGHT, chn = CAM_CHN_ID_1)
-    sensor.set_pixformat(Sensor.RGB565, chn = CAM_CHN_ID_1)
-
-    # use hdmi as display output
-    Display.init(Display.LT9611, to_ide = True)
+    # use IDE as display output
+    Display.init(Display.VIRT, width= DETECT_WIDTH, height = DETECT_HEIGHT,fps=100,to_ide = True)
     # init media manager
     MediaManager.init()
     # sensor start run
@@ -63,6 +50,7 @@ def camera_deinit():
     MediaManager.deinit()
 
 def capture_picture():
+
     fps = time.clock()
     while True:
         fps.tick()
@@ -70,21 +58,27 @@ def capture_picture():
             os.exitpoint()
 
             global sensor
-            img = sensor.snapshot(chn = CAM_CHN_ID_1)
+            img = sensor.snapshot()
 
-            # seed_threshold controls the maximum area growth of a colored
-            # region. Making this larger will merge more pixels.
+            # color_sigma controls how close color wise pixels have to be to each other to be
+            # blured togheter. A smaller value means they have to be closer.
+            # A larger value is less strict.
 
-            # floating_threshold controls the maximum pixel-to-pixel difference
-            # when growing a region. Settings this very high will quickly combine
-            # all pixels in the image. You should keep this small.
+            # space_sigma controls how close space wise pixels have to be to each other to be
+            # blured togheter. A smaller value means they have to be closer.
+            # A larger value is less strict.
 
-            # cartoon() will grow regions while both thresholds are statisfied...
+            # Run the kernel on every pixel of the image.
+            img.bilateral(3, color_sigma=0.1, space_sigma=1)
 
-            img.cartoon(seed_threshold=0.05, floating_thresholds=0.05)
+            # Note that the bilateral filter can introduce image defects if you set
+            # color_sigma/space_sigma to aggresively. Increase the sigma values until
+            # the defects go away if you see them.
+
             # draw result to screen
             Display.show_image(img)
             img = None
+
             gc.collect()
             print(fps.fps())
         except KeyboardInterrupt as e:

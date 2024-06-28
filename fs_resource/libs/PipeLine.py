@@ -45,15 +45,17 @@ class PipeLine:
         self.debug_mode=debug_mode
 
     # PipeLine初始化函数
-    def create(self,sensor=None):
+    def create(self,sensor=None,hmirror=None,vflip=None):
         with ScopedTiming("init PipeLine",self.debug_mode > 0):
             os.exitpoint(os.EXITPOINT_ENABLE)
             nn.shrink_memory_pool()
             # 初始化并配置sensor
             self.sensor = Sensor() if sensor is None else sensor
             self.sensor.reset()
-            self.sensor.set_hmirror(True)
-            self.sensor.set_vflip(True)
+            if hmirror is not None and (hmirror==True or hmirror==False):
+                self.sensor.set_hmirror(hmirror)
+            if vflip is not None and (vflip==True or vflip==False):
+                self.sensor.set_vflip(vflip)
             # 通道0直接给到显示VO，格式为YUV420
             self.sensor.set_framesize(w = self.display_size[0], h = self.display_size[1])
             self.sensor.set_pixformat(PIXEL_FORMAT_YUV_SEMIPLANAR_420)
