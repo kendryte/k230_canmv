@@ -1,5 +1,5 @@
 from media.vencoder import *
-from media.camera import *
+from media.sensor import *
 from media.media import *
 from mpp.mp4_format import *
 from mpp.mp4_format_struct import *
@@ -51,7 +51,8 @@ class Mp4Container:
     MP4_CODEC_ID_G711U = K_MP4_CODEC_ID_G711U
 
     def __init__(self):
-        camera.sensor_init(CAM_DEV_ID_0, CAM_DEFAULT_SENSOR)
+        self.sensor = Sensor()
+        self.sensor.reset()
         self.venc = Encoder()
         self.stream_data = StreamData()
         self.mp4_handle = 0
@@ -68,9 +69,11 @@ class Mp4Container:
 
     def Create(self, mp4Cfg):
         if mp4Cfg.type == K_MP4_CONFIG_MUXER:
-            camera.set_outbufs(CAM_DEV_ID_0, CAM_CHN_ID_0, 6)
-            camera.set_outsize(CAM_DEV_ID_0, CAM_CHN_ID_0, mp4Cfg.muxerCfg.pic_width, mp4Cfg.muxerCfg.pic_height, alignment=12)
-            camera.set_outfmt(CAM_DEV_ID_0, CAM_CHN_ID_0, PIXEL_FORMAT_YUV_SEMIPLANAR_420)
+            # set chn0 output size
+            self.sensor.set_framesize(width = mp4Cfg.muxerCfg.pic_width, height = mp4Cfg.muxerCfg.pic_height, alignment=12)
+            # set chn0 output format
+            self.sensor.set_pixformat(Sensor.YUV420SP)
+
             self.venc.SetOutBufs(VENC_CHN_ID_0, 15, mp4Cfg.muxerCfg.pic_width, mp4Cfg.muxerCfg.pic_height)
             # audio init
             FORMAT = paInt16
@@ -85,7 +88,10 @@ class Mp4Container:
             elif mp4Cfg.muxerCfg.audio_payload_type == self.MP4_CODEC_ID_G711A:
                 self.aenc = g711.Encoder(K_PT_G711A,CHUNK)
 
-            media.buffer_init()
+            # 绑定camera和venc
+            self.link = MediaManager.link(self.sensor.bind_info()['src'], (VIDEO_ENCODE_MOD_ID, VENC_DEV_ID, VENC_CHN_ID_0))
+            # init media manager
+            MediaManager.init()
 
             self.video_payload_type = mp4Cfg.muxerCfg.video_payload_type
             self.audio_payload_type = mp4Cfg.muxerCfg.audio_payload_type
@@ -153,11 +159,8 @@ class Mp4Container:
             self.mp4_audio_track_handle = audio_track_handle.value
 
     def Start(self):
-        media_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
-        media_sink = media_device(VIDEO_ENCODE_MOD_ID, VENC_DEV_ID, VENC_CHN_ID_0)
-        media.create_link(media_source, media_sink)
         self.venc.Start(VENC_CHN_ID_0)
-        camera.start_stream(CAM_DEV_ID_0)
+        self.sensor.run()
 
     def Process(self):
         frame_data = k_mp4_frame_data_s()
@@ -209,11 +212,11 @@ class Mp4Container:
                 raise OSError("Mp4Container, write audio stream failed.")
 
     def Stop(self):
-        camera.stop_stream(CAM_DEV_ID_0)
+        # 停止camera
+        self.sensor.stop()
 
-        media_source = media_device(CAMERA_MOD_ID, CAM_DEV_ID_0, CAM_CHN_ID_0)
-        media_sink = media_device(VIDEO_ENCODE_MOD_ID, VENC_DEV_ID, VENC_CHN_ID_0)
-        media.destroy_link(media_source, media_sink)
+        # 销毁camera和venc的绑定
+        del self.link
         self.venc.Stop(VENC_CHN_ID_0)
         self.audio_stream.stop_stream()
         self.audio_stream.close()
@@ -230,4 +233,4 @@ class Mp4Container:
             raise OSError("Mp4Container, kd_mp4_destroy failed.")
 
         self.venc.Destroy(VENC_CHN_ID_0)
-        media.buffer_deinit()
+        MediaManager.deinit() #释放vb buffer

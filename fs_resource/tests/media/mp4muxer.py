@@ -29,7 +29,7 @@ def mp4_muxer_test():
             # 处理音视频数据，按MP4格式写入文件
             mp4_muxer.Process()
             frame_count += 1
-            print("frame_coutn = ", frame_count)
+            print("frame_count = ", frame_count)
             if frame_count >= 200:
                 break
     except BaseException as e:

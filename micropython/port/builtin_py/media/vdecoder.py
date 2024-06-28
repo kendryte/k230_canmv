@@ -7,8 +7,10 @@ from mpp.payload_struct import *
 from mpp.vdec_struct import *
 from media.media import *
 
-MAX_WIDTH = 1088
-MAX_HEIGHT = 1920
+# MAX_WIDTH = 1088
+# MAX_HEIGHT = 1920
+MAX_WIDTH = 1920
+MAX_HEIGHT = 1088
 STREAM_BUF_SIZE = MAX_WIDTH*MAX_HEIGHT
 FRAME_BUF_SIZE = MAX_WIDTH*MAX_HEIGHT*2
 INPUT_BUF_CNT = 4
@@ -67,9 +69,8 @@ class Decoder:
             Decoder.chns_enable[chn_index] = 1
 
         self.chn = chn_index
-        Decoder.vb_create_pool(chn_index)
+        Decoder.vb_create_pool(self.chn)
 
-    def start(self):
         attr = k_vdec_chn_attr()
         attr.pic_width = MAX_WIDTH
         attr.pic_height = MAX_HEIGHT
@@ -83,6 +84,7 @@ class Decoder:
         if (ret != 0):
             raise OSError("kd_mpi_vdec_create_chn failed,channel:",self.chn)
 
+    def start(self):
         ret = kd_mpi_vdec_start_chn(self.chn)
         if (ret != 0):
             raise OSError("kd_mpi_vdec_start_chn failed,channel:",self.chn)
@@ -93,20 +95,39 @@ class Decoder:
         stream.end_of_stream = True
         stream.pts = 0
 
-        blk_size = STREAM_BUF_SIZE
-        poolid = Decoder.input_pool_id[self.chn]
+        # blk_size = STREAM_BUF_SIZE
+        # poolid = Decoder.input_pool_id[self.chn]
 
-        buffer = MediaManager.Buffer.get(blk_size, poolid)
+        # buffer = MediaManager.Buffer.get(blk_size, poolid)
+
+        # stream.len = len(stream_data)
+        # stream.phy_addr = buffer.phys_addr
+        # uctypes.bytearray_at(buffer.virt_addr, stream.len)[:] = stream_data
+
+        poolid = Decoder.input_pool_id[self.chn]
+        blk_size = STREAM_BUF_SIZE
+        for i in range(10):
+            handle = kd_mpi_vb_get_block(poolid, blk_size, "")
+            if (handle == -1):
+                pass
+            else:
+                break
+
+        phys_addr = kd_mpi_vb_handle_to_phyaddr(handle)
+        vir_data = kd_mpi_sys_mmap(phys_addr, blk_size)
 
         stream.len = len(stream_data)
-        stream.phy_addr = buffer.phys_addr
         uctypes.bytearray_at(vir_data, stream.len)[:] = stream_data
+        stream.phy_addr = phys_addr
+
+        kd_mpi_sys_munmap(vir_data,blk_size)
+        kd_mpi_vb_release_block(handle)
 
         ret = kd_mpi_vdec_send_stream(self.chn, stream, -1)
         if (ret != 0):
             del buffer
             raise OSError("kd_mpi_vdec_send_stream failed,channel:",self.chn)
-        del buffer
+        # del buffer
 
         status = k_vdec_chn_status()
         os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
@@ -122,9 +143,6 @@ class Decoder:
         ret = kd_mpi_vdec_stop_chn(self.chn)
         if (ret != 0):
             raise OSError("kd_mpi_vdec_stop_chn failed,channel:",self.chn)
-        ret = kd_mpi_vdec_destroy_chn(self.chn)
-        if (ret != 0):
-            raise OSError("kd_mpi_vdec_destroy_chn failed,channel:",self.chn)
 
     def decode(self,stream_data):
         stream = k_vdec_stream()
@@ -133,21 +151,52 @@ class Decoder:
         blk_size = STREAM_BUF_SIZE
         poolid = Decoder.input_pool_id[self.chn]
 
-        buffer = MediaManager.Buffer.get(blk_size, poolid)
+        # buffer = MediaManager.Buffer.get(blk_size, poolid)
+
+        # stream.len = len(stream_data)
+        # stream.phy_addr = buffer.phys_addr
+        # uctypes.bytearray_at(buffer.virt_addr, stream.len)[:] = stream_data
+        for i in range(10):
+            handle = kd_mpi_vb_get_block(poolid, blk_size, "")
+            if (handle == -1):
+                pass
+            else:
+                break
+
+        phys_addr = kd_mpi_vb_handle_to_phyaddr(handle)
+        vir_data = kd_mpi_sys_mmap(phys_addr, blk_size)
 
         stream.len = len(stream_data)
-        stream.phy_addr = buffer.phys_addr
         uctypes.bytearray_at(vir_data, stream.len)[:] = stream_data
+        stream.phy_addr = phys_addr
+
+        kd_mpi_sys_munmap(vir_data,blk_size)
 
         ret = kd_mpi_vdec_send_stream(self.chn, stream, -1)
         if (ret != 0):
-            del buffer
+            #del buffer
             raise OSError("kd_mpi_vdec_send_stream failed,channel:",self.chn)
-        del buffer
+        # del buffer
+        kd_mpi_vb_release_block(handle)
 
     def destroy(self):
+        ret = kd_mpi_vdec_destroy_chn(self.chn)
+        if (ret != 0):
+            raise OSError("kd_mpi_vdec_destroy_chn failed,channel:",self.chn)
         Decoder.chns_enable[self.chn] = 0
         Decoder.vb_destory_pool(self.chn)
 
     def get_vdec_channel(self):
         return self.chn
+
+    def bind_info(self, x = 0, y = 0, width = 1920,height = 1080,pix_format=PIXEL_FORMAT_YUV_SEMIPLANAR_420,chn = 0):
+        if (chn > VDEC_MAX_CHN_NUMS - 1):
+            raise AssertionError(f"invaild chn id {chn}, should < {VDEC_MAX_CHN_NUMS - 1}")
+
+        kwargs = {
+            'src': (VIDEO_DECODE_MOD_ID, VDEC_DEV_ID, chn),
+            'rect': (x, y, width, height),
+            'pix_format': pix_format,
+        }
+
+        return kwargs
