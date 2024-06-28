@@ -18,29 +18,32 @@ def venc_test():
     venc_chn = VENC_CHN_ID_0
     width = ALIGN_UP(width, 16)
     # 初始化sensor
+
     sensor = Sensor()
     sensor.reset()
     # 设置camera 输出buffer
     # set chn0 output size
-    sensor.set_framesize(width = width, height = height)
+    sensor.set_framesize(width = width, height = height, alignment=12)
     # set chn0 output format
     sensor.set_pixformat(Sensor.YUV420SP)
+
 
     # 实例化video encoder
     encoder = Encoder()
     # 设置video encoder 输出buffer
     encoder.SetOutBufs(venc_chn, 15, width, height)
 
-    chnAttr = ChnAttrStr(encoder.PAYLOAD_TYPE_H265, encoder.H265_PROFILE_MAIN, width, height)
-    streamData = StreamData()
-    # 创建编码器
-    encoder.Create(venc_chn, chnAttr)
     # 绑定camera和venc
-    bind_info = sensor.bind_info()
-    link = MediaManager.link(bind_info.src, (VIDEO_ENCODE_MOD_ID, VENC_DEV_ID, venc_chn))
+    link = MediaManager.link(sensor.bind_info()['src'], (VIDEO_ENCODE_MOD_ID, VENC_DEV_ID, venc_chn))
 
     # init media manager
     MediaManager.init()
+
+    chnAttr = ChnAttrStr(encoder.PAYLOAD_TYPE_H265, encoder.H265_PROFILE_MAIN, width, height)
+    streamData = StreamData()
+
+    # 创建编码器
+    encoder.Create(venc_chn, chnAttr)
 
     # 开始编码
     encoder.Start(venc_chn)

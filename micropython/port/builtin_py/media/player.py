@@ -49,18 +49,19 @@ class Player:
                 self.pyaudio = PyAudio()
                 self.pyaudio.initialize(48000//25)
 
-        media.buffer_init()
+        bind_info = self.vdec.bind_info(width=self.video_info.width,height=self.video_info.height,chn=vdecoder.Decoder.get_free_chn_index())
+        #bind_info = self.vdec.bind_info(width=self.video_info.width,height=self.video_info.height,chn=self.vdec.get_vdec_channel())
+        Display.bind_layer(**bind_info, layer = Display.LAYER_VIDEO1)
+        Display.init(Display.LT9611)
+
+        MediaManager.init()    #vb buffer初始化
 
         if (self.audio_track):
             self.adec.create()
 
         if (self.video_track):
             self.vdec.create()
-            display.init(LT9611_1920X1080_30FPS, wbc=False)
-            if (self.video_info.width >= 1920):
-                display.set_plane(0, 0, self.video_info.width, self.video_info.height, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
-            else:
-                display.set_plane(400, 200, self.video_info.width, self.video_info.height, PIXEL_FORMAT_YVU_PLANAR_420, DISPLAY_MIRROR_NONE, DISPLAY_CHN_VIDEO1)
+
 
     def _deinit_media_buffer(self):
         if (self.video_track):
@@ -74,11 +75,11 @@ class Player:
             os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
             time.sleep(1)
             os.exitpoint(os.EXITPOINT_ENABLE)
-            display.deinit()
+            Display.deinit()
 
         self.video_track = False
         self.audio_track = False
-        media.buffer_deinit()
+        MediaManager.deinit() #释放vb buffer
 
     def _do_file_data(self):
         frame_data =  k_mp4_frame_data_s()
@@ -163,9 +164,6 @@ class Player:
 
         if (self.video_track):
             self.vdec.start()
-            self.video_meida_source = media_device(VIDEO_DECODE_MOD_ID, VDEC_DEV_ID, self.vdec.get_vdec_channel())
-            self.video_meida_sink = media_device(DISPLAY_MOD_ID, DISPLAY_DEV_ID, DISPLAY_CHN_VIDEO1)
-            media.create_link(self.video_meida_source, self.video_meida_sink)
 
         if (self.audio_track):
             self.audio_out_stream = self.pyaudio.open(format=paInt16,
@@ -182,7 +180,6 @@ class Player:
         self.play_status = PLAY_STOP
         if (self.video_track):
             self.vdec.stop()
-            media.destroy_link(self.video_meida_source, self.video_meida_sink)
 
         ret = kd_mp4_destroy(self.mp4_handle.value)
         if (ret < 0):
