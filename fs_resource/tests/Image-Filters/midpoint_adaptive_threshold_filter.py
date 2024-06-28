@@ -9,11 +9,8 @@ from media.sensor import *
 from media.display import *
 from media.media import *
 
-DISPLAY_WIDTH = ALIGN_UP(1920, 16)
-DISPLAY_HEIGHT = 1080
-SCALE = 4
-DETECT_WIDTH = DISPLAY_WIDTH // SCALE
-DETECT_HEIGHT = DISPLAY_HEIGHT // SCALE
+DETECT_WIDTH = ALIGN_UP(320, 16)
+DETECT_HEIGHT = 240
 
 sensor = None
 
@@ -21,7 +18,7 @@ def camera_init():
     global sensor
 
     # construct a Sensor object with default configure
-    sensor = Sensor()
+    sensor = Sensor(width=DETECT_WIDTH,height=DETECT_HEIGHT)
     # sensor reset
     sensor.reset()
     # set hmirror
@@ -29,20 +26,13 @@ def camera_init():
     # sensor vflip
     # sensor.set_vflip(False)
 
-    # set chn0 output size, 1920x1080
-    sensor.set_framesize(Sensor.FHD)
+    # set chn0 output size
+    sensor.set_framesize(width=DETECT_WIDTH,height=DETECT_HEIGHT)
     # set chn0 output format
-    sensor.set_pixformat(Sensor.YUV420SP)
-    # bind sensor chn0 to display layer video 1
-    bind_info = sensor.bind_info()
-    Display.bind_layer(**bind_info, layer = Display.LAYER_VIDEO1)
+    sensor.set_pixformat(Sensor.RGB565)
 
-    # set chn1 output format
-    sensor.set_framesize(width= DETECT_WIDTH, height = DETECT_HEIGHT, chn = CAM_CHN_ID_1)
-    sensor.set_pixformat(Sensor.RGB565, chn = CAM_CHN_ID_1)
-
-    # use hdmi as display output
-    Display.init(Display.LT9611, to_ide = True)
+    # use IDE as display output
+    Display.init(Display.VIRT, width= DETECT_WIDTH, height = DETECT_HEIGHT,fps=100,to_ide = True)
     # init media manager
     MediaManager.init()
     # sensor start run
@@ -68,7 +58,7 @@ def capture_picture():
         try:
             os.exitpoint()
             global sensor
-            img = sensor.snapshot(chn = CAM_CHN_ID_1)
+            img = sensor.snapshot()
             # The first argument is the kernel size. N coresponds to a ((N*2)+1)^2
             # kernel size. E.g. 1 == 3x3 kernel, 2 == 5x5 kernel, etc. Note: You
             # shouldn't ever need to use a value bigger than 2. The "bias" argument
