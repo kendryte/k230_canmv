@@ -4,9 +4,8 @@
 
 #include "k_sensor_comm.h"
 
-#define BIT(nr) (1UL << (nr))
-#define MIRROR BIT(0)
-#define FLIP BIT(1)
+#define MIRROR  (1)
+#define FLIP    (2)
 
 struct sensor_type_mirror_t {
   k_vicap_sensor_type type;
@@ -15,7 +14,10 @@ struct sensor_type_mirror_t {
 
 #if defined(CONFIG_BOARD_K230_CANMV)
 static struct sensor_type_mirror_t type_mirror_tbl[] = {
-    // {.type =, .mirror = },
+    {.type = OV_OV5647_MIPI_640x480_90FPS_10BIT_LINEAR, .mirror = MIRROR},
+    {.type = OV_OV5647_MIPI_CSI0_1920X1080_30FPS_10BIT_LINEAR, .mirror = MIRROR},
+    {.type = OV_OV5647_MIPI_CSI0_1280X720_60FPS_10BIT_LINEAR, .mirror = MIRROR},
+    {.type = OV_OV5647_MIPI_CSI0_1280X960_45FPS_10BIT_LINEAR, .mirror = MIRROR},
 };
 #elif defined(CONFIG_BOARD_K230_CANMV_V2)
 static struct sensor_type_mirror_t type_mirror_tbl[] = {
@@ -28,6 +30,10 @@ static struct sensor_type_mirror_t type_mirror_tbl[] = {
 #elif defined(CONFIG_BOARD_K230_CANMV_01STUDIO)
 static struct sensor_type_mirror_t type_mirror_tbl[] = {
     {.type = OV_OV5647_MIPI_1920X1080_30FPS_10BIT_LINEAR, .mirror = FLIP},
+    {.type = OV_OV5647_MIPI_CSI2_1920X1080_30FPS_10BIT_LINEAR, .mirror = FLIP},
+    {.type = OV_OV5647_MIPI_CSI2_640x480_90FPS_10BIT_LINEAR, .mirror = FLIP},
+    {.type = OV_OV5647_MIPI_CSI2_1280X720_60FPS_10BIT_LINEAR, .mirror = FLIP},
+    {.type = OV_OV5647_MIPI_CSI2_1280X960_45FPS_10BIT_LINEAR, .mirror = FLIP},
 };
 #elif defined(CONFIG_BOARD_K230_CANMV_DONGSHANPI)
 static struct sensor_type_mirror_t type_mirror_tbl[] = {

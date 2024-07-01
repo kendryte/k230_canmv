@@ -1977,9 +1977,7 @@ int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int ti
 
     pthread_mutex_lock(&hd_jpeg_mutex);
     if (jpeg_encoder_created < 0) {
-        printf("aa\n");
-        // create channel failed, do not try again
-        return -1;
+        goto skip;
     }
     static bool first_frame = true;
     static k_venc_chn_attr attr;
