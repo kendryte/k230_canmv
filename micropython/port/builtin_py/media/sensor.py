@@ -173,7 +173,7 @@ class Sensor:
             if 0 != ret:
                 raise RuntimeError(f"Can not found sensor on {self._dev_id}")
 
-            # def_mirror = cfg.def_mirror
+            def_mirror = cfg.def_mirror
             self._type = info.type
             print(f"use sensor {info.type}, output {info.width}x{info.height}@{info.fps}")
 
@@ -289,29 +289,49 @@ class Sensor:
     @wrap
     def flush(self, enable):
         pass
-    
+
+    class dumped_image:
+        def __init__(self, dev_id, chn):
+            self.id = dev_id
+            self.chn = chn
+            self.phys = None
+            self.virt = None
+            self.size = None
+
+        def push_phys(self, phys):
+            self.phys = phys
+
+        def push_virt(self, virt, size):
+            self.virt = virt
+            self.size = size
+
+        def release(self):
+            if isinstance(self.virt, int) and isinstance(self.size, int):
+                if self.virt > 0 and self.size > 0:
+                    ret = kd_mpi_sys_munmap(self.virt, self.size)
+                    self.virt = None
+                    self.size = None
+                    if ret:
+                        raise AssertionError("release image failed (1)")
+
+            if isinstance(self.phys, int) and self.phys > 0:
+                frame_info = k_video_frame_info()
+                frame_info.v_frame.phys_addr[0] = self.phys
+                ret = kd_mpi_vicap_dump_release(self.id, self.chn, frame_info)
+                if ret:
+                    raise AssertionError("release image failed (2)")
+                self.phys = None
+
     # for snapshot
-    def _release_image(self, img, chn = CAM_CHN_ID_0):
-        virt_addr = img.virtaddr()
-        if virt_addr == 0:
-            return
-        img_size = img.size()
-        ret1 = kd_mpi_sys_munmap(virt_addr, img_size)
-        phy_addr = img.phyaddr()
-        frame_info = k_video_frame_info()
-        frame_info.v_frame.phys_addr[0] = phy_addr
-        ret2 = kd_mpi_vicap_dump_release(self._dev_id, chn, frame_info)
-        img.__del__()
-        self._imgs[chn] = None
-        assert ret1 == 0, "kd_mpi_sys_munmap"
-        assert ret2 == 0, "kd_mpi_vicap_dump_release"
+    @staticmethod
+    def _release_image(img):
+        if isinstance(img, Sensor.dumped_image):
+            img.release()
 
     # for snapshot
     def _release_all_chn_image(self):
         for chn in range(0, VICAP_CHN_ID_MAX):
-            img = self._imgs[chn]
-            if img:
-                self._release_image(img, chn)
+            self._release_image(self._imgs[chn])
 
     def snapshot(self, chn = CAM_CHN_ID_0):
         if not self._dev_attr.dev_enable:
@@ -323,14 +343,17 @@ class Sensor:
         if (chn > CAM_CHN_ID_MAX - 1):
             raise AssertionError(f"invaild chn id {chn}, should < {CAM_CHN_ID_MAX - 1}")
 
-        if self._imgs[chn]:
-            self._release_image(self._imgs[chn], chn)
+        if not isinstance(self._imgs[chn], self.dumped_image):
+            self._imgs[chn] = self.dumped_image(self._dev_id, chn)
+        else:
+            self._release_image(self._imgs[chn])
 
         status = 0
         frame_info = k_video_frame_info()
         try:
             virt_addr = 0
             ret = kd_mpi_vicap_dump_frame(self._dev_id, chn, VICAP_DUMP_YUV, frame_info, 1000)
+            self._imgs[chn].push_phys(frame_info.v_frame.phys_addr[0])
             if ret:
                 raise RuntimeError(f"sensor({self._dev_id}) snapshot chn({chn}) failed({ret})")
             status = 1
@@ -350,6 +373,7 @@ class Sensor:
             else:
                 raise RuntimeError(f"sensor({self._dev_id}) snapshot chn({chn}) not support pixelformat({fmt})")
             virt_addr = kd_mpi_sys_mmap_cached(phys_addr, img_size)
+            self._imgs[chn].push_virt(virt_addr, img_size)
             if virt_addr:
                 status = 2
 
@@ -362,7 +386,6 @@ class Sensor:
             else:
                 raise RuntimeError(f"sensor({self._dev_id}) snapshot chn({chn}) mmap failed")
 
-            self._imgs[chn] = img
             return img
         except Exception as e:
             raise e

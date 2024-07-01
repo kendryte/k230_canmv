@@ -226,6 +226,9 @@ static const k_sensor_reg gc2053_mipi4lane_1080p_30fps_linear[] = {
 	{0x0e, 0x40},
 	{0x12, 0xe2},
 	{0x13, 0x16},
+
+    {0x17, 0x03},   // vflip
+
 	{0x19, 0x0a},
 	{0x21, 0x1c},
 	{0x28, 0x0a},
@@ -357,7 +360,7 @@ static k_sensor_mode gc2053_mode_info[] = {
         .fps = 30000,
         .hdr_mode = SENSOR_MODE_LINEAR,
         .bit_width = 10,
-        .bayer_pattern = BAYER_PAT_RGGB,
+        .bayer_pattern = BAYER_PAT_BGGR, //BAYER_PAT_RGGB,
         .mipi_info = {
             .csi_id = 0,
             .mipi_lanes = 2,
@@ -375,6 +378,38 @@ static k_sensor_mode gc2053_mode_info[] = {
             {K_FALSE},
         },
     },
+     {
+        .index = 1,
+        .sensor_type = GC2053_MIPI_CSI2_1920X1080_30FPS_10BIT_LINEAR,
+        .size = {
+            .bounds_width = 1920,
+            .bounds_height = 1080,
+            .top = 0,
+            .left = 0,
+            .width = 1920,
+            .height = 1080,
+        },
+        .fps = 30000,
+        .hdr_mode = SENSOR_MODE_LINEAR,
+        .bit_width = 10,
+        .bayer_pattern = BAYER_PAT_BGGR, //BAYER_PAT_RGGB,
+        .mipi_info = {
+            .csi_id = 0,
+            .mipi_lanes = 2,
+            .data_type = 0x2B,
+        },
+        .reg_list = gc2053_mipi4lane_1080p_30fps_linear,
+        .mclk_setting = {
+            {
+                .mclk_setting_en = K_TRUE,
+                .setting.id = SENSOR_MCLK2,
+                .setting.mclk_sel = SENSOR_PLL1_CLK_DIV4,
+                .setting.mclk_div = 25,
+            },
+            {K_FALSE},
+            {K_FALSE},
+        },
+    },
 };
 
 static k_bool gc2053_init_flag = K_FALSE;
@@ -382,7 +417,7 @@ static k_sensor_mode *current_mode = NULL;
 
 static int gc2053_power_rest(k_s32 on)
 {
-    #define VICAP_GC2053_RST_GPIO     (0)  //24// 
+    // #define VICAP_GC2053_RST_GPIO     (0)  //24// 
 
     kd_pin_mode(VICAP_GC2053_RST_GPIO, GPIO_DM_OUTPUT);
 
@@ -951,7 +986,7 @@ static k_s32 gc2053_sensor_mirror_set(void *ctx, k_vicap_mirror_mode mirror)
 struct sensor_driver_dev gc2053_sensor_drv = {
     .i2c_info = {
         .i2c_bus = NULL,
-        .i2c_name = "i2c3",   //"i2c0", //"i2c3",
+        .i2c_name = GC2053_CSI0_IIC, //"i2c3",   //"i2c0", //"i2c3",
         .slave_addr = 0x37,
         .reg_addr_size = SENSOR_REG_VALUE_8BIT,
         .reg_val_size = SENSOR_REG_VALUE_8BIT,

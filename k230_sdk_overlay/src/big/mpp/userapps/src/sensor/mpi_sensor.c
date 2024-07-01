@@ -482,7 +482,7 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         OV_OV9286_MIPI_1280X720_60FPS_10BIT_LINEAR_SPECKLE
     },
     {
-        "ov5647",
+        "ov5647_csi2",
         1920,
         1080,
         VICAP_CSI2,
@@ -905,6 +905,23 @@ static const k_vicap_sensor_info sensor_info_list[] = {
         0,
         30,
         GC2053_MIPI_CSI0_1920X1080_30FPS_10BIT_LINEAR,
+    },
+    {
+        "gc2053",
+        1920,
+        1080,
+        VICAP_CSI2,
+        VICAP_MIPI_2LANE,
+        VICAP_SOURCE_CSI2,
+        K_FALSE,
+        VICAP_MIPI_PHY_1200M,
+        VICAP_CSI_DATA_TYPE_RAW10,
+        VICAP_LINERA_MODE,
+        VICAP_FLASH_DISABLE,
+        VICAP_VI_FIRST_FRAME_FS_TR0,
+        0,
+        30,
+        GC2053_MIPI_CSI2_1920X1080_30FPS_10BIT_LINEAR,
     },
 };
 
@@ -1495,7 +1512,7 @@ k_s32 kd_mpi_sensor_adapt_get(k_vicap_probe_config *config, k_vicap_sensor_info 
         ret = kd_mpi_vicap_get_sensor_info((k_vicap_sensor_type)sensor_idx, &sensor_info);
         if (ret)
         {
-            printf("kd_mpi_vicap_adapt_config, the sensor type not supported! index is %d \n", sensor_idx);
+            // printf("kd_mpi_vicap_adapt_config, the sensor type not supported! index is %d \n", sensor_idx);
             continue;
         }
 
@@ -1589,6 +1606,8 @@ k_s32 kd_mpi_sensor_adapt_get(k_vicap_probe_config *config, k_vicap_sensor_info 
 _on_success:
 
     config->mirror = get_mirror_by_sensor_type(info->sensor_type);
+
+    printf("probe sensor type %d, mirror %d\n", info->sensor_type, config->mirror);
 
     return 0;
 

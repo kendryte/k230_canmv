@@ -160,10 +160,20 @@ class MediaManager:
     _is_inited = False
 
     @classmethod
-    def init(cls):
+    def init(cls, for_comress = True):
         if cls._is_inited:
             raise AssertionError("The buffer has been initialized!!!\n\
             This method can only be called once, please check your code!!!")
+
+        if for_comress:
+            config = k_vb_config()
+            config.max_pool_cnt = 1
+            config.comm_pool[0].blk_size = (1920 * 1080 + 0xfff) & ~0xfff
+            config.comm_pool[0].blk_cnt = 2
+            config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
+            ret = MediaManager._config(config)
+            if not ret:
+                raise RuntimeError(f"MediaManager configure buffer for image compress failed.")
 
         print("buffer pool : ", cls._vb_buffer_index)
         ret = kd_mpi_vb_set_config(cls._vb_buffer)

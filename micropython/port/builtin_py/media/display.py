@@ -253,13 +253,15 @@ class Display:
 
         if cls._write_back_to_ide:
             config = k_vb_config()
-            config.max_pool_cnt = 2
+            config.max_pool_cnt = 1
             config.comm_pool[0].blk_size = cls._width * cls._height * 2
             config.comm_pool[0].blk_cnt = 4
             config.comm_pool[0].mode = VB_REMAP_MODE_NOCACHE
-            config.comm_pool[1].blk_size = (cls._width * cls._height + 0xfff) & ~0xfff
-            config.comm_pool[1].blk_cnt = 2
-            config.comm_pool[1].mode = VB_REMAP_MODE_NOCACHE
+
+            # configure buffer for image compress in media.init()
+            # config.comm_pool[1].blk_size = (cls._width * cls._height + 0xfff) & ~0xfff
+            # config.comm_pool[1].blk_cnt = 2
+            # config.comm_pool[1].mode = VB_REMAP_MODE_NOCACHE
 
             # for vo_wbc rotate
             # if cls._ide_vo_wbc_flag != 0:
