@@ -1064,12 +1064,24 @@ static void* ide_dbg_task(void* args) {
                 // normal REPL
                 pr_verb("[usb] read %lu bytes ", size);
                 print_raw(usb_cdc_read_buf, size);
-                if ((size == 1) && (usb_cdc_read_buf[0] == CHAR_CTRL_C) && repl_script_running) {
-                    is_repl_intr = true;
-                    // terminate script running
-                    #if MICROPY_KBD_EXCEPTION
-                    mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
-                    #endif
+
+                if(repl_script_running && (usb_cdc_read_buf[0] == CHAR_CTRL_C)) {
+                    static const uint8_t mark[3] = {0x03, 0x0d, 0x0a};
+
+                    if(0x01 == size) {
+                        is_repl_intr = true;
+                    } else if(0x03 == size) {
+                        if((mark[0] == usb_cdc_read_buf[0]) && (mark[1] == usb_cdc_read_buf[1]) && (mark[2] == usb_cdc_read_buf[2])) {
+                            is_repl_intr = true;
+                        }
+                    }
+
+                    if(is_repl_intr) {
+                        // terminate script running
+                        #if MICROPY_KBD_EXCEPTION
+                        mp_thread_set_exception_main(MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_kbd_exception)));
+                        #endif
+                    }
                 } else {
                     if (stdin_write_ptr + size <= sizeof(stdin_ring_buffer)) {
                         memcpy(stdin_ring_buffer + stdin_write_ptr, usb_cdc_read_buf, size);
