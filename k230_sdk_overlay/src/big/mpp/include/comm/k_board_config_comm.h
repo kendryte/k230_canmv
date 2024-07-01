@@ -61,8 +61,10 @@ extern "C" {
 #define OV5647_CSI1_IIC "i2c0"
 #define OV9732_RST_PIN                                  (28)
 
+
 #define GC2053_CSI0_IIC "i2c3"
 #define VICAP_GC2053_RST_GPIO                           (0)
+
 
 #define LT9611_RESET_GPIO   42
 #define LT9611_SLAVE_ADDR   0x3b
@@ -115,6 +117,7 @@ extern "C" {
 #define OV5647_CSI1_IIC "i2c0"
 #define OV9732_RST_PIN                                  (24)
 
+
 #define GC2053_CSI0_IIC "i2c3"
 #define VICAP_GC2053_RST_GPIO                           (0)
 
@@ -135,7 +138,7 @@ extern "C" {
 #define VICAP_OV9286_RST_GPIO                           20
 #define OV5647_IIC "i2c1"
 #define OV5647_CAM_PIN                                  20
-#define OV5647_CAM_PIN_CSI2                             (24)
+#define OV5647_CAM_PIN_CSI2                             (20)
 #define OV5647_CAM_PIN_CSI1                             (23)
 #define OV9732_RST_PIN                                  (24)
 
