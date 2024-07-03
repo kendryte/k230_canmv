@@ -259,8 +259,8 @@ class MediaManager:
 
     @classmethod
     def link(cls, src, dst):
-        if MediaManager._is_inited:
-            raise AssertionError("please run MediaManager._link() before MediaManager.init()")
+        # if MediaManager._is_inited:
+        #     raise AssertionError("please run MediaManager._link() before MediaManager.init()")
 
         if not isinstance(src, tuple):
             raise TypeError("src is not a tuple")

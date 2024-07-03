@@ -45,7 +45,20 @@
 
 #define GC2053_MIN_GAIN_STEP    (1.0f/64.0f)
 
+static k_u32 mirror_flag = 0;
 
+static k_sensor_reg gc2053_mirror[] = {
+    {0xfe, 0x00},	//Page 0
+    {0x17, 0x03}, 
+    {REG_NULL, 0x00},
+};
+
+static const k_sensor_reg sensor_enable_regs[] = {
+    {0xfe, 0x00},
+	{0x3e, 0x81},
+    {0x3e, 0x91},
+    {REG_NULL, 0x00},
+};
 
 static const k_sensor_reg gc2053_mipi4lane_1080p_30fps_linear[] = {
 
@@ -218,12 +231,19 @@ static const k_sensor_reg gc2053_mipi4lane_1080p_30fps_linear[] = {
 	{0x06, 0x4c},
 	{0x07, 0x00},	//Vblank = 0x11 = 17
 	{0x08, 0x11},
+
 	{0x09, 0x00},	//raw start = 0x02
-	{0x0a, 0x02},
+	{0x0a, 0x04},
+
 	{0x0b, 0x00},	//col start = 0x02
-	{0x0c, 0x02},
+	{0x0c, 0x04},      //0x02
+
 	{0x0d, 0x04},	//win_height = 1088
-	{0x0e, 0x40},
+	{0x0e, 0x40},   //0x40
+
+    {0x0f, 0x07},	//win_w = 1940 
+	{0x10, 0x88},   //0x94
+
 	{0x12, 0xe2},
 	{0x13, 0x16},
 
@@ -336,9 +356,9 @@ static const k_sensor_reg gc2053_mipi4lane_1080p_30fps_linear[] = {
 	{0x03, 0x8e},
 	{0x12, 0x80},
 	{0x13, 0x07},
-	{0xfe, 0x00},
-	{0x3e, 0x81},
-    {0x3e, 0x91},
+	// {0xfe, 0x00},
+	// {0x3e, 0x81},
+    // {0x3e, 0x91},
 
 	{REG_NULL, 0x00},
 #endif
@@ -360,7 +380,7 @@ static k_sensor_mode gc2053_mode_info[] = {
         .fps = 30000,
         .hdr_mode = SENSOR_MODE_LINEAR,
         .bit_width = 10,
-        .bayer_pattern = BAYER_PAT_BGGR, //BAYER_PAT_RGGB,
+        .bayer_pattern =BAYER_PAT_BGGR,//BAYER_PAT_BGGR, //BAYER_PAT_RGGB,
         .mipi_info = {
             .csi_id = 0,
             .mipi_lanes = 2,
@@ -530,6 +550,16 @@ static k_s32 gc2053_sensor_init(void *ctx, k_sensor_mode mode)
 
         ret = sensor_reg_list_write(&dev->i2c_info, current_mode->reg_list);
 
+        if(mirror_flag == 1)
+        {
+            sensor_reg_list_write(&dev->i2c_info, gc2053_mirror);
+
+            k_u16 val = 0;
+            ret = sensor_reg_read(&dev->i2c_info, 0x0f, &val);
+            pr_err("0x0f val is %x \n", val);
+            ret = sensor_reg_read(&dev->i2c_info, 0x10, &val);
+            pr_err("0x10 val is %x \n", val);
+        }
 
         current_mode->ae_info.frame_length = 2200;
         current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
@@ -698,6 +728,7 @@ static k_s32 gc2053_sensor_set_stream(void *ctx, k_s32 enable)
     pr_info("%s enter, enable(%d)\n", __func__, enable);
     if (enable) {
         // ret = sensor_reg_write(&dev->i2c_info, 0x0100, 0x01);
+        ret = sensor_reg_list_write(&dev->i2c_info, sensor_enable_regs);
     } else {
         // ret = sensor_reg_write(&dev->i2c_info, 0x0100, 0x00);
     }
@@ -979,6 +1010,49 @@ k_s32 gc2053_sensor_get_otp_data(void *ctx, void *data)
 
 static k_s32 gc2053_sensor_mirror_set(void *ctx, k_vicap_mirror_mode mirror)
 {
+    k_s32 ret = 0;
+    struct sensor_driver_dev *dev = ctx;
+
+    rt_kprintf("mirror mirror is %d , sensor tpye is %d \n", mirror.mirror, mirror.sensor_type);
+
+    // get current sensor type
+    for (k_s32 i = 0; i < sizeof(gc2053_mode_info) / sizeof(k_sensor_mode); i++) {
+        if (gc2053_mode_info[i].sensor_type == mirror.sensor_type) {
+            // default flip 0x17 = 0x03
+            switch(mirror.mirror)
+            {
+                case VICAP_MIRROR_NONE :
+                    gc2053_mode_info[i].bayer_pattern = BAYER_PAT_BGGR;
+                    mirror_flag = 0;
+                    return 0;
+                case VICAP_MIRROR_HOR :
+                    // set mirror
+                    gc2053_mirror[1].val = 0x02;
+                    // set sensor info bayer pattern 
+                    gc2053_mode_info[i].bayer_pattern = BAYER_PAT_GBRG;
+                    break;
+                case VICAP_MIRROR_VER :
+                    // set mirror
+                    gc2053_mirror[1].val = 0x01;
+                    // set sensor info bayer pattern 
+                    gc2053_mode_info[i].bayer_pattern = BAYER_PAT_GRBG;
+                    break;
+                case VICAP_MIRROR_BOTH :
+                    // set mirror
+                    gc2053_mirror[1].val = 0x00;
+                    // set sensor info bayer pattern 
+                    gc2053_mode_info[i].bayer_pattern = BAYER_PAT_RGGB;
+                    break;
+                default: 
+                    rt_kprintf("mirror type is not support \n");
+                    return -1;
+                    break;
+            }
+            rt_kprintf("mirror_flag is gc2053_mirror[0].val %d", mirror_flag);
+            mirror_flag = 1;
+            return 0;
+        }
+    }
     return 0;
 }
 
