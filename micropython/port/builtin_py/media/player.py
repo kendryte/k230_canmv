@@ -49,18 +49,18 @@ class Player:
                 self.pyaudio = PyAudio()
                 self.pyaudio.initialize(48000//25)
 
-        bind_info = self.vdec.bind_info(width=self.video_info.width,height=self.video_info.height,chn=vdecoder.Decoder.get_free_chn_index())
-        #bind_info = self.vdec.bind_info(width=self.video_info.width,height=self.video_info.height,chn=self.vdec.get_vdec_channel())
-        Display.bind_layer(**bind_info, layer = Display.LAYER_VIDEO1)
+
         Display.init(Display.LT9611)
-
         MediaManager.init()    #vb buffer初始化
-
-        if (self.audio_track):
-            self.adec.create()
 
         if (self.video_track):
             self.vdec.create()
+
+        bind_info = self.vdec.bind_info(width=self.video_info.width,height=self.video_info.height,chn=self.vdec.get_vdec_channel())
+        Display.bind_layer(**bind_info, layer = Display.LAYER_VIDEO1)
+
+        if (self.audio_track):
+            self.adec.create()
 
 
     def _deinit_media_buffer(self):

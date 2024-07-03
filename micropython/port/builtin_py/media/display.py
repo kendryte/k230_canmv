@@ -116,8 +116,8 @@ class Display:
     # flag
     @classmethod
     def bind_layer(cls, **kwargs):
-        if cls._is_inited:
-            raise AssertionError("please run Display.bind_layer() before Display.init()")
+        # if cls._is_inited:
+        #     raise AssertionError("please run Display.bind_layer() before Display.init()")
 
         src = kwargs.get('src', None)
         if src is None:
@@ -154,6 +154,12 @@ class Display:
 
         layer_config = Display.LayerConfig(layer, rect, pix_format, flag, alpha)
         cls._layer_bind_cfg[layer] = Display.BindConfig(src, dst, layer_config)
+
+        if cls._is_inited:
+            if (Display.LAYER_VIDEO1 <= layer <= Display.LAYER_VIDEO2):
+                cls.__config_video_layer(layer_config)
+            elif (Display.LAYER_OSD0 <= i <= Display.LAYER_OSD3):
+                cls.__config_osd_layer(layer_config)
 
     @classmethod
     def unbind_layer(cls, layer):
