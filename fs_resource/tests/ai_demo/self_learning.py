@@ -128,6 +128,7 @@ class SelfLearningApp(AIBase):
 
     #数据初始化
     def data_init(self):
+        os.mkdir(self.database_path)
         self.crop_x_osd = int(self.crop_x / self.rgb888p_size[0] * self.display_size[0])
         self.crop_y_osd = int(self.crop_y / self.rgb888p_size[1] * self.display_size[1])
         self.crop_w_osd = int(self.crop_w / self.rgb888p_size[0] * self.display_size[0])
@@ -189,6 +190,7 @@ if __name__=="__main__":
             list_files = os.listdir(database_path)
             for l in list_files:
                 os.remove(database_path + l)
+        os.rmdir(database_path)
         sl.deinit()
         pl.destroy()
 
