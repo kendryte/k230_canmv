@@ -45,6 +45,9 @@
 #define OV5647_REG_FRAME_OFF_NUMBER                         0x4202
 #define OV5647_REG_PAD_OUT                                  0x300d
 
+#define OV5647_REG_VTS_H                                  0x380e
+#define OV5647_REG_VTS_L                                  0x380f
+
 #define OV5647_REG_MIPI_CTRL14                              0x4814
 
 #define OV5647_SW_STANDBY                                   0x0100
@@ -1255,7 +1258,7 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
             ret = sensor_reg_list_write(&dev->i2c_info, sensor_mirror_reg);
         }
 
-        current_mode->ae_info.frame_length = 573;
+        current_mode->ae_info.frame_length = 1721;//30fps, 90fps:573;
         current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
         current_mode->ae_info.one_line_exp_time = 0.000019373;
         current_mode->ae_info.gain_accuracy = 1024;
@@ -1338,7 +1341,7 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
             ret = sensor_reg_list_write(&dev->i2c_info, sensor_mirror_reg);
         }
 
-        current_mode->ae_info.frame_length = 851;
+        current_mode->ae_info.frame_length = 1701; //30fps, 60fps: 851;
         current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
         current_mode->ae_info.one_line_exp_time = 0.000019593;
         current_mode->ae_info.gain_accuracy = 1024;
@@ -1420,7 +1423,7 @@ static k_s32 ov5647_sensor_init(void *ctx, k_sensor_mode mode)
             ret = sensor_reg_list_write(&dev->i2c_info, sensor_mirror_reg);
         }
 
-        current_mode->ae_info.frame_length = 1093;
+        current_mode->ae_info.frame_length = 1639;//30fps, 45fps:1093;
         current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
         current_mode->ae_info.one_line_exp_time = 0.000020332;
         current_mode->ae_info.gain_accuracy = 1024;
@@ -1743,6 +1746,27 @@ static k_s32 ov5647_sensor_set_intg_time(void *ctx, k_sensor_intg_time time)
     k_u16 exp_line = 0;
     float integraion_time = 0;
     struct sensor_driver_dev *dev = ctx;
+    
+    k_u32 index = current_mode->index;
+    k_u32 max_vts = current_mode->ae_info.frame_length;
+    k_u32 min_vts;
+    k_u16 new_vts;
+    if(index ==2) //VGA
+    {
+    	min_vts = 573;
+    }
+    else if(index == 6)	//720P
+    {
+    	min_vts = 851;
+    }
+    else if(index == 7)	//960P
+    {
+    	min_vts = 1093;
+    }
+    else	//1080P and 5MP
+    {
+    	min_vts = max_vts;
+    }
 
     if (current_mode->hdr_mode == SENSOR_MODE_LINEAR) {
         integraion_time = time.intg_time[SENSOR_LINEAR_PARAS];
@@ -1752,8 +1776,31 @@ static k_s32 ov5647_sensor_set_intg_time(void *ctx, k_sensor_intg_time time)
         exp_line = MIN(current_mode->ae_info.max_integraion_line, MAX(current_mode->ae_info.min_integraion_line, exp_line));
         if (current_mode->et_line != exp_line)
         {
-            ret |= sensor_reg_write(&dev->i2c_info, OV5647_REG_LONG_EXP_TIME_H, ( exp_line >> 4) & 0xff);
-            ret |= sensor_reg_write(&dev->i2c_info, OV5647_REG_LONG_EXP_TIME_L, ( exp_line << 4) & 0xff);
+    		if(min_vts == max_vts)
+    		{
+            	ret |= sensor_reg_write(&dev->i2c_info, OV5647_REG_LONG_EXP_TIME_H, ( exp_line >> 4) & 0xff);
+            	ret |= sensor_reg_write(&dev->i2c_info, OV5647_REG_LONG_EXP_TIME_L, ( exp_line << 4) & 0xff);
+    		}
+    		else
+    		{            
+        		new_vts = exp_line + 12;
+        		if(new_vts < min_vts) new_vts = min_vts;
+        		else if(new_vts > max_vts) new_vts = max_vts;
+        		if(current_mode->et_line<exp_line)
+        		{
+        			ret |= sensor_reg_write(&dev->i2c_info, OV5647_REG_VTS_H, ( new_vts >> 8) & 0xff);
+            		ret |= sensor_reg_write(&dev->i2c_info, OV5647_REG_VTS_L,  new_vts & 0xff);
+        			ret |= sensor_reg_write(&dev->i2c_info, OV5647_REG_LONG_EXP_TIME_H, ( exp_line >> 4) & 0xff);
+            		ret |= sensor_reg_write(&dev->i2c_info, OV5647_REG_LONG_EXP_TIME_L, ( exp_line << 4) & 0xff);
+        		}
+        		else
+        		{
+        			ret |= sensor_reg_write(&dev->i2c_info, OV5647_REG_LONG_EXP_TIME_H, ( exp_line >> 4) & 0xff);
+            		ret |= sensor_reg_write(&dev->i2c_info, OV5647_REG_LONG_EXP_TIME_L, ( exp_line << 4) & 0xff);
+        			ret |= sensor_reg_write(&dev->i2c_info, OV5647_REG_VTS_H, ( new_vts >> 8) & 0xff);
+            		ret |= sensor_reg_write(&dev->i2c_info, OV5647_REG_VTS_L,  new_vts & 0xff);
+        		}
+    		}
             current_mode->et_line = exp_line;
         }
         current_mode->ae_info.cur_integration_time = (float)current_mode->et_line * current_mode->ae_info.one_line_exp_time;
@@ -1906,22 +1953,22 @@ static k_s32 ov5647_sensor_mirror_set(void *ctx, k_vicap_mirror_mode mirror)
                         return 0;
                     case VICAP_MIRROR_HOR :
                         // set mirror
-                        sensor_mirror_reg[0].val = 0x2 ;
-                        sensor_mirror_reg[1].val = 0x2 ;
+                        sensor_mirror_reg[0].val = 0x2;
+                        sensor_mirror_reg[1].val = 0x2;
                         // set sensor info bayer pattern 
                         ov5647_mode_info[i].bayer_pattern = BAYER_PAT_RGGB;
                         break;
                     case VICAP_MIRROR_VER :
                         // set mirror
-                        sensor_mirror_reg[0].val = 0x0 ;
-                        sensor_mirror_reg[1].val = 0x0 ;
+                        sensor_mirror_reg[0].val = 0x0;
+                        sensor_mirror_reg[1].val = 0x0;
                         // set sensor info bayer pattern 
                         ov5647_mode_info[i].bayer_pattern = BAYER_PAT_BGGR;
                         break;
                     case VICAP_MIRROR_BOTH :
                         // set mirror
-                        sensor_mirror_reg[0].val = 0x0 ;
-                        sensor_mirror_reg[1].val = 0x2 ;
+                        sensor_mirror_reg[0].val = 0x0;
+                        sensor_mirror_reg[1].val = 0x2;
                         // set sensor info bayer pattern 
                         ov5647_mode_info[i].bayer_pattern = BAYER_PAT_GBRG;
                         break;
@@ -1946,8 +1993,8 @@ static k_s32 ov5647_sensor_mirror_set(void *ctx, k_vicap_mirror_mode mirror)
                     case VICAP_MIRROR_VER :
                         // set mirror
                         sensor_mirror_reg[0].val = 0x2;
-                        sensor_mirror_reg[1].val = 0x2 ;
-                        // set sensor info bayer pattern
+                        sensor_mirror_reg[1].val = 0x2;
+                        // set sensor info bayer pattern 
                         ov5647_mode_info[i].bayer_pattern = BAYER_PAT_RGGB;
                         break;
                     case VICAP_MIRROR_BOTH :

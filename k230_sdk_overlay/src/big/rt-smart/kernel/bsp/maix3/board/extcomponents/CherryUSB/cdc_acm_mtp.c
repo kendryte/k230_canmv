@@ -19,7 +19,7 @@
 // OpenMV Cam
 #define USBD_VID           0x1209
 #define USBD_PID           0xABD1
-#define USBD_MAX_POWER     100
+#define USBD_MAX_POWER     500
 #define USBD_LANGID_STRING 1033
 
 #ifdef CONFIG_USB_HS
