@@ -1,0 +1,33 @@
+#
+# Copyright (C) 2017-2020 Alibaba Group Holding Limited
+#
+# SPDX-License-Identifier: GPL-2.0+
+#
+
+config RISCV_THEAD
+	bool
+	select ARCH_EARLY_INIT_R
+	select SUPPORT_SPL
+	imply CPU
+	imply CPU_RISCV
+	imply RISCV_TIMER
+	imply RISCV_RDTIME
+	imply CMD_CPU
+	imply SPL_CPU
+	imply SPL_OPENSBI
+	imply SPL_LOAD_FIT
+
+
+
+config DDR_SIZE
+	hex "DDR  Size"
+	default 0x80000000 if LPDDR4_2667
+	default 0x08000000 if SIPLP4_3200_WODT
+	default 0x08000000 if SIPLP4_3200_WALLODT
+	default 0x08000000 if SIPLP4_2667
+	default 0x08000000 if SIPLP4_1600
+	default 0x40000000 if CANMV_01STUDIO_LPDDR4_2667
+	default 0x40000000 if CANMV_01STUDIO_LPDDR4_3200
+	default 0x20000000
+	help
+	  Size of the DDR 

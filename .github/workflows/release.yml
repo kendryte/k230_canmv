@@ -132,14 +132,13 @@ jobs:
           cd micropython || exit 1
           git submodule update --recursive --init || exit 1
           cd ../ || exit 1
-          cd micropython_port || exit 1
-          git submodule update --recursive --init || exit 1
-          cd ../ || exit 1
           echo "add safe dir for prepare_sourcecode use git command with permission error"
           git config --global --add safe.directory $PWD
           git config --global --add safe.directory $PWD/k230_sdk
-          git config --global --add safe.directory $PWD/micropython
-          git config --global --add safe.directory $PWD/micropython_port/lvgl/lv_binding_micropython
+          git config --global --add safe.directory $PWD/micropython/micropython
+          git config --global --add safe.directory $PWD/micropython/port/3d-party/freetype/freetype
+          git config --global --add safe.directory $PWD/micropython/port/3d-party/lvgl/lv_binding_micropython
+          git config --global --add safe.directory $PWD/micropython/port/3d-party/wrap/micropython-wrap
           git config --global --list
           ls -alht
           echo "download toolchain and build env"
@@ -181,8 +180,10 @@ jobs:
               echo 'start to build k230 canmv image'; \
               git config --global --add safe.directory $PWD; \
               git config --global --add safe.directory $PWD/k230_sdk; \
-              git config --global --add safe.directory $PWD/micropython; \
-              git config --global --add safe.directory $PWD/micropython_port/lvgl/lv_binding_micropython; \
+              git config --global --add safe.directory $PWD/micropython/micropython; \
+              git config --global --add safe.directory $PWD/micropython/port/3d-party/freetype/freetype; \
+              git config --global --add safe.directory $PWD/micropython/port/3d-party/lvgl/lv_binding_micropython; \
+              git config --global --add safe.directory $PWD/micropython/port/3d-party/wrap/micropython-wrap; \
               time make CONF=$CONF || exit 1; \
               echo '---show docker build output---'; \
               ls -alht output/${CONF}/images || exit 1"

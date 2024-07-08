@@ -1,0 +1,8 @@
+include("$(MPY_DIR)/extmod/asyncio")
+require("base64")
+require("binascii")
+require("gzip")
+require("hashlib")
+require("heapq")
+package("mpp", base_path="../builtin_py")
+package("media", base_path="../builtin_py")
