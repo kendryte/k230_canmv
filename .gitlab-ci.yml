@@ -74,8 +74,8 @@ release_image_publish:
     matrix:
       - CONF:
         - k230_canmv_defconfig
-        - k230_canmv_only_rtt_defconfig
         - k230d_canmv_only_rtt_defconfig
+        - k230_canmv_01studio_defconfig
   extends:
     - .sync_release_image
 
@@ -951,7 +951,6 @@ build_image:
     matrix:
       - CONF:
         - k230_canmv_defconfig
-        - k230_canmv_only_rtt_defconfig
         - k230d_canmv_only_rtt_defconfig
         - k230_canmv_01studio_defconfig
   variables:
