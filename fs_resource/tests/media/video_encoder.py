@@ -9,8 +9,6 @@ from media.sensor import *
 from media.media import *
 import time, os
 
-# NOT WORK NOW!!!
-
 def venc_test():
     print("venc_test start")
     width = 1280
