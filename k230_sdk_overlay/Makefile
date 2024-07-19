@@ -37,9 +37,7 @@ DEFCONFIG = configs/$(CONF)
 include repo.mak
 include parse.mak
 
-ADD_PATH := :$(RTT_EXEC_PATH):$(LINUX_EXEC_PATH)
-TMP_PATH := $(addsuffix $(ADD_PATH), $(PATH))
-export PATH=$(TMP_PATH)
+export PATH:="$(RTT_EXEC_PATH):$(LINUX_EXEC_PATH):$(PATH)"
 export RTSMART_SRC_DIR=$(K230_SDK_ROOT)/$(RT-SMART_SRC_PATH)
 export CDK_SRC_DIR=$(K230_SDK_ROOT)/$(CDK_SRC_PATH)
 export MPP_SRC_DIR=$(K230_SDK_ROOT)/$(MPP_SRC_PATH)
