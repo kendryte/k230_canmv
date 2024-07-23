@@ -175,7 +175,7 @@ class Sensor:
 
             def_mirror = cfg.def_mirror
             self._type = info.type
-            print(f"use sensor {info.type}, output {info.width}x{info.height}@{info.fps}")
+            print(f"find sensor {cfg.name.decode()}, type {info.type}, output {info.width}x{info.height}@{info.fps}")
 
         if (self._type > SENSOR_TYPE_MAX - 1):
             raise AssertionError(f"invaild sensor type {self._type}, should < {SENSOR_TYPE_MAX - 1}")

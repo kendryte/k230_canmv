@@ -68,6 +68,9 @@ CFILES += \
       src/raster/raster.c \
       src/sdf/sdf.c \
 
+CFILES += \
+      src/cache/ftcache.c
+
 CFLAGS += -Iinclude -DFT2_BUILD_LIBRARY
 
 CWARN := 

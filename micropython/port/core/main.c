@@ -759,6 +759,10 @@ MP_NOINLINE int main_(int argc, char **argv) {
     if (ide_dbg_attach()) {
         is_repl_intr = false;
 
+        mp_hal_stdout_tx_str(MICROPY_BANNER_NAME_AND_VERSION);
+        mp_hal_stdout_tx_str("; " MICROPY_BANNER_MACHINE);
+        mp_hal_stdout_tx_str("\r\n");
+
         fprintf(stdout, "[mpy] enter script\n");
         nlr_buf_t nlr;
         if (nlr_push(&nlr) == 0) {
