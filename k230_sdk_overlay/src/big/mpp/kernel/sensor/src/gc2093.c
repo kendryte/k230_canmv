@@ -622,7 +622,7 @@ static const k_sensor_reg gc2093_mipi2lane_1080p_60fps_linear[] = {
 };
 
 static const k_sensor_reg gc2093_mipi2lane_960p_90fps_linear[] = {
-    //PCLK = 127MHz = 2628 x 1075 x 89.91/2
+    //PCLK = 126.72MHz = 2628 x 1072 x 89.96/2
     /****system****/
     {0x03fe, 0xf0},
     {0x03fe, 0xf0},
@@ -634,7 +634,7 @@ static const k_sensor_reg gc2093_mipi2lane_960p_90fps_linear[] = {
     {0x03f5, 0xc0},
     {0x03f6, 0x0B},
     {0x03f7, 0x01},
-    {0x03f8, 0x7f},
+    {0x03f8, 0x7c},
     {0x03f9, 0x40},
     {0x03fc, 0x8e},
     /****CISCTL & ANALOG****/
@@ -653,7 +653,7 @@ static const k_sensor_reg gc2093_mipi2lane_960p_90fps_linear[] = {
     {0x0005, 0x02},	//line length = 0x291 = 657 x 4 = 2628
     {0x0006, 0x91},
     {0x0007, 0x00},	//VBlank = 17
-    {0x0008, 0x5b},
+    {0x0008, 0x58},
     {0x0009, 0x00},	//y start = 0x3e = 62
     {0x000a, 0x3e},
     {0x000b, 0x02},	//x start = 0x144 = 324
@@ -664,8 +664,8 @@ static const k_sensor_reg gc2093_mipi2lane_960p_90fps_linear[] = {
     {0x0010, 0x08},
     {0x0013, 0x15},
     {0x0019, 0x0c},
-    {0x0041, 0x04},	// frame length = 0x0433= 1075
-    {0x0042, 0x33},
+    {0x0041, 0x04},	// frame length = 0x0430= 1072
+    {0x0042, 0x30},
     {0x0053, 0x60},
     {0x008d, 0x92},
     {0x0090, 0x00},
@@ -1391,7 +1391,7 @@ static k_s32 gc2093_sensor_init(void *ctx, k_sensor_mode mode)
 
         current_mode->ae_info.int_time_delay_frame = 2;
         current_mode->ae_info.gain_delay_frame = 2;
-        current_mode->ae_info.color_type = SENSOR_COLOR ;
+        current_mode->ae_info.color_type = SENSOR_COLOR;
 
         current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time;
         current_mode->ae_info.gain_increment = GC2093_MIN_GAIN_STEP;
@@ -1446,7 +1446,7 @@ static k_s32 gc2093_sensor_init(void *ctx, k_sensor_mode mode)
 
         current_mode->ae_info.int_time_delay_frame = 2;
         current_mode->ae_info.gain_delay_frame = 2;
-        current_mode->ae_info.color_type = SENSOR_COLOR ;
+        current_mode->ae_info.color_type = SENSOR_COLOR;
 
         current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time;
         current_mode->ae_info.gain_increment = GC2093_MIN_GAIN_STEP;
@@ -1490,9 +1490,9 @@ static k_s32 gc2093_sensor_init(void *ctx, k_sensor_mode mode)
             sensor_reg_list_write(&dev->i2c_info, gc2093_mirror);
         }
 
-        current_mode->ae_info.frame_length = 1075;
+        current_mode->ae_info.frame_length = 1072;
         current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
-        current_mode->ae_info.one_line_exp_time = 0.000010346;//s
+        current_mode->ae_info.one_line_exp_time = 0.000010369;//s
         current_mode->ae_info.gain_accuracy = 1024;
 
         current_mode->ae_info.min_gain = 1.0;
@@ -1500,7 +1500,7 @@ static k_s32 gc2093_sensor_init(void *ctx, k_sensor_mode mode)
 
         current_mode->ae_info.int_time_delay_frame = 2;
         current_mode->ae_info.gain_delay_frame = 2;
-        current_mode->ae_info.color_type = SENSOR_COLOR ;
+        current_mode->ae_info.color_type = SENSOR_COLOR;
 
         current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time;
         current_mode->ae_info.gain_increment = GC2093_MIN_GAIN_STEP;
@@ -1553,7 +1553,7 @@ static k_s32 gc2093_sensor_init(void *ctx, k_sensor_mode mode)
 
         current_mode->ae_info.int_time_delay_frame = 2;
         current_mode->ae_info.gain_delay_frame = 2;
-        current_mode->ae_info.color_type = SENSOR_COLOR ;
+        current_mode->ae_info.color_type = SENSOR_COLOR;
 
         current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time;
         current_mode->ae_info.gain_increment = GC2093_MIN_GAIN_STEP;

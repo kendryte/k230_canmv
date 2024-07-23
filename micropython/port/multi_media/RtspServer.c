@@ -124,7 +124,7 @@ STATIC const mp_rom_map_elem_t RtspServer_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_rtspserver_start), MP_ROM_PTR(&rtspserver_start_obj) },
     { MP_ROM_QSTR(MP_QSTR_rtspserver_stop), MP_ROM_PTR(&rtspserver_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_rtspserver_sendvideodata), MP_ROM_PTR(&rtspserver_sendvideodata_obj) },
-    { MP_ROM_QSTR(MP_QSTR_sendaudiodata), MP_ROM_PTR(&rtspserver_sendaudiodata_obj) },
+    { MP_ROM_QSTR(MP_QSTR_rtspserver_sendaudiodata), MP_ROM_PTR(&rtspserver_sendaudiodata_obj) },
     { MP_ROM_QSTR(MP_QSTR_rtspserver_test), MP_ROM_PTR(&mp_rtsp_test_obj) },
 };
 

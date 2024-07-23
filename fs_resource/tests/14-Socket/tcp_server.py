@@ -2,7 +2,6 @@
 import socket
 import network
 import time
-PORT=60000
 
 
 CONTENT = b"""
@@ -12,23 +11,31 @@ Hello #%d from k230 canmv MicroPython!
 
 
 def server():
+    #获取lan接口
+    a=network.LAN()
+    if(a.active()):
+        a.active(0)
+    a.active(1)
+    a.ifconfig("dhcp")
+    ip = a.ifconfig()[0]
+    print(a.ifconfig())
+    
     counter=1
-    #获取地址及端口号 对应地址
-    #ai = socket.getaddrinfo("10.100.228.5", 8000)
-    ai = socket.getaddrinfo("0.0.0.0", PORT)
-    print("Address infos:", ai,PORT)
-    addr = ai[0][-1]
-
-    print("Connect address:", addr)
+    
     #建立socket
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     #设置属性
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    #获取地址及端口号 对应地址
+    ai = socket.getaddrinfo(ip, 8080)
+    print("Address infos:", ai,8080)
+    addr = ai[0][-1]
+    print("Connect address:", addr)
     #绑定
     s.bind(addr)
     #监听
     s.listen(5)
-    print("tcp server %s port:%d\n" % ((network.LAN().ifconfig()[0]),PORT))
+    print("tcp server %s port:%d\n" % ((network.LAN().ifconfig()[0]),8080))
 
 
     while True:
