@@ -97,6 +97,8 @@ extern "C" {
     void ttszh_init(TtsZh* ttszh_,const char* dictfile,const char* phasefile,const char* mapfile);
     TtsZhOutput* tts_zh_frontend_preprocess(TtsZh* ttszh_,const char* text);
     void tts_save_wav(float* wav_data,int wav_len,const char* wav_filename,int sample_rate);
+    // for body_seg
+    uint8_t* body_seg_postprocess(float* data, int num_class, FrameSize ori_shape, FrameSize dst_shape,uint8_t* color);
 #ifdef __cplusplus
 }
 #endif
