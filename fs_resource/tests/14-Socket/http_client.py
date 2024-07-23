@@ -1,12 +1,35 @@
+import network
 import socket
 
 
 def main(use_stream=True):
+    
+    #获取lan接口
+    a=network.LAN()
+    if(a.active()):
+        a.active(0)
+    a.active(1)
+    a.ifconfig("dhcp")
+    
+    print(a.ifconfig())
+    print(a.config("mac"))
     #创建socket
     s = socket.socket()
     #获取地址及端口号 对应地址
-    ai = socket.getaddrinfo("www.baidu.com", 80)
-    #ai = socket.getaddrinfo("10.100.228.5", 8080)
+    ai = []
+        
+    for attempt in range(0, 3):
+        try:
+            #获取地址及端口号 对应地址
+            ai = socket.getaddrinfo("www.baidu.com", 80)
+            break
+        except:
+            print("getaddrinfo again");
+    
+    if(ai == []):
+        print("connet error")
+        s.close()
+        return
 
     print("Address infos:", ai)
     addr = ai[0][-1]
@@ -36,4 +59,3 @@ def main(use_stream=True):
 #main()
 main(use_stream=True)
 main(use_stream=False)
-

@@ -13,6 +13,13 @@ Hello #%d from k230 canmv MicroPython!
 
 
 def main(micropython_optimize=True):
+    #获取lan接口
+    a=network.LAN()
+    if(a.active()):
+        a.active(0)
+    a.active(1)
+    a.ifconfig("dhcp")
+    
     #建立socket
     s = socket.socket()
     #获取地址及端口号 对应地址
@@ -71,11 +78,11 @@ def main(micropython_optimize=True):
         #     client_sock.close()
         counter += 1
         #print("wjx", counter)
-        if counter > 20 :
+        time.sleep(2)
+        if counter > 0 :
             print("http server exit!")
             #关闭 
             s.close()
             break
-
 
 main()

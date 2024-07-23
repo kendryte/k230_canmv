@@ -2,17 +2,25 @@
 import socket
 import time
 import network
-PORT=60000
 
 
 def udpserver():
+    #获取lan接口
+    a=network.LAN()
+    if(a.active()):
+        a.active(0)
+    a.active(1)
+    a.ifconfig("dhcp")
+    ip = a.ifconfig()[0]
+    print(a.ifconfig())
+        
     #获取地址及端口号对应地址
-    ai = socket.getaddrinfo("0.0.0.0", PORT)
+    ai = socket.getaddrinfo(ip, 8080)
     #ai = socket.getaddrinfo("10.10.1.94", 60000)
     print("Address infos:", ai)
     addr = ai[0][-1]
 
-    print("udp server %s port:%d\n" % ((network.LAN().ifconfig()[0]),PORT))
+    print("udp server %s port:%d\n" % ((network.LAN().ifconfig()[0]),8080))
     #建立socket
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     #设置属性

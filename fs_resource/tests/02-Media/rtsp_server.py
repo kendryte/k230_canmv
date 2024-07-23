@@ -10,10 +10,12 @@ import os
 import time
 
 def rtsp_server_test():
-    rtspserver = RtspServer() #创建rtsp server对象
+    rtspserver = RtspServer(session_name="test",port=8554,enable_audio=False) #创建rtsp server对象
     rtspserver.start() #启动rtsp server
     print("rtsp server start:",rtspserver.get_rtsp_url()) #打印rtsp server start
 
+
+    #运行30s
     time_start = time.time() #获取当前时间
     try:
         while(time.time() - time_start < 30):

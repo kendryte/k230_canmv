@@ -1,11 +1,21 @@
 #配置 tcp/udp socket调试工具
 import socket
 import time
+import network
 
 
 def udpclient():
+    #获取lan接口
+    a=network.LAN()
+    if(a.active()):
+        a.active(0)
+    a.active(1)
+    a.ifconfig("dhcp")
+    ip = a.ifconfig()[0]
+    print(a.ifconfig())
+    
     #获取地址和端口号 对应地址
-    ai = socket.getaddrinfo("10.100.228.5", 60000)
+    ai = socket.getaddrinfo('172.16.1.174', 8080)
     #ai = socket.getaddrinfo("10.10.1.94", 60000)
     print("Address infos:", ai)
     addr = ai[0][-1]
