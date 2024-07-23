@@ -84,6 +84,10 @@
 #define DOL3_RHS1 986
 #define DOL3_RHS2 2608//1072
 
+#define DOL2_ratio 16.0
+#define DOL3_LS_ratio 16.0
+#define DOL3_VS_ratio 16.0
+
 
 static const k_sensor_reg imx335_mipi_2lane_raw10_1920x1080_30fps_regs[] = {
     { 0x3000, 0x01 },
@@ -651,7 +655,7 @@ static const k_sensor_reg imx335_mipi_4lane_raw10_dol_2x_regs[] = {
     //start
     { 0x3000, 0x00},
     { 0x3002, 0x00},
-    { 0x3302, 0x00}, //black level
+    { 0x3302, 0x10}, //black level
     { 0x3058, (IMX335_VMAX_DOL2*2 - 1024)&0xFF}, //SHR0, 1000 ET Line, 3980*2 - 1024 = 0x1b18
     { 0x3059, (IMX335_VMAX_DOL2*2 - 1024)>>8},
     { 0x305a, 0x00},
@@ -774,7 +778,7 @@ static const k_sensor_reg imx335_mipi_4lane_raw10_3x_regs[] = {
     //start
     { 0x3000, 0x00},
     { 0x3002, 0x00},
-    { 0x3302, 0x00}, //black level
+    { 0x3302, 0x10}, //black level
     { 0x3058, (IMX335_VMAX_DOL3*4 - 3072)&0xFF}, //SHR0, 3072 ET Line,  4500*4 - 3072
     { 0x3059, (IMX335_VMAX_DOL3*4 - 3072)>>8},
     { 0x305a, 0x00},
@@ -1131,31 +1135,31 @@ static k_s32 imx335_sensor_init(void* ctx, k_sensor_mode mode)
 
         current_mode->ae_info.frame_length = IMX335_VMAX_DOL2<<1;
         current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
-        current_mode->ae_info.one_line_exp_time = 0.000321608; // s, 64*one_line_exp_time
+        current_mode->ae_info.one_line_exp_time = 0.000005025; // s, one_line_exp_time
         current_mode->ae_info.gain_accuracy = 1024;
 
         current_mode->ae_info.min_gain = 1.0;
         current_mode->ae_info.max_gain = 50.0;//powf(10, 0.015*113.0);//
 
-        current_mode->ae_info.int_time_delay_frame = 2;
-        current_mode->ae_info.gain_delay_frame = 2;
+        current_mode->ae_info.int_time_delay_frame = 1;
+        current_mode->ae_info.gain_delay_frame = 1;
 
         current_mode->ae_info.color_type = SENSOR_COLOR;    //color sensor
 
-        current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time;
+        current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time * 4;
         current_mode->ae_info.gain_increment = IMX335_AGAIN_STEP;
 
-        current_mode->ae_info.max_long_integraion_line = 116;  // 116*64
-        current_mode->ae_info.min_long_integraion_line = 1;	// 1*64
+        current_mode->ae_info.max_long_integraion_line = 7460;  // 116*64 = 7424
+        current_mode->ae_info.min_long_integraion_line = 64;	//1 * 64
 
-        current_mode->ae_info.max_integraion_line = 116;	//116 * 4
-        current_mode->ae_info.min_integraion_line = 1;	//1*4
+        current_mode->ae_info.max_integraion_line = 464;	//116 * 4
+        current_mode->ae_info.min_integraion_line = 4;	//1*4
 
-        current_mode->ae_info.max_long_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.max_long_integraion_line;
-        current_mode->ae_info.min_long_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.min_long_integraion_line;
+        current_mode->ae_info.max_long_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.max_long_integraion_line;
+        current_mode->ae_info.min_long_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.min_long_integraion_line;
 
-        current_mode->ae_info.max_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.max_integraion_line/16.0;
-        current_mode->ae_info.min_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.min_integraion_line/16.0;
+        current_mode->ae_info.max_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.max_integraion_line;
+        current_mode->ae_info.min_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.min_integraion_line;
 
         current_mode->ae_info.cur_long_integration_time = 0.0;
         current_mode->ae_info.cur_integration_time = 0.0;
@@ -1163,8 +1167,8 @@ static k_s32 imx335_sensor_init(void* ctx, k_sensor_mode mode)
         current_mode->ae_info.cur_long_again = 0.0;
         current_mode->ae_info.cur_long_dgain = 0.0;
 
-        current_mode->ae_info.cur_again = 0.0;
-        current_mode->ae_info.cur_dgain = 0.0;
+        current_mode->ae_info.cur_again = 1.0;
+        current_mode->ae_info.cur_dgain = 1.0;
 
         current_mode->ae_info.a_long_gain.min = 1.0;
         current_mode->ae_info.a_long_gain.max = 100.0;
@@ -1197,37 +1201,37 @@ static k_s32 imx335_sensor_init(void* ctx, k_sensor_mode mode)
 
         current_mode->ae_info.frame_length = IMX335_VMAX_DOL3<<2;
         current_mode->ae_info.cur_frame_length = current_mode->ae_info.frame_length;
-        current_mode->ae_info.one_line_exp_time = 0.011377778;	//0.005688889; // s, 6*256*one_line_exp_time
+        current_mode->ae_info.one_line_exp_time = 0.000007407;	 // s, one_line_exp_time
         current_mode->ae_info.gain_accuracy = 1024;
 
         current_mode->ae_info.min_gain = 1.0;
         current_mode->ae_info.max_gain = 50.0;//powf(10, 0.015*113.0);//
 
-        current_mode->ae_info.int_time_delay_frame = 2;
-        current_mode->ae_info.gain_delay_frame = 2;
+        current_mode->ae_info.int_time_delay_frame = 1;
+        current_mode->ae_info.gain_delay_frame = 1;
 
         current_mode->ae_info.color_type = SENSOR_COLOR;    //color sensor
 
-        current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time;
+        current_mode->ae_info.integration_time_increment = current_mode->ae_info.one_line_exp_time * 6;
         current_mode->ae_info.gain_increment = IMX335_AGAIN_STEP;
 
-        current_mode->ae_info.max_long_integraion_line = 10;	// * 6 * 256
-        current_mode->ae_info.min_long_integraion_line = 1;	// * 6 * 256
+        current_mode->ae_info.max_long_integraion_line = 15360;	// * 6 * 256
+        current_mode->ae_info.min_long_integraion_line = 1536;	// * 6 * 256
 
-        current_mode->ae_info.max_integraion_line = 10; // * 6 * 16
-        current_mode->ae_info.min_integraion_line = 1; // * 6 * 16
+        current_mode->ae_info.max_integraion_line = 960; // * 6 * 16
+        current_mode->ae_info.min_integraion_line = 96; // * 6 * 16
         
-        current_mode->ae_info.max_vs_integraion_line = 10;	//  * 6
-        current_mode->ae_info.min_vs_integraion_line = 1;	//  * 6
+        current_mode->ae_info.max_vs_integraion_line = 60;	//  * 6
+        current_mode->ae_info.min_vs_integraion_line = 6;	//  * 6
 
-        current_mode->ae_info.max_long_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.max_long_integraion_line;
-        current_mode->ae_info.min_long_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.min_long_integraion_line;
+        current_mode->ae_info.max_long_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.max_long_integraion_line;
+        current_mode->ae_info.min_long_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.min_long_integraion_line;
 
-        current_mode->ae_info.max_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.max_integraion_line/16.0;
-        current_mode->ae_info.min_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.min_integraion_line/16.0;
+        current_mode->ae_info.max_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.max_integraion_line;
+        current_mode->ae_info.min_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.min_integraion_line;
 
-        current_mode->ae_info.max_vs_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.max_integraion_line/256.0;
-        current_mode->ae_info.min_vs_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.min_integraion_line/256.0;
+        current_mode->ae_info.max_vs_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.max_vs_integraion_line;
+        current_mode->ae_info.min_vs_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.min_vs_integraion_line;
 
         current_mode->ae_info.cur_long_integration_time = 0.0;
         current_mode->ae_info.cur_integration_time = 0.0;
@@ -1283,8 +1287,8 @@ static k_s32 imx335_sensor_init(void* ctx, k_sensor_mode mode)
         current_mode->ae_info.min_gain = 1.0;
         current_mode->ae_info.max_gain = 50.0;//powf(10, 0.015*113.0);//
 
-        current_mode->ae_info.int_time_delay_frame = 2;
-        current_mode->ae_info.gain_delay_frame = 2;
+        current_mode->ae_info.int_time_delay_frame = 1;
+        current_mode->ae_info.gain_delay_frame = 1;
         //current_mode->ae_info.ae_min_interval_frame = 2.5;
         current_mode->ae_info.color_type = SENSOR_COLOR;    //color sensor
 
@@ -1300,17 +1304,14 @@ static k_s32 imx335_sensor_init(void* ctx, k_sensor_mode mode)
         current_mode->ae_info.max_vs_integraion_line = current_mode->ae_info.frame_length - 9;
         current_mode->ae_info.min_vs_integraion_line = 1;
 
-        current_mode->ae_info.max_long_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.max_long_integraion_line;
+        current_mode->ae_info.max_long_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.max_long_integraion_line;
+        current_mode->ae_info.min_long_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.min_long_integraion_line;
 
-        current_mode->ae_info.min_long_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.min_long_integraion_line;
+        current_mode->ae_info.max_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.max_integraion_line;
+        current_mode->ae_info.min_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.min_integraion_line;
 
-        current_mode->ae_info.max_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.max_integraion_line;
-
-        current_mode->ae_info.min_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.min_integraion_line;
-
-        current_mode->ae_info.max_vs_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.max_vs_integraion_line;
-
-        current_mode->ae_info.min_vs_integraion_time = current_mode->ae_info.integration_time_increment * current_mode->ae_info.min_vs_integraion_line;
+        current_mode->ae_info.max_vs_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.max_vs_integraion_line;
+        current_mode->ae_info.min_vs_integraion_time = current_mode->ae_info.one_line_exp_time * current_mode->ae_info.min_vs_integraion_line;
 
         current_mode->ae_info.cur_long_integration_time = 0.0;
         current_mode->ae_info.cur_integration_time = 0.0;
@@ -1378,7 +1379,7 @@ static k_s32 imx335_sensor_init(void* ctx, k_sensor_mode mode)
 	    ret |= sensor_reg_read(&dev->i2c_info, IMX335_REG_SHR0_M, &SHR0_m);
 	    exp_time =IMX335_VMAX_LINEAR - ((SHR0_m <<8) | SHR0_l);
 	
-	    current_mode->ae_info.cur_integration_time = exp_time * current_mode->ae_info.one_line_exp_time;
+	    current_mode->ae_info.cur_integration_time =  current_mode->ae_info.one_line_exp_time * exp_time;
   	}
   	else if (current_mode->hdr_mode == SENSOR_MODE_HDR_STITCH)
   	{
@@ -1392,16 +1393,15 @@ static k_s32 imx335_sensor_init(void* ctx, k_sensor_mode mode)
   			ret = sensor_reg_read(&dev->i2c_info, IMX335_REG_SHR0_L, &SHR0_l);
   			ret |= sensor_reg_read(&dev->i2c_info, IMX335_REG_SHR0_M, &SHR0_m);
   			exp_time = current_mode->ae_info.frame_length - ((SHR0_m <<8) | SHR0_l);
-  			current_mode->ae_info.cur_long_integration_time = (float)(exp_time>>6) * current_mode->ae_info.one_line_exp_time;
+  			current_mode->ae_info.cur_long_integration_time = current_mode->ae_info.one_line_exp_time * exp_time;
  
   			ret = sensor_reg_read(&dev->i2c_info, IMX335_REG_SHR1_L, &SHR1_l);
   			ret |= sensor_reg_read(&dev->i2c_info, IMX335_REG_SHR1_M, &SHR1_m);
   			ret = sensor_reg_read(&dev->i2c_info, IMX335_REG_RHS1_L, &RHS1_l);
   			ret |= sensor_reg_read(&dev->i2c_info, IMX335_REG_RHS1_M, &RHS1_m);
   			exp_shorttime = ((RHS1_m <<8) | RHS1_l) - ((SHR1_m <<8) | SHR1_l);
-  			current_mode->ae_info.cur_integration_time = exp_shorttime * current_mode->ae_info.one_line_exp_time/64.0;
+  			current_mode->ae_info.cur_integration_time = current_mode->ae_info.one_line_exp_time * exp_shorttime;
 
-  			current_mode->ae_info.hdr_ratio = exp_time/exp_shorttime;
   		}
   		else if(current_mode->index ==7)	//HDR 3DOL
   		{
@@ -1410,28 +1410,27 @@ static k_s32 imx335_sensor_init(void* ctx, k_sensor_mode mode)
   			k_u16 SHR2_m, SHR2_l;
   			k_u16 RHS1_m, RHS1_l;
   			k_u16 RHS2_m, RHS2_l;
-  			k_u32 exp_longtime, exp_time, exp_shorttime;
+  			k_u32 exp_time, exp_shorttime, exp_vstime;
 
   			ret = sensor_reg_read(&dev->i2c_info, IMX335_REG_SHR0_L, &SHR0_l);
   			ret |= sensor_reg_read(&dev->i2c_info, IMX335_REG_SHR0_M, &SHR0_m);
-  			exp_longtime = current_mode->ae_info.frame_length - ((SHR0_m <<8) | SHR0_l);
-  			current_mode->ae_info.cur_long_integration_time = (float)(exp_longtime>>8) * current_mode->ae_info.one_line_exp_time/6.0;
+  			exp_time = current_mode->ae_info.frame_length - ((SHR0_m <<8) | SHR0_l);
+  			current_mode->ae_info.cur_long_integration_time = current_mode->ae_info.one_line_exp_time * exp_time;
 
   			ret = sensor_reg_read(&dev->i2c_info, IMX335_REG_SHR1_L, &SHR1_l);
   			ret |= sensor_reg_read(&dev->i2c_info, IMX335_REG_SHR1_M, &SHR1_m);
   			ret = sensor_reg_read(&dev->i2c_info, IMX335_REG_RHS1_L, &RHS1_l);
   			ret |= sensor_reg_read(&dev->i2c_info, IMX335_REG_RHS1_M, &RHS1_m);
-  			exp_time = ((RHS1_m <<8) | RHS1_l) - ((SHR1_m <<8) | SHR1_l);
-  			current_mode->ae_info.cur_integration_time = (float)(exp_time>>4) * current_mode->ae_info.one_line_exp_time/96.0;
+  			exp_shorttime = ((RHS1_m <<8) | RHS1_l) - ((SHR1_m <<8) | SHR1_l);
+  			current_mode->ae_info.cur_integration_time = current_mode->ae_info.one_line_exp_time * exp_shorttime;
 
   			ret = sensor_reg_read(&dev->i2c_info, IMX335_REG_SHR2_L, &SHR2_l);
   			ret |= sensor_reg_read(&dev->i2c_info, IMX335_REG_SHR2_M, &SHR2_m);
   			ret = sensor_reg_read(&dev->i2c_info, IMX335_REG_RHS2_L, &RHS2_l);
   			ret |= sensor_reg_read(&dev->i2c_info, IMX335_REG_RHS2_M, &RHS2_m);
-  			exp_shorttime = ((RHS2_m <<8) | RHS2_l) - ((SHR2_m <<8) | SHR2_l);
-  			current_mode->ae_info.cur_vs_integration_time = exp_shorttime * current_mode->ae_info.one_line_exp_time/1536.0;
+  			exp_vstime = ((RHS2_m <<8) | RHS2_l) - ((SHR2_m <<8) | SHR2_l);
+  			current_mode->ae_info.cur_vs_integration_time = current_mode->ae_info.one_line_exp_time * exp_vstime;
 
-  			current_mode->ae_info.hdr_ratio = exp_longtime/exp_time;
   		}
   	}
 
@@ -1532,8 +1531,17 @@ static k_s32 imx335_sensor_get_again(void* ctx, k_sensor_gain* gain)
     if (current_mode->hdr_mode == SENSOR_MODE_LINEAR) {
         gain->gain[SENSOR_LINEAR_PARAS] = current_mode->ae_info.cur_again;
     } else if (current_mode->hdr_mode == SENSOR_MODE_HDR_STITCH) {
-        gain->gain[SENSOR_DUAL_EXP_L_PARAS] = current_mode->ae_info.cur_again;
-        gain->gain[SENSOR_DUAL_EXP_S_PARAS] = current_mode->ae_info.cur_vs_again;
+    	if(current_mode->index == 6)
+    	{
+	        gain->gain[SENSOR_DUAL_EXP_L_PARAS] = current_mode->ae_info.cur_long_again;
+	        gain->gain[SENSOR_DUAL_EXP_S_PARAS] = current_mode->ae_info.cur_again;
+      	}
+      	else if(current_mode->index == 7)
+      	{
+      		gain->gain[SENSOR_TRI_EXP_L_PARAS] = current_mode->ae_info.cur_long_again;
+	        gain->gain[SENSOR_TRI_EXP_S_PARAS] = current_mode->ae_info.cur_again;
+        	gain->gain[SENSOR_TRI_EXP_VS_PARAS] = current_mode->ae_info.cur_vs_again;
+      	}
     } else {
         pr_err("%s, unsupport exposure frame.\n", __func__);
         return -1;
@@ -1641,8 +1649,17 @@ static k_s32 imx335_sensor_get_intg_time(void* ctx, k_sensor_intg_time* time)
     if (current_mode->hdr_mode == SENSOR_MODE_LINEAR) {
         time->intg_time[SENSOR_LINEAR_PARAS] = current_mode->ae_info.cur_integration_time;
     } else if (current_mode->hdr_mode == SENSOR_MODE_HDR_STITCH) {
-        time->intg_time[SENSOR_DUAL_EXP_L_PARAS] = current_mode->ae_info.cur_integration_time;
-        time->intg_time[SENSOR_DUAL_EXP_S_PARAS] = current_mode->ae_info.cur_vs_integration_time;
+    	if(current_mode->index == 6)
+    	{
+	        time->intg_time[SENSOR_DUAL_EXP_L_PARAS] = current_mode->ae_info.cur_long_integration_time;
+	        time->intg_time[SENSOR_DUAL_EXP_S_PARAS] = current_mode->ae_info.cur_integration_time;
+    	}
+    	else if(current_mode->index == 7)
+    	{
+	        time->intg_time[SENSOR_TRI_EXP_L_PARAS] = current_mode->ae_info.cur_long_integration_time;
+	        time->intg_time[SENSOR_TRI_EXP_S_PARAS] = current_mode->ae_info.cur_integration_time;
+	        time->intg_time[SENSOR_TRI_EXP_VS_PARAS] = current_mode->ae_info.cur_vs_integration_time;
+    	}
     } else {
         pr_err("%s, unsupport exposure frame.\n", __func__);
         return -1;
@@ -1679,29 +1696,41 @@ static k_s32 imx335_sensor_set_intg_time(void* ctx, k_sensor_intg_time time)
         exp_line = MIN(current_mode->ae_info.max_long_integraion_line, MAX(current_mode->ae_info.min_long_integraion_line, exp_line));
         if(current_mode->index ==6)
         {
+        	exp_line = ((exp_line + 2)>>2)<<2;
+        	float temp = (float)exp_line/(4.0*DOL2_ratio);
+        	k_u16 exp_s_line =(int)( temp+0.5)<<2;
+        	exp_s_line = MIN(current_mode->ae_info.max_integraion_line, MAX(current_mode->ae_info.min_integraion_line, exp_s_line));
 	        if (current_mode->et_line != exp_line)
 	        {
-	            k_u16 SHR0 = current_mode->ae_info.frame_length - (exp_line<<6);
+	            k_u16 SHR0 = current_mode->ae_info.frame_length - exp_line;
 	            k_u16 RHS1 = DOL2_RHS1;
-	            k_u16 SHR1 = RHS1 - (exp_line<<2);
+	            k_u16 SHR1 = RHS1 - exp_s_line;
 	            ret = sensor_reg_write(&dev->i2c_info, IMX335_REG_SHR0_L, SHR0 & 0xff);
 	            ret |= sensor_reg_write(&dev->i2c_info, IMX335_REG_SHR0_M, (SHR0 >> 8) & 0xff);
 	            ret |= sensor_reg_write(&dev->i2c_info, IMX335_REG_SHR1_L, SHR1 & 0xff);
 	            ret |= sensor_reg_write(&dev->i2c_info, IMX335_REG_SHR1_M, (SHR1 >> 8) & 0xff);
 	            current_mode->et_line = exp_line;
 	        }
-	        current_mode->ae_info.cur_long_integration_time = (float)current_mode->et_line * current_mode->ae_info.one_line_exp_time;
-	        current_mode->ae_info.cur_integration_time = current_mode->ae_info.cur_long_integration_time/16.0;
+	        current_mode->ae_info.cur_long_integration_time = current_mode->ae_info.one_line_exp_time * exp_line;
+	        current_mode->ae_info.cur_integration_time = current_mode->ae_info.one_line_exp_time * exp_s_line;
         }
         else if(current_mode->index ==7)
         {
-        	 if (current_mode->et_line != exp_line)
+        	float temp = (float)exp_line/6;
+        	exp_line = (int)(temp+0.5)*6;
+        	temp = (float)exp_line/(6.0*DOL3_LS_ratio);
+        	k_u16 exp_s_line = (int)(temp+0.5)*6;
+        	exp_s_line = MIN(current_mode->ae_info.max_integraion_line, MAX(current_mode->ae_info.min_integraion_line, exp_s_line));
+        	temp = (float)exp_line/(6.0*DOL3_LS_ratio*DOL3_VS_ratio);
+        	k_u16 exp_vs_line = (int)(temp+0.5)*6;
+        	exp_vs_line = MIN(current_mode->ae_info.max_vs_integraion_line, MAX(current_mode->ae_info.min_vs_integraion_line, exp_vs_line));
+        	if (current_mode->et_line != exp_line)
 	        {
-	            k_u16 SHR0 = current_mode->ae_info.frame_length - (exp_line*1536);
+	            k_u16 SHR0 = current_mode->ae_info.frame_length - exp_line;
 	            k_u16 RHS1 = DOL3_RHS1;
-	            k_u16 SHR1 = RHS1 - (exp_line*96);
+	            k_u16 SHR1 = RHS1 - exp_s_line;
 	            k_u16 RHS2 = DOL3_RHS2;
-	            k_u16 SHR2 = RHS2 - (exp_line*6);
+	            k_u16 SHR2 = RHS2 - exp_vs_line;
 	            ret = sensor_reg_write(&dev->i2c_info, IMX335_REG_SHR0_L, SHR0 & 0xff);
 	            ret |= sensor_reg_write(&dev->i2c_info, IMX335_REG_SHR0_M, (SHR0 >> 8) & 0xff);
 	            ret |= sensor_reg_write(&dev->i2c_info, IMX335_REG_SHR1_L, SHR1 & 0xff);
@@ -1710,9 +1739,9 @@ static k_s32 imx335_sensor_set_intg_time(void* ctx, k_sensor_intg_time time)
 	            ret |= sensor_reg_write(&dev->i2c_info, IMX335_REG_SHR1_M, (SHR2 >> 8) & 0xff);
 	            current_mode->et_line = exp_line;
 	        }
-	        current_mode->ae_info.cur_long_integration_time = (float)current_mode->et_line * current_mode->ae_info.one_line_exp_time;
-	        current_mode->ae_info.cur_integration_time = current_mode->ae_info.cur_long_integration_time/16.0;
-	        current_mode->ae_info.cur_vs_integration_time = current_mode->ae_info.cur_integration_time/16.0;
+	        current_mode->ae_info.cur_long_integration_time = current_mode->ae_info.one_line_exp_time * exp_line;
+	        current_mode->ae_info.cur_integration_time = current_mode->ae_info.one_line_exp_time * exp_s_line;
+	        current_mode->ae_info.cur_vs_integration_time = current_mode->ae_info.one_line_exp_time * exp_vs_line;
         }
     }
     else

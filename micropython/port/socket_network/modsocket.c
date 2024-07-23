@@ -671,7 +671,9 @@ STATIC mp_obj_t mod_socket_getaddrinfo(size_t n_args, const mp_obj_t *args) {
         // CPython: socket.gaierror
         mp_raise_msg_varg(&mp_type_OSError, MP_ERROR_TEXT("[addrinfo error %d]"), res);
     }
-    assert(addr_list);
+    if(NULL == addr_list) {
+        mp_raise_msg(&mp_type_RuntimeError, "get addr failed");
+    }
 
     mp_obj_t list = mp_obj_new_list(0, NULL);
     for (struct addrinfo *addr = addr_list; addr; addr = addr->ai_next) {
