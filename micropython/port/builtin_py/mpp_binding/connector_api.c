@@ -35,7 +35,7 @@
 int ide_dbg_vo_wbc_deinit(void);
 int ide_dbg_vo_wbc_init(void);
 
-int ide_dbg_set_vo_wbc(int enable, int width, int height);
+int ide_dbg_set_vo_wbc(int, int, int);
 
 int kd_mpi_vo_osd_rotation(int flag, k_video_frame_info *in, k_video_frame_info *out);
 
