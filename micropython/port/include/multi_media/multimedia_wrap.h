@@ -20,6 +20,8 @@ void RtspServer_Start(KdRtspServer *p);
 void RtspServer_Stop(KdRtspServer *p);
 int RtspServer_SendVideoData(KdRtspServer *p, const char *session_name, const uint8_t *data, size_t size, uint64_t timestamp);
 int RtspServer_SendAudioData(KdRtspServer *p, const char *session_name, const uint8_t *data, size_t size, uint64_t timestamp);
+int RtspServer_SendVideoData_Byphyaddr(KdRtspServer *p, const char *session_name, uint64_t phy_addr, size_t size, uint64_t timestamp);
+int RtspServer_SendAudioData_Byphyaddr(KdRtspServer *p, const char *session_name, uint64_t phy_addr, size_t size, uint64_t timestamp);
 char* RtspServer_Test(KdRtspServer *p);
 
 #ifdef __cplusplus

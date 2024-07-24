@@ -4,6 +4,7 @@ from mpp.sys import *
 from mpp.payload_struct import *
 from mpp.venc_struct import *
 from media.media import *
+from mpp.video_struct import *
 
 class ChnAttrStr:
     def __init__(self, payloadType, profile, picWidth, picHeight, gopLen = 30):
@@ -16,6 +17,7 @@ class ChnAttrStr:
 class StreamData:
     def __init__(self):
         self.data = [0 for i in range(0, VENC_PACK_CNT_MAX)]
+        self.phy_addr = [0 for i in range(0, VENC_PACK_CNT_MAX)]
         self.data_size = [0 for i in range(0, VENC_PACK_CNT_MAX)]
         self.stream_type = [0 for i in range(0, VENC_PACK_CNT_MAX)]
         self.pts = [0 for i in range(0, VENC_PACK_CNT_MAX)]
@@ -98,7 +100,7 @@ class Encoder:
         buf = bytearray(uctypes.sizeof(venc_def.k_venc_pack_desc, uctypes.NATIVE) * self.output.pack_cnt)
         self.output.pack = uctypes.addressof(buf)
 
-        ret = kd_mpi_venc_get_stream(chn, self.output, -1)
+        ret = kd_mpi_venc_get_stream(chn, self.output, 1000)
         if ret != 0:
             raise OSError("mpi venc get stream failed.")
 
@@ -108,6 +110,7 @@ class Encoder:
             streamData.data_size[pack_idx] = self.output._pack[pack_idx].len
             streamData.stream_type[pack_idx] = self.output._pack[pack_idx].type
             streamData.pts[pack_idx] = self.output._pack[pack_idx].pts
+            streamData.phy_addr[pack_idx] = self.output._pack[pack_idx].phys_addr
 
     def ReleaseStream(self, chn, streamData):
         if (chn > VENC_CHN_ID_MAX - 1):
@@ -121,6 +124,14 @@ class Encoder:
         ret = kd_mpi_venc_release_stream(chn, self.output)
         if ret != 0:
             raise OSError("mpi venc release stream failed.")
+
+    def SendFrame(self, chn, frame):
+        if (chn > VENC_CHN_ID_MAX - 1):
+            raise ValueError("venc SendFrame, chn id: ", chn, " out of range 0 ~ 3")
+
+        ret = kd_mpi_venc_send_frame(chn, frame, 1000)
+        if ret != 0:
+            raise OSError("mpi venc send frame failed.")
 
     def Stop(self, chn):
         if (chn > VENC_CHN_ID_MAX - 1):

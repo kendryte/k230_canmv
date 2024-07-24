@@ -101,6 +101,28 @@ STATIC mp_obj_t mp_rtspserver_sendaudiodata(size_t n_args,const mp_obj_t *args) 
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(rtspserver_sendaudiodata_obj,5,5, mp_rtspserver_sendaudiodata);
 
+STATIC mp_obj_t mp_rtspserver_sendvideodata_byphyaddr(size_t n_args,const mp_obj_t *args){
+    rtspserver_obj_t *self = MP_OBJ_TO_PTR(args[0]);
+    mp_obj_t session_name = args[1];
+    mp_obj_t phy_addr = args[2];
+    mp_obj_t size = args[3];
+    mp_obj_t timestamp = args[4];
+    return mp_obj_new_int(RtspServer_SendVideoData_Byphyaddr(self->interp, mp_obj_str_get_str(session_name), mp_obj_get_int(phy_addr), mp_obj_get_int(size), mp_obj_get_int(timestamp)));
+
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(rtspserver_sendvideodata_byphyaddr_obj,5,5,mp_rtspserver_sendvideodata_byphyaddr);
+
+STATIC mp_obj_t mp_rtspserver_sendaudiodata_byphyaddr(size_t n_args,const mp_obj_t *args){
+    rtspserver_obj_t *self = MP_OBJ_TO_PTR(args[0]);
+    mp_obj_t session_name = args[1];
+    mp_obj_t phy_addr = args[2];
+    mp_obj_t size = args[3];
+    mp_obj_t timestamp = args[4];
+    return mp_obj_new_int(RtspServer_SendAudioData_Byphyaddr(self->interp, mp_obj_str_get_str(session_name), mp_obj_get_int(phy_addr), mp_obj_get_int(size), mp_obj_get_int(timestamp)));
+
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(rtspserver_sendaudiodata_byphyaddr_obj,5,5,mp_rtspserver_sendaudiodata_byphyaddr);
+
 STATIC mp_obj_t mp_rtspserver_test(mp_obj_t self_in)
 {
     rtspserver_obj_t *self = MP_OBJ_TO_PTR(self_in);
@@ -125,6 +147,8 @@ STATIC const mp_rom_map_elem_t RtspServer_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_rtspserver_stop), MP_ROM_PTR(&rtspserver_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_rtspserver_sendvideodata), MP_ROM_PTR(&rtspserver_sendvideodata_obj) },
     { MP_ROM_QSTR(MP_QSTR_rtspserver_sendaudiodata), MP_ROM_PTR(&rtspserver_sendaudiodata_obj) },
+    { MP_ROM_QSTR(MP_QSTR_rtspserver_sendvideodata_byphyaddr), MP_ROM_PTR(&rtspserver_sendvideodata_byphyaddr_obj) },
+    { MP_ROM_QSTR(MP_QSTR_rtspserver_sendaudiodata_byphyaddr), MP_ROM_PTR(&rtspserver_sendaudiodata_byphyaddr_obj) },
     { MP_ROM_QSTR(MP_QSTR_rtspserver_test), MP_ROM_PTR(&mp_rtsp_test_obj) },
 };
 
