@@ -175,7 +175,7 @@ class Display:
     # to_ide
     # osd_num
     @classmethod
-    def init(cls, type = None, width = None, height = None, osd_num = 1, to_ide = False, flag = None, fps = None):
+    def init(cls, type = None, width = None, height = None, osd_num = 1, to_ide = False, flag = None, fps = None, quality = 90):
         if cls._is_inited:
             print("Already run Display.init()")
             return
@@ -281,9 +281,14 @@ class Display:
                 raise RuntimeError(f"Display configure buffer for ide failed.")
             config = None
 
-            ide_dbg_set_vo_wbc(True, cls._width, cls._height)
+            if not isinstance(quality, int):
+                quality = 90
+            if quality < 10:
+                quality = 90
+
+            ide_dbg_set_vo_wbc(quality, cls._width, cls._height)
         else:
-            ide_dbg_set_vo_wbc(False, 0, 0)
+            ide_dbg_set_vo_wbc(0, 0, 0)
 
         # must have one for disp
         if cls._osd_layer_num < 1:
