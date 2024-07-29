@@ -27,20 +27,14 @@ static int s_ft_init_flag = 0;
 static char s_ft_font_path[128];
 static const char *s_ft_dft_font_path = FREETYPE_DEFAULT_FONT_PATH;
 
-/* define custom face identification structure */
-typedef struct
-{
-    const char *file_path;
-} ft_wrap_font;
-
 static FT_Error ftwrap_face_requester( FTC_FaceID   face_id,
                       FT_Library   library,
                       FT_Pointer   request_data,
                       FT_Face     *face )
 {
-    ft_wrap_font *font = (ft_wrap_font *) face_id;
+    const char *font = (const char *) face_id;
 
-    return FT_New_Face(library, font->file_path, 0, face);
+    return FT_New_Face(library, font, 0, face);
 }
 
 void freetype_deinit(void)
@@ -91,7 +85,7 @@ static int imlib_freetype_init(const char *font_path)
         return 1;
     }
 
-    error = FTC_Manager_New(s_ft_library, 0, 0, 0, &ftwrap_face_requester, NULL, &s_ft_cacheManager);
+    error = FTC_Manager_New(s_ft_library, 1, 0, 1024 * 64, &ftwrap_face_requester, NULL, &s_ft_cacheManager);
     if (error) {
         printf("FTC_Manager_New failed %d\n", error);
 
@@ -201,9 +195,6 @@ void imlib_draw_string_advance(image_t *img,
         mp_raise_msg_varg(&mp_type_RuntimeError, MP_ERROR_TEXT("Init font %s failed %d."), font_path, error);
     }
 
-    ft_wrap_font font;
-    font.file_path = s_ft_font_path;
-
     FTC_FaceID face_id;
 	FT_Face face;
 	FT_Glyph glyph;
@@ -211,7 +202,7 @@ void imlib_draw_string_advance(image_t *img,
 	FT_Int charmap_index;
     FTC_ScalerRec scaler;
 
-	face_id = (FTC_FaceID)&font;
+	face_id = (FTC_FaceID)&s_ft_font_path;
 
 	FTC_Manager_LookupFace(s_ft_cacheManager, face_id, &face);
 	charmap_index = FT_Get_Charmap_Index(face->charmap);
@@ -239,7 +230,7 @@ void imlib_draw_string_advance(image_t *img,
             continue;
         }
 
-		glyph_index = FTC_CMapCache_Lookup(s_ft_cmapCache, (FTC_FaceID)&font, charmap_index, charcode);
+		glyph_index = FTC_CMapCache_Lookup(s_ft_cmapCache, face_id, charmap_index, charcode);
         FTC_ImageCache_LookupScaler(s_ft_imageCache, &scaler, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL, glyph_index, &glyph, NULL);
 
 		if (use_kerning && previous && glyph_index) {
