@@ -8,7 +8,7 @@ CanMV 的目的是让 AIOT 编程更简单， 基于 [Micropython](http://www.mi
 
 1. **[main branch](https://github.com/kendryte/k230_canmv/tree/main)**: Github默认分支，作为release分支，编译release镜像自动发布至[Release](https://github.com/kendryte/k230_canmv/releases)页面
 2. **[dev branch](https://github.com/kendryte/k230_canmv/tree/dev)**: Github开发分支，仅供测试，镜像可通过[GitHub Actions](https://github.com/kendryte/k230_canmv/actions)页面下载`dev`分支中不同commit id对应的artifacts产物，*默认缓存90天*
-3. 预编译release镜像：请访问[嘉楠开发者社区](https://developer.canaan-creative.com/resource), 然后在`K230/Images`分类中，下载镜像文件名包含`micropython`的文件，并烧录至SD卡中。(镜像文件名格式：`CanMV-K230_micropython_*.img.gz`)
+3. 预编译release镜像：请访问[嘉楠开发者社区](https://developer.canaan-creative.com/resource), 然后在`K230/Images`分类中，下载镜像文件名包含`micropython`的文件，并烧录至SD卡中。(镜像文件名格式：`*_micropython_*.img.gz`)
 
 > 下载的镜像默认为`.gz`压缩格式，需先解压缩，然后再烧录。
 > micropython镜像与K230 SDK镜像所支持的功能并不相同，请勿下载K230 SDK镜像来使用micropython

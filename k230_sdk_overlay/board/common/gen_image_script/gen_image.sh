@@ -27,7 +27,7 @@ shrink_rootfs()
 	#�ü�С��rootfs
 	local KERNELRELEASE="$(cat ${LINUX_BUILD_DIR}/include/config/kernel.release 2> /dev/null)"
 	local lib_mod="lib/modules/${KERNELRELEASE}/"
-	cd ${BUILD_DIR}/images/little-core/rootfs/; 
+	cd ${BUILD_DIR}/images/little-core/rootfs/;
 	#rm -rf lib/modules/;
 	rm -rf ${lib_mod}/kernel/drivers/mtd  ${lib_mod}/kernel/drivers/usb ${lib_mod}/kernel/fs/efivarfs
 	rm -rf  mnt/backchannel_client
@@ -68,18 +68,18 @@ shrink_rootfs()
 	rm -rf usr/bin/iotwifi*;
 	rm -rf usr/bin/i2c-tools.sh;
 	rm -rf app/;
-	rm -rf lib/tuning-server;	
+	rm -rf lib/tuning-server;
 	rm -rf usr/bin/stress-ng  bin/bash usr/sbin/sshd usr/bin/trace-cmd usr/bin/lvgl_demo_widgets;
 	rm -rf    etc/ssh/moduli  usr/bin/ssh-keygen \
 		usr/libexec/ssh-keysign  usr/bin/ssh-keyscan  usr/bin/ssh-add usr/bin/ssh-agent usr/libexec/ssh-pkcs11-helper\
 		   usr/lib/libvg_lite_util.so  usr/bin/par_ops usr/bin/sftp  usr/libexec/lzo/examples/lzotest;
-	#find . -name *.ko | xargs rm -rf ;	
+	#find . -name *.ko | xargs rm -rf ;
 	fakeroot -- ${K230_SDK_ROOT}/tools/mkcpio-rootfs.sh;
 	cd ../;  tar -zcf rootfs-final.tar.gz rootfs;
 
 	#�ü����rootfs;
 	cd ${BUILD_DIR}/images/big-core/root/bin/;
-	find . -type f  -not -name init.sh  -not -name  fastboot_app.elf  test.kmodel  | xargs rm -rf ; 
+	find . -type f  -not -name init.sh  -not -name  fastboot_app.elf  test.kmodel  | xargs rm -rf ;
 
 	if [ -f "${K230_SDK_ROOT}/src/big/mpp/userapps/src/vicap/src/isp/sdk/t_frameworks/t_database_c/calibration_data/sensor_cfg.bin" ]; then
         mkdir -p ${cfg_data_file_path};
@@ -99,10 +99,10 @@ gen_linux_bin_ramdisk ()
 	local OPENSBI_LINUX_BASE="$( printf '0x%x\n' $[${CONFIG_MEM_LINUX_SYS_BASE}+0])"
 	local RAMDISK_ADDR="$( printf '0x%x\n' $[${OPENSBI_LINUX_BASE}+${OPENSBI_KERNEL_DTB_MAX_SIZE}])"
 
-	
-	cd  "${BUILD_DIR}/images/little-core/" ; 
+
+	cd  "${BUILD_DIR}/images/little-core/" ;
 	cpp -nostdinc -I ${K230_SDK_ROOT}/${LINUX_SRC_PATH}/include -I ${K230_SDK_ROOT}/${LINUX_SRC_PATH}/arch  -undef -x assembler-with-cpp ${K230_SDK_ROOT}/${LINUX_DTS_PATH}  hw/k230.dts.txt
-	
+
 
 	#ROOTFS_BASE=`cat hw/k230.dts.txt | grep initrd-start | awk -F " " '{print $4}' | awk -F ">" '{print $1}'`
 	ROOTFS_BASE="${RAMDISK_ADDR}"
@@ -113,12 +113,12 @@ gen_linux_bin_ramdisk ()
 	#linux,initrd-start = <0x0 0xa100000>;
 	sed -i "s/linux,initrd-start = <0x0 .*/linux,initrd-start = <0x0  $ROOTFS_BASE>;/g" hw/k230.dts.txt
 
-	${LINUX_BUILD_DIR}/scripts/dtc/dtc -I dts -O dtb hw/k230.dts.txt  >k230.dtb;		
+	${LINUX_BUILD_DIR}/scripts/dtc/dtc -I dts -O dtb hw/k230.dts.txt  >k230.dtb;
 	k230_gzip fw_payload.bin;
 	cp rootfs-final.cpio.gz rd;
 	${mkimage} -A riscv -O linux -T multi -C gzip -a ${CONFIG_MEM_LINUX_SYS_BASE} -e ${CONFIG_MEM_LINUX_SYS_BASE} -n linux -d fw_payload.bin.gz:rd:k230.dtb  ulinux.bin;
 
-	add_firmHead  ulinux.bin 
+	add_firmHead  ulinux.bin
 	mv fn_ulinux.bin  linux_system.bin
 	[ -f fa_ulinux.bin ] && mv fa_ulinux.bin  linux_system_aes.bin
 	[ -f fs_ulinux.bin ] && mv fs_ulinux.bin  linux_system_sm.bin
@@ -126,7 +126,7 @@ gen_linux_bin_ramdisk ()
 }
 copye_file_to_images;
 gen_version;
-if [ "${CONFIG_SUPPORT_LINUX}" = "y" ]; then	
+if [ "${CONFIG_SUPPORT_LINUX}" = "y" ]; then
 	add_dev_firmware;
 	shrink_rootfs;
 	gen_linux_bin_ramdisk;
@@ -162,13 +162,4 @@ gen_image ${GENIMAGE_CFG_SD}   sysimage-sdcard.img
 cd  ${BUILD_DIR}/images/
 rm -rf  sysimage-sdcard_aes.img  sysimage-sdcard_sm.img  *.vfat
 cp sysimage-sdcard.img*  ${K230_CANMV_BUILD_DIR}/images/
-cp  -P CanMV-K230_micropython*  ${K230_CANMV_BUILD_DIR}/images/
-
-
-
-
-
-
-
-
-
+cp  -P *_micropython_*.img.gz  ${K230_CANMV_BUILD_DIR}/images/
