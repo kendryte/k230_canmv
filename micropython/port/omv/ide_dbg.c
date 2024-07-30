@@ -357,7 +357,7 @@ int kd_mpi_vo_osd_rotation(int flag, k_video_frame_info *in, k_video_frame_info 
 
     if(false == _dma_dev_init_flag) {
         printf("did't init dma_dev\n");
-        return -1;
+        dma_dev_init();
     }
 
     kd_mpi_dma_stop_chn(OSD_ROTATION_DMA_CHN);

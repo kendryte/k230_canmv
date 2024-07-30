@@ -207,6 +207,11 @@ class MediaManager:
         if not force:
             return
 
+        dma_dev_deinit()
+        ret = vb_mgmt_deinit()
+        if ret:
+            raise RuntimeError(f"MediaManager, vb_mgmt_deinit failed({ret})")
+
         ret = kd_mpi_vb_exit()
         if ret:
             raise RuntimeError(f"MediaManager, vb deinit failed({ret})")

@@ -14,6 +14,9 @@ typedef struct
     k_u32 size; // self.size = size, user set
 }vb_block_info;
 
+// in ide_dbg.c
+extern void dma_dev_deinit(void);
+
 extern k_s32 vb_mgmt_init(void);
 
 extern k_s32 vb_mgmt_deinit(void);
