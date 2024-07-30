@@ -397,12 +397,7 @@ void mp_thread_set_exception_other(mp_obj_t obj) {
     mp_thread_unix_begin_atomic_section();
     for (mp_thread_t *th = thread; th->next != NULL; th = th->next) {
         obj = mp_obj_new_exception(type);
-        if (th->exitpoint_flag == 0) {
-            ((mp_obj_exception_t *)obj)->traceback_data = NULL;
-            MP_STATE_THREAD(mp_pending_exception) = obj;
-        } else {
-            th->exception = obj;
-        }
+        th->exception = obj;
     }
     mp_thread_unix_end_atomic_section();
 }
@@ -410,7 +405,14 @@ void mp_thread_set_exception_other(mp_obj_t obj) {
 void mp_thread_exitpoint(int flag)
 {
     mp_thread_t *th = MP_STATE_THREAD(user_data);
-    if (th->exception != 0 && th->exitpoint_flag != flag) {
+    if (th->exception != 0) {
+        if (th->exitpoint_flag == EXITPOINT_ENABLE) {
+            if (flag == EXITPOINT_DISABLE)
+                return;
+        } else if (th->exitpoint_flag == EXITPOINT_ENABLE_SLEEP) {
+            if (flag != EXITPOINT_ANY)
+                return;
+        }
         ((mp_obj_exception_t *)th->exception)->traceback_data = NULL;
         MP_STATE_THREAD(mp_pending_exception) = th->exception;
         th->exception = 0;
