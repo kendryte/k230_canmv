@@ -783,6 +783,8 @@ MP_NOINLINE int main_(int argc, char **argv) {
         // clear terminal
         // mp_hal_stdout_tx_strn("\033[H\033[2J", 7);
         do_repl();
+
+        is_repl_intr = false;
     }
     fprintf(stderr, "[mpy] exit, reset\n");
 main_thread_exit:

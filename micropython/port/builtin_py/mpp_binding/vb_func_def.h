@@ -43,6 +43,9 @@ DEF_INT_FUNC_INT(kd_mpi_vb_exit_mod_common_pool)
 DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_vb_set_mod_pool_config, k_vb_config)
 DEF_INT_FUNC_INT_STRUCTPTR(kd_mpi_vb_get_mod_pool_config, k_vb_config)
 
+DEF_INT_FUNC_VOID(vb_mgmt_deinit)
+DEF_VOID_FUNC_VOID(dma_dev_deinit)
+
 DEF_INT_FUNC_STRUCTPTR(vb_mgmt_get_block, vb_block_info)
 DEF_INT_FUNC_STRUCTPTR(vb_mgmt_put_block, vb_block_info)
 
