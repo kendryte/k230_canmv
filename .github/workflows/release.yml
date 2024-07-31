@@ -202,13 +202,13 @@ jobs:
           ls
           ls -alht output/${CONF}/images/
           echo "k230 sdk version:"
-          cat output/${CONF}/images/little-core/rootfs/etc/version/release_version || echo "k230 sdk version file not exist"
+          cat k230_sdk/output/${CONF}/images/little-core/rootfs/etc/version/release_version || echo "k230 sdk version file not exist"
           # Copy compiled files to /github/workspace/artifacts
           sudo mkdir -p /github/workspace/artifacts
           sudo chown -R $(id -u):$(id -g) /github/workspace/artifacts
           sudo chmod -R 755 /github/workspace/artifacts
-          cp output/${CONF}/images/CanMV*.img.gz /github/workspace/artifacts/
-          cp output/${CONF}/images/little-core/rootfs/etc/version/release_version /github/workspace/artifacts/k230_sdk_version.txt || echo "k230 sdk version file not exist"
+          cp output/${CONF}/images/*_micropython_*.img.gz  /github/workspace/artifacts/
+          cp k230_sdk/output/${CONF}/images/little-core/rootfs/etc/version/release_version /github/workspace/artifacts/k230_sdk_version.txt || echo "k230 sdk version file not exist"
           ls -alht /github/workspace/artifacts/
         shell: bash
 
