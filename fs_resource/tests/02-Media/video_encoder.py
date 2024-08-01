@@ -79,6 +79,7 @@ def venc_test():
         except KeyboardInterrupt as e:
             print("user stop: ", e)
         except BaseException as e:
+            import sys
             sys.print_exception(e)
 
     # 停止camera

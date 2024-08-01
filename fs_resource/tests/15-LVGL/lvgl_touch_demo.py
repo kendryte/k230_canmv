@@ -37,8 +37,6 @@ def disp_drv_flush_cb(disp_drv, area, color):
 
 class touch_screen():
     def __init__(self):
-        self.x = 0
-        self.y = 0
         self.state = lv.INDEV_STATE.RELEASED
 
         self.indev_drv = lv.indev_create()
@@ -47,13 +45,13 @@ class touch_screen():
         self.touch = TOUCH(0)
 
     def callback(self, driver, data):
-        x, y, state = self.x, self.y, lv.INDEV_STATE.RELEASED
+        x, y, state = 0, 0, lv.INDEV_STATE.RELEASED
         tp = self.touch.read(1)
         if len(tp):
             x, y, event = tp[0].x, tp[0].y, tp[0].event
             if event == 2 or event == 3:
                 state = lv.INDEV_STATE.PRESSED
-        data.point = lv.point_t({'x': y, 'y': DISPLAY_HEIGHT - x})
+        data.point = lv.point_t({'x': x, 'y': y})
         data.state = state
 
 def lvgl_init():
@@ -83,7 +81,7 @@ def btn_clicked_event(event):
         label.set_text("on")
 
 def user_gui_init():
-    res_path = "/sdcard/app/tests/lvgl/data/"
+    res_path = "/sdcard/app/tests/15-LVGL/data/"
 
     font_montserrat_16 = lv.font_load("A:" + res_path + "font/montserrat-16.fnt")
     ltr_label = lv.label(lv.scr_act())
@@ -148,6 +146,7 @@ def main():
         while True:
             time.sleep_ms(lv.task_handler())
     except BaseException as e:
+        import sys
         sys.print_exception(e)
     lvgl_deinit()
     display_deinit()

@@ -24,6 +24,7 @@ def rtsp_server_test():
     except KeyboardInterrupt as e:
         print("user stop: ", e)
     except BaseException as e:
+        import sys
         sys.print_exception(e)
 
     rtspserver.stop() #停止rtsp server

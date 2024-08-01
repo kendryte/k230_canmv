@@ -29,6 +29,7 @@ def play_mp4_test(filename):
     except KeyboardInterrupt as e:
         print("user stop: ", e)
     except BaseException as e:
+        import sys
         sys.print_exception(e)
 
     player.stop() #停止播放
