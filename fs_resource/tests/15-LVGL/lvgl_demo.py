@@ -48,7 +48,7 @@ def lvgl_deinit():
     del disp_img2
 
 def user_gui_init():
-    res_path = "/sdcard/app/tests/lvgl/data/"
+    res_path = "/sdcard/app/tests/15-LVGL/data/"
 
     font_montserrat_16 = lv.font_load("A:" + res_path + "font/montserrat-16.fnt")
     ltr_label = lv.label(lv.scr_act())

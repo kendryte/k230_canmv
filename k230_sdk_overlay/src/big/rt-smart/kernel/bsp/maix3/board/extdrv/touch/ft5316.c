@@ -135,7 +135,11 @@ static struct rt_touch_ops touch_ops = {
 };
 
 static struct ft5316_dev ft5316_dev0 = {
+#if defined (CONFIG_BOARD_K230_CANMV_01STUDIO)
     .i2c_name = "i2c3",
+#else /* CONFIG_BOARD_K230_CANMV */
+    .i2c_name = "i2c4",
+#endif
     .i2c_addr = 0x38,
 };
 
