@@ -165,7 +165,7 @@ class Sensor:
             info = k_vicap_sensor_info()
             cfg = k_vicap_probe_config()
             cfg.csi = self._dev_id + 1 # convert to csi num
-            cfg.fps = kwargs.get('fps', 30)
+            cfg.fps = kwargs.get('fps', 60)
             cfg.width = kwargs.get('width', 1920)
             cfg.height = kwargs.get('height', 1080)
 
@@ -175,7 +175,7 @@ class Sensor:
 
             def_mirror = cfg.def_mirror
             self._type = info.type
-            print(f"use sensor {info.type}, output {info.width}x{info.height}@{info.fps}")
+            print(f"find sensor {cfg.name.decode()}, type {info.type}, output {info.width}x{info.height}@{info.fps}")
 
         if (self._type > SENSOR_TYPE_MAX - 1):
             raise AssertionError(f"invaild sensor type {self._type}, should < {SENSOR_TYPE_MAX - 1}")
@@ -351,10 +351,12 @@ class Sensor:
         status = 0
         frame_info = k_video_frame_info()
         try:
+            old = os.exitpoint(os.EXITPOINT_ENABLE_SLEEP)
             virt_addr = 0
             ret = kd_mpi_vicap_dump_frame(self._dev_id, chn, VICAP_DUMP_YUV, frame_info, 1000)
             self._imgs[chn].push_phys(frame_info.v_frame.phys_addr[0])
             if ret:
+                os.exitpoint(old)
                 raise RuntimeError(f"sensor({self._dev_id}) snapshot chn({chn}) failed({ret})")
             status = 1
             phys_addr = frame_info.v_frame.phys_addr[0]
@@ -371,6 +373,7 @@ class Sensor:
                 img_size = img_width * img_height * 3
                 img_fmt = image.RGBP888
             else:
+                os.exitpoint(old)
                 raise RuntimeError(f"sensor({self._dev_id}) snapshot chn({chn}) not support pixelformat({fmt})")
             virt_addr = kd_mpi_sys_mmap_cached(phys_addr, img_size)
             self._imgs[chn].push_virt(virt_addr, img_size)
@@ -384,8 +387,10 @@ class Sensor:
                 else:
                     img = image.Image(img_width, img_height, img_fmt, alloc=image.ALLOC_VB, phyaddr=phys_addr, virtaddr=virt_addr, poolid=frame_info.pool_id)
             else:
+                os.exitpoint(old)
                 raise RuntimeError(f"sensor({self._dev_id}) snapshot chn({chn}) mmap failed")
 
+            os.exitpoint(old)
             return img
         except Exception as e:
             raise e
@@ -871,17 +876,18 @@ class Sensor:
             raise AssertionError("should call reset() first")
 
         if not is_del and not self._is_started:
-            raise AssertionError("should call run() first")
+            print("warning: sensor not call run()")
 
-        ret = kd_mpi_vicap_stop_stream(self._dev_id)
-        if not is_del and ret:
-            raise RuntimeError(f"sensor({self._dev_id}) stop error, stop stream failed({ret})")
+        if self._is_started:
+            ret = kd_mpi_vicap_stop_stream(self._dev_id)
+            if not is_del and ret:
+                raise RuntimeError(f"sensor({self._dev_id}) stop error, stop stream failed({ret})")
 
-        ret = kd_mpi_vicap_deinit(self._dev_id)
-        if not is_del and ret:
-            raise RuntimeError(f"sensor({self._dev_id}) stop error, vicap deinit failed({ret})")
+            ret = kd_mpi_vicap_deinit(self._dev_id)
+            if not is_del and ret:
+                raise RuntimeError(f"sensor({self._dev_id}) stop error, vicap deinit failed({ret})")
 
-        vb_mgmt_vicap_dev_deinited(self._dev_id)
+            vb_mgmt_vicap_dev_deinited(self._dev_id)
 
         self._dev_attr.dev_enable = False
         self._release_all_chn_image()

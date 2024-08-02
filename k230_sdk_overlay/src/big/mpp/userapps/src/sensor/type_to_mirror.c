@@ -18,6 +18,7 @@ static struct sensor_type_mirror_t type_mirror_tbl[] = {
     {.type = OV_OV5647_MIPI_CSI0_1920X1080_30FPS_10BIT_LINEAR, .mirror = 0},
     {.type = OV_OV5647_MIPI_CSI0_1280X720_60FPS_10BIT_LINEAR, .mirror = 0},
     {.type = OV_OV5647_MIPI_CSI0_1280X960_45FPS_10BIT_LINEAR, .mirror = 0},
+    {.type = GC2093_MIPI_CSI0_1920X1080_60FPS_10BIT_LINEAR, .mirror = MIRROR | FLIP},
 };
 #elif defined(CONFIG_BOARD_K230_CANMV_V2)
 static struct sensor_type_mirror_t type_mirror_tbl[] = {

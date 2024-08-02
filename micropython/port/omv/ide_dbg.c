@@ -275,6 +275,7 @@ static bool _dma_dev_init_flag = false;
 static void* wbc_jpeg_buffer = NULL;
 static size_t wbc_jpeg_buffer_size = 0;
 static uint32_t wbc_jpeg_size = 0;
+static int wbc_jpeg_quality = 90;
 static uint16_t wbc_width, wbc_height;
 static k_video_frame_info frame_info;
 #if ENABLE_BUFFER_ROTATION
@@ -356,7 +357,7 @@ int kd_mpi_vo_osd_rotation(int flag, k_video_frame_info *in, k_video_frame_info 
 
     if(false == _dma_dev_init_flag) {
         printf("did't init dma_dev\n");
-        return -1;
+        dma_dev_init();
     }
 
     kd_mpi_dma_stop_chn(OSD_ROTATION_DMA_CHN);
@@ -384,13 +385,14 @@ int kd_mpi_vo_osd_rotation(int flag, k_video_frame_info *in, k_video_frame_info 
     return 0;
 }
 
-int ide_dbg_set_vo_wbc(int enable, int width, int height)
+int ide_dbg_set_vo_wbc(int quality, int width, int height)
 {
-    fb_from = enable ? FB_FROM_VO_WRITEBACK : FB_FROM_NONE;
+    fb_from = (0x00 != quality) ? FB_FROM_VO_WRITEBACK : FB_FROM_NONE;
 
 #if ENABLE_VO_WRITEBACK
     wbc_width = width;
     wbc_height = height;
+    wbc_jpeg_quality = (0x00 != quality) ? quality : 10;
 #endif // ENABLE_VO_WRITEBACK
 
 #if ENABLE_BUFFER_ROTATION
@@ -556,7 +558,7 @@ static void rotation270_u16(uint16_t* __restrict dst, uint16_t* __restrict src, 
 }
 #endif
 
-int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int timeout, void*(*realloc)(void*, unsigned long));
+extern int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int timeout, int quality, void*(*realloc)(void*, unsigned long));
 
 static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* data, size_t length) {
     for (size_t i = 0; i < length;) {
@@ -820,11 +822,37 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                                     pr_verb("[omv] kd_mpi_wbc_dump_frame error: %u", error);
                                     goto skip;
                                 }
-                                frame_info.v_frame.pixel_format = PIXEL_FORMAT_YVU_SEMIPLANAR_420;
                                 int ssize = 0;
-                                #if ENABLE_BUFFER_ROTATION
                                 unsigned ysize = frame_info.v_frame.width * frame_info.v_frame.height;
                                 unsigned uvsize = ysize / 2;
+                                #define FIX_UV_OFFSET 0
+                                #if FIX_UV_OFFSET
+                                {
+                                    uint16_t* uv = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[1], uvsize);
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
+                                    for (unsigned j = 0; j < frame_info.v_frame.height / 2; j++) {
+                                        for (unsigned i = 0; i < frame_info.v_frame.width / 8; i++) {
+                                            unsigned offset = j * frame_info.v_frame.width + i * 4 * 2;
+                                            uint16_t tmp;
+                                            tmp = uv[offset + 0];
+                                            uv[offset + 0] = uv[offset + 6];
+                                            uv[offset + 6] = tmp;
+                                            tmp = uv[offset + 2];
+                                            uv[offset + 2] = uv[offset + 4];
+                                            uv[offset + 4] = tmp;
+                                            tmp = uv[offset + 1];
+                                            uv[offset + 1] = uv[offset + 7];
+                                            uv[offset + 7] = tmp;
+                                            tmp = uv[offset + 3];
+                                            uv[offset + 3] = uv[offset + 5];
+                                            uv[offset + 5] = tmp;
+                                        }
+                                    }
+                                    kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
+                                    kd_mpi_sys_munmap(uv, uvsize);
+                                }
+                                #endif
+                                #if ENABLE_BUFFER_ROTATION
                                 if (K_ROTATION_90 == (vo_wbc_flag & K_ROTATION_90)) {
                                     // y
                                     uint8_t* y = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[0], ysize);
@@ -840,7 +868,7 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                                     kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
                                     kd_mpi_sys_munmap(uv, uvsize);
 
-                                    ssize = hd_jpeg_encode(&rotation_buffer, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
+                                    ssize = hd_jpeg_encode(&rotation_buffer, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, wbc_jpeg_quality, realloc);
                                 } else if (K_ROTATION_270 == (vo_wbc_flag & K_ROTATION_270)) {
                                     // y
                                     uint8_t* y = kd_mpi_sys_mmap_cached(frame_info.v_frame.phys_addr[0], ysize);
@@ -856,13 +884,41 @@ static ide_dbg_status_t ide_dbg_update(ide_dbg_state_t* state, const uint8_t* da
                                     kd_mpi_sys_mmz_flush_cache(frame_info.v_frame.phys_addr[1], uv, uvsize);
                                     kd_mpi_sys_munmap(uv, uvsize);
 
-                                    ssize = hd_jpeg_encode(&rotation_buffer, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
+                                    ssize = hd_jpeg_encode(&rotation_buffer, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, wbc_jpeg_quality, realloc);
                                 } else {
-                                    ssize = hd_jpeg_encode(&frame_info, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
+                                    ssize = hd_jpeg_encode(&frame_info, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, wbc_jpeg_quality, realloc);
                                 }
                                 #else
-                                ssize = hd_jpeg_encode(&frame_info, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, realloc);
+                                ssize = hd_jpeg_encode(&frame_info, &wbc_jpeg_buffer, wbc_jpeg_buffer_size, 1000, wbc_jpeg_quality, realloc);
                                 #endif
+                                if (0) {
+                                    // dump raw file
+                                    static unsigned cnt = 0;
+                                    cnt += 1;
+                                    if (cnt == 100) {
+                                        FILE* f = fopen("/sdcard/wbc_raw", "w");
+                                        if (frame_info.v_frame.pixel_format == PIXEL_FORMAT_YUV_SEMIPLANAR_420 ||
+                                            frame_info.v_frame.pixel_format == PIXEL_FORMAT_YVU_SEMIPLANAR_420) {
+                                            uint8_t* y = kd_mpi_sys_mmap(frame_info.v_frame.phys_addr[0], ysize);
+                                            fwrite(y, 1, ysize, f);
+                                            kd_mpi_sys_munmap(y, ysize);
+                                            uint8_t* uv = kd_mpi_sys_mmap(frame_info.v_frame.phys_addr[1], uvsize);
+                                            fwrite(uv, 1, uvsize, f);
+                                            kd_mpi_sys_munmap(uv, uvsize);
+                                        } else if (frame_info.v_frame.pixel_format == PIXEL_FORMAT_ARGB_8888) {
+                                            uint8_t* buffer = kd_mpi_sys_mmap(frame_info.v_frame.phys_addr[0], ysize * 4);
+                                            fwrite(buffer, 1, ysize * 4, f);
+                                            kd_mpi_sys_munmap(buffer, ysize);
+                                        }
+                                        fclose(f);
+
+                                        f = fopen("/sdcard/wbc.jpg", "w");
+                                        fwrite(wbc_jpeg_buffer, 1, ssize, f);
+                                        fclose(f);
+
+                                        fprintf(stderr, "wbc dump done\n");
+                                    }
+                                }
                                 kd_mpi_wbc_dump_release(&frame_info);
                                 if (ssize <= 0) {
                                     printf("[omv] hardware JPEG error %d", ssize);

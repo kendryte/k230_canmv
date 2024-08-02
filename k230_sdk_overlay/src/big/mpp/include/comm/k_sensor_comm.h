@@ -41,7 +41,7 @@
 extern "C" {
 #endif /* End of #ifdef __cplusplus */
 
-#define SENSOR_NUM_MAX   13
+#define SENSOR_NUM_MAX   14
 
 #define REG_NULL  0xFFFF
 
@@ -127,6 +127,15 @@ typedef enum {
     OV_OV5647_MIPI_CSI2_1280X960_45FPS_10BIT_LINEAR = 48,
 
     GC2053_MIPI_CSI2_1920X1080_30FPS_10BIT_LINEAR = 49,
+    GC2093_MIPI_CSI0_1920X1080_30FPS_10BIT_LINEAR = 50,
+    GC2093_MIPI_CSI0_1920X1080_60FPS_10BIT_LINEAR = 51,
+    GC2093_MIPI_CSI2_1920X1080_30FPS_10BIT_LINEAR = 52, 
+    GC2093_MIPI_CSI2_1920X1080_60FPS_10BIT_LINEAR = 53, 
+    GC2093_MIPI_CSI0_1280X960_90FPS_10BIT_LINEAR = 54,
+    GC2093_MIPI_CSI2_1280X960_90FPS_10BIT_LINEAR = 55,
+
+    GC2093_MIPI_CSI0_1280X720_90FPS_10BIT_LINEAR = 56,
+    GC2093_MIPI_CSI2_1280X720_90FPS_10BIT_LINEAR = 57,
 
     SENSOR_TYPE_MAX,
 } k_vicap_sensor_type;
@@ -390,7 +399,6 @@ typedef struct {
     k_u32 int_time_delay_frame;
     k_u32 gain_delay_frame;
 
-    //float ae_min_interval_frame;
     k_u8 color_type;		//0, color image; 1, mono sensor image; 2, color sensor gray image.
 } k_sensor_ae_info;
 

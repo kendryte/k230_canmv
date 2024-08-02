@@ -1971,7 +1971,7 @@ void hd_jpeg_encoder_destory(void)
  * Hardware JPEG compressing
  * @retval -1: error, 0: overflow, >0: JPEG size
  */
-int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int timeout, void*(*realloc)(void*, unsigned long)) {
+int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int timeout, int quality, void*(*realloc)(void*, unsigned long)) {
     int ret = -1;
     int error = 0;
 
@@ -1982,6 +1982,13 @@ int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int ti
     static bool first_frame = true;
     static k_venc_chn_attr attr;
     init:
+
+    if(10 > quality) {
+        quality = 10;
+    } else if(100 < quality) {
+        quality = 100;
+    }
+
     if (jpeg_encoder_created == 0) {
         // create channel
         memset(&attr, 0, sizeof(attr));
@@ -1993,7 +2000,7 @@ int hd_jpeg_encode(k_video_frame_info* frame, void** buffer, size_t size, int ti
         attr.rc_attr.rc_mode = K_VENC_RC_MODE_MJPEG_FIXQP;
         attr.rc_attr.mjpeg_fixqp.src_frame_rate = 30;
         attr.rc_attr.mjpeg_fixqp.dst_frame_rate = 30;
-        attr.rc_attr.mjpeg_fixqp.q_factor = 45;
+        attr.rc_attr.mjpeg_fixqp.q_factor = quality;
         error = kd_mpi_venc_create_chn(VENC_MAX_CHN_NUMS - 1, &attr);
         if (error) {
             fprintf(stderr, "[omv] kd_mpi_venc_create_chn error %u\n", error);
@@ -2146,7 +2153,7 @@ bool jpeg_compress(image_t *src, image_t *dst, int quality, bool realloc) {
             // unsupported
             goto skip;
         }
-        int ssize = hd_jpeg_encode(&frame, (void**)&dst->data, dst->size, 1000, NULL);
+        int ssize = hd_jpeg_encode(&frame, (void**)&dst->data, dst->size, 1000, quality, NULL);
         if (ssize > 0) {
             dst->size = ssize;
         } else if (ssize == 0) {

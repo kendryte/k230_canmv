@@ -74,8 +74,8 @@ release_image_publish:
     matrix:
       - CONF:
         - k230_canmv_defconfig
-        - k230_canmv_only_rtt_defconfig
         - k230d_canmv_only_rtt_defconfig
+        - k230_canmv_01studio_defconfig
   extends:
     - .sync_release_image
 
@@ -93,18 +93,18 @@ release_image_publish:
     - git branch -a
     - git status
     - echo '---pull latest ${BRANCH} branch---'
-    - git pull origin ${BRANCH}
+    - timeout 1m git pull origin ${BRANCH} || { echo "timeout matched">&2; sleep 15; timeout 1m git pull origin ${BRANCH} || { echo "timeout2 matched,">&2; timeout 1m git pull origin ${BRANCH}; exit 1; } }
     - echo '---fetch all tags---'
-    - git fetch --tags
+    - timeout 1m git fetch --tags || { echo "timeout matched">&2; sleep 15; timeout 1m git fetch --tags || { echo "timeout2 matched,">&2; timeout 1m git fetch --tags; exit 1; } }
     - git remote add github ${GITHUB_REPO}
     - git remote add gitee ${GITEE_REPO}
     - git remote -v
     - git branch -a
     - git status
     - echo "---push to gitee---"
-    - git push --atomic --tags -u -f gitee ${BRANCH} || git push --atomic --tags -u -f gitee ${BRANCH} || git push --atomic --tags -u -f gitee ${BRANCH}
+    - timeout 3m git push --atomic --tags -u -f gitee ${BRANCH} || { echo "timeout matched">&2; sleep 15; timeout 3m git push --atomic --tags -u -f gitee ${BRANCH} || { echo "timeout2 matched,">&2; timeout 3m git push --atomic --tags -u -f gitee ${BRANCH}; exit 1; } }
     - echo "---push to github---"
-    - git push --atomic --tags -u -f github ${BRANCH} || git push --atomic --tags -u -f github ${BRANCH} || git push --atomic --tags -u -f github ${BRANCH}
+    - timeout 3m git push --atomic --tags -u -f github ${BRANCH} || { echo "timeout matched">&2; sleep 15; timeout 3m git push --atomic --tags -u -f github ${BRANCH} || { echo "timeout2 matched,">&2; git push --atomic --tags -u -f github ${BRANCH}; exit 1; } }
 
 .release_download_dir:
   timeout: 60m
@@ -717,7 +717,7 @@ release_image_publish:
     - echo "---add testcase script to nfs folder"
     - git clone ${TEST_SCRIPTS_REPO} k230_canmv_testscripts || exit 1
     - cd k230_canmv_testscripts || exit 1
-    - git fetch origin main || exit 1
+    - timeout 1m git fetch origin main || { echo "timeout matched">&2; sleep 15; timeout 1m git fetch origin main || { echo "timeout2 matched,">&2; timeout 1m git fetch origin main; exit 1; } }
     - git checkout main || exit 1
     - echo "check micropython_testcases dir should be exist"
     - ls micropython_testcases || exit 1
@@ -756,7 +756,7 @@ release_image_publish:
     - echo "---add test script"
     - test -d k230_canmv_testscripts || git clone ${TEST_SCRIPTS_REPO} k230_canmv_testscripts || exit 1
     - cd k230_canmv_testscripts || exit 1
-    - git fetch origin main || exit 1
+    - timeout 1m git fetch origin main || { echo "timeout matched">&2; sleep 15; timeout 1m git fetch origin main || { echo "timeout2 matched,">&2; timeout 1m git fetch origin main; exit 1; } }
     - git checkout main || exit 1
     - pwd
     - test -d bin || mkdir ./bin
@@ -771,8 +771,8 @@ release_image_publish:
         stime=$(date +'%Y-%m-%d %H:%M:%S')
         echo "---run k230 smoke test start time: $stime"
         test_cmd="./k230_micropython_smoke_test.sh $NFS_CASE_FOLDER/${TEST_ENV}.yml"
-        for i in {1..3}; do
-          if [ $i -eq 3 ]
+        for i in {1..2}; do
+          if [ $i -eq 2 ]
           then
             echo "ERROR: Max retries reached with run k230 micropython smoke test"
             exit 1
@@ -807,7 +807,7 @@ release_image_publish:
     - echo "---add test script"
     - test -d k230_canmv_testscripts || git clone ${TEST_SCRIPTS_REPO} k230_canmv_testscripts || exit 1
     - cd k230_canmv_testscripts || exit 1
-    - git fetch origin main || exit 1
+    - timeout 1m git fetch origin main || { echo "timeout matched">&2; sleep 15; timeout 1m git fetch origin main || { echo "timeout2 matched,">&2; timeout 1m git fetch origin main; exit 1; } }
     - git checkout main || exit 1
     - test -d bin || mkdir ./bin
     - test -f ./bin/airobot && rm -rf ./bin/airobot
@@ -820,8 +820,8 @@ release_image_publish:
         stime=$(date +'%Y-%m-%d %H:%M:%S')
         echo "---run k230 micropython daily test start time: $stime"
         test_cmd="./k230_micropython_daily_test.sh $NFS_CASE_FOLDER/${TEST_ENV}.yml"
-        for i in {1..3}; do
-          if [ $i -eq 3 ]
+        for i in {1..2}; do
+          if [ $i -eq 2 ]
           then
             echo "ERROR: Max retries reached with run k230 micropython daily test"
             exit 1
@@ -888,7 +888,7 @@ before_script:
   - git config --global --add safe.directory $CI_PROJECT_DIR/k230_sdk
   - git config --global --add safe.directory $CI_PROJECT_DIR/micropython
   - echo '----------fetch all tags----------'
-  - git fetch --tags
+  - timeout 1m git fetch --tags || { echo "timeout matched">&2; sleep 15; timeout 1m git fetch --tags || { echo "timeout2 matched,">&2; timeout 1m git fetch --tags; exit 1; } }
   - HW_TYPE=$(echo $CONF | awk -F '_'  '{print $1}')
   - HW_MODEL=$(echo $CONF | awk -F "_"  '{if ($3 == "v2") print $2"_"$3; else print $2}')
   - echo "HW_TYPE ${HW_TYPE}, HW_MODEL ${HW_MODEL}"
@@ -951,7 +951,6 @@ build_image:
     matrix:
       - CONF:
         - k230_canmv_defconfig
-        - k230_canmv_only_rtt_defconfig
         - k230d_canmv_only_rtt_defconfig
         - k230_canmv_01studio_defconfig
   variables:

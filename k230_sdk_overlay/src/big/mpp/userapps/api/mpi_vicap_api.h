@@ -350,6 +350,7 @@ k_s32 kd_mpi_vicap_3d_mode_crtl(k_bool enable);
  */
 k_s32 kd_mpi_vicap_sensor_set_mclk(k_sensor_mclk sensor_mclk);
 
+k_s32 kd_mpi_vicap_sensor_disable_mclk(k_sensor_mclk sensor_mclk);
 
 /** @} */ /** <!-- ==== VICAP End ==== */
 

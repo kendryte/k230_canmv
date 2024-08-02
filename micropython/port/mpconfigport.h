@@ -145,6 +145,11 @@ extern const struct _mp_print_t mp_stderr_print;
     } while (0);
 #endif
 
+#define MICROPY_VM_HOOK_LOOP \
+    do { \
+        mp_thread_exitpoint(EXITPOINT_DISABLE); \
+    } while (0);
+
 // Configure the implementation of machine.idle().
 #include <sched.h>
 #define MICROPY_UNIX_MACHINE_IDLE sched_yield();

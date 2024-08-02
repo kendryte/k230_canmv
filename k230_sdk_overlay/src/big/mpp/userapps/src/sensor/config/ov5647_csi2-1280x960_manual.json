@@ -2,16 +2,15 @@
   "ARCH": "ISP8000_V2201.Manual_ext",
   "root": [
     {
+      "nr_reloc" : true,
       "driver": [
         {
           "base_frame": 0,
-          "bls": [64, 64, 64, 64],
           "bls_out": [0, 0, 0, 0],
           "bypass": false,
           "bypass_select": 0,
           "class": "CHdrv2",
           "color_weight": [254, 1, 0],
-          "driver_load": false,
           "enable": false,
           "extend_bit": [-1, -1],
           "ratio": [4, 4],
@@ -28,12 +27,11 @@
         },
         {
           "class": "CGreenEqu",
-          "driver_load": true,
+          "enable": true,
           "threshold": 2.5
         },
         {
           "bit" : 12,
-          "bls" : [ 64, 64, 64, 64 ],
           "ccmatrix" : [ 1.0, 0, 0, 0, 0, 1.0, 0, 0, 0, 0, 1.0, 0 ],
           "class" : "CRgbIR",
           "dpcc_mid_th" : [ 4095, 4095, 4095, 4095 ],
@@ -47,7 +45,7 @@
         },
         {
           "class": "CManualWb",
-          "driver_load": true,
+          "enable": true,
           "gain": [1.3552, 1.0, 1.0, 1.4445]
         },
         {
@@ -59,7 +57,7 @@
           ],
           "ccoffset": [0, 0, 0],
           "class": "CCcm",
-          "driver_load": true
+          "enable": true
         },
         {
           "class": "CDgain",
@@ -67,12 +65,9 @@
           "digital_gain_gb": 1,
           "digital_gain_gr": 1,
           "digital_gain_r": 1,
-          "driver_load": true
+          "enable": true
         },
         {
-          "bit": 20,
-          "bls": [64, 64, 64, 64],
-          "bls_enable": true,
           "class": "CCpdv1",
           "compress_curve_x": [
             21, 20, 18, 14, 20, 18, 14, 13, 20, 18, 14, 13, 20, 18, 14, 20, 18,
@@ -113,17 +108,21 @@
           "expand_enable": false,
           "expand_use_out_y_curve": false
         },
+		{
+          "class" : "Bls",
+          "bls" : [ 64, 64, 64, 64]
+        },
         {
           "class": "CGamma64",
           "curve": [
-            154, 211, 254, 290, 321, 349, 374, 397, 419, 440, 459, 478, 496,
+            89, 164, 214, 262, 307, 349, 374, 397, 419, 440, 459, 478, 496,
             513, 529, 545, 560, 575, 589, 603, 617, 630, 643, 655, 667, 679,
             691, 703, 714, 725, 736, 747, 757, 768, 778, 788, 798, 807, 817,
             827, 836, 845, 854, 863, 872, 881, 889, 898, 906, 915, 923, 931,
             939, 947, 955, 963, 971, 979, 986, 994, 1001, 1009, 1016, 1023
           ],
-          "driver_load": true,
-          "standard": true,
+          "enable": true,
+          "standard": false,
           "standard_val": 2.2
         },
         {
@@ -169,7 +168,7 @@
         },
         {
           "class": "CDpf",
-          "div": 0,
+          "div": 16,
           "enable": true,
           "gain": 24,
           "gradient": 2,
@@ -187,7 +186,7 @@
           "enable": true,
           "matrix": [
             [
-			 2074, 2017, 1963, 1888, 1800, 1758, 1670, 1624, 1570, 1545, 1510, 1462, 1445, 1431, 1417, 1412, 1401, 1408, 1434, 1424, 1441, 1464, 1494, 1530, 1585, 1621, 1672, 1756, 1794, 1887, 1965, 2014, 2115,
+              2074, 2017, 1963, 1888, 1800, 1758, 1670, 1624, 1570, 1545, 1510, 1462, 1445, 1431, 1417, 1412, 1401, 1408, 1434, 1424, 1441, 1464, 1494, 1530, 1585, 1621, 1672, 1756, 1794, 1887, 1965, 2014, 2115,
 			 2077, 1989, 1922, 1828, 1743, 1680, 1630, 1572, 1533, 1499, 1456, 1424, 1396, 1384, 1376, 1358, 1356, 1356, 1368, 1390, 1407, 1427, 1446, 1480, 1531, 1598, 1644, 1688, 1748, 1847, 1918, 2006, 2087,
 			 1989, 1961, 1858, 1773, 1694, 1656, 1573, 1530, 1500, 1443, 1409, 1379, 1360, 1334, 1316, 1306, 1311, 1307, 1311, 1330, 1346, 1374, 1400, 1426, 1482, 1533, 1581, 1621, 1685, 1775, 1882, 1975, 2038,
 			 1986, 1914, 1848, 1748, 1666, 1611, 1543, 1505, 1454, 1415, 1368, 1340, 1314, 1288, 1279, 1263, 1262, 1263, 1276, 1280, 1310, 1328, 1357, 1398, 1436, 1477, 1534, 1591, 1646, 1735, 1819, 1908, 2010,
@@ -342,9 +341,9 @@
             0, 0, 0, 2, 3, 6, 11, 22, 39, 67, 111, 177, 227, 266, 321, 355, 377,
             355, 221, 0
           ],
-          "entropy_base": 200,
-          "entropy_slope": 700,
-          "flat_strength": 4,
+          "entropy_base": 716,
+          "entropy_slope": 204,
+          "flat_strength": 8,
           "flat_thr": 19,
           "gamma_down": [
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 9, 16, 36, 64, 136, 256, 576,
@@ -361,7 +360,7 @@
             881361, 964968, 1048575
           ],
           "global_strength": 0,
-          "high_strength": 60,
+          "high_strength": 120,
           "low_strength": 8,
           "strength": 128
         },
@@ -377,28 +376,26 @@
           "motion_dilate_en": true,
           "motion_erode_en": true,
           "nlm_en": true,
-          "noise_level": 128,
+          "noise_level": 16,
           "noisemodel_a": 16.49220085144043,
           "noisemodel_b": 785.5836181640625,
           "pregamma_en": true,
           "preweight": 8,
           "range_h": 7,
           "range_v": 7,
-          "sadweight": 16,
+          "sadweight": 8,
           "sigma": 5,
-          "strength": 110,
-          "thr_motion_slope": 16,
-          "tnr_en": false
+          "strength": 32,
+          "thr_motion_slope": 8,
+          "tnr_en": true
         },
         {
           "bright": 0,
-          "chroma_out": 2,
           "class": "CCproc",
+          "yuvRange": 2,
           "contrast": 1,
-          "driver_load": true,
+          "enable": true,
           "hue": 0,
-          "luma_in": 2,
-          "luma_out": 2,
           "saturation": 1.984375
         },
         {
@@ -486,8 +483,7 @@
           "dmsc_skin_cr_thr_min": 0,
           "dmsc_skin_enable": false,
           "dmsc_skin_y_thr_max": 0,
-          "dmsc_skin_y_thr_min": 0,
-          "enable": true
+          "dmsc_skin_y_thr_min": 0
         }
       ]
     }

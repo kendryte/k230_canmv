@@ -18,7 +18,7 @@ PROG ?= micropython
 USER_C_MODULES = 3d-party/ulab
 
 # include py core make definitions
-include $(TOP)/py/py.mk 
+include $(TOP)/py/py.mk
 include $(TOP)/extmod/extmod.mk
 
 INC += -I.
@@ -38,6 +38,7 @@ INC += -Iinclude/ai_cube
 INC += -Iinclude/ai_demo
 INC += -Iinclude/ai_demo/kws
 INC += -Iinclude/ai_demo/tts_zh
+INC += -Iinclude/multi_media
 INC += -I3d-party
 INC += -I3d-party/ulab
 INC += -I3d-party/freetype/freetype/include
@@ -52,6 +53,13 @@ INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/include
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/rt-smart/userapps/sdk/rt-thread/components/drivers
 INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/mp4_format/include
+
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/live555/UsageEnvironment
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/live555/BasicUsageEnvironment
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/live555/groupsock
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/live555/liveMedia
+INC += -I$(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/rtsp_server/include
+
 
 -include $(BUILD)/CANMV_VER
 CANMV_VER = $(shell git describe --tags `git rev-list --tags --max-count=1`)-$(shell git rev-parse --short HEAD)
@@ -92,7 +100,7 @@ LDFLAGS_ARCH = -Wl,-Map=$@.map,--cref -Wl,--gc-sections
 LDFLAGS += -T core/link.lds --static
 LDFLAGS += $(LDFLAGS_MOD) $(LDFLAGS_ARCH) -lm -lpthread $(LDFLAGS_EXTRA)
 
-MPP_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/lib  
+MPP_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/userapps/lib
 CDK_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/common/cdk/user/component/ipcmsg/host/lib/
 
 MPP_LIBS = $(addprefix -l, $(subst lib, ,$(basename $(notdir $(foreach dir, $(MPP_LIB_PATH) $(CDK_LIB_PATH), $(wildcard $(dir)/*))))))
@@ -111,6 +119,15 @@ OPENCV_DEP_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/utils/lib/opencv/lib/o
 OPENCV_LIBS = -lstdc++ -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -lopencv_highgui -lopencv_videoio -lzlib -llibjpeg-turbo -llibopenjp2 -llibpng -llibtiff -llibwebp -lcsi_cv -latomic
 LDFLAGS += -L$(OPENCV_LIB_PATH) -L$(OPENCV_DEP_LIB_PATH) -Wl,--start-group $(OPENCV_LIBS) -Wl,--end-group
 
+# rtsp server
+LIVE555_USAGEENVIRONMENT = $(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/live555/UsageEnvironment
+LIVE555_BASICUSAGEENVIRONMENT = $(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/live555/BasicUsageEnvironment
+LIVE555_GROUPSOCK = $(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/live555/groupsock
+LIVE555_LIVEMEDIA = $(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/live555/liveMedia
+RTSP_SERVER_LIB_PATH = $(K230_CANMV_ROOT)/k230_sdk/src/big/mpp/middleware/src/rtsp_server
+RTSP_SERVER_LIBS = -lrtsp_server -lliveMedia -lgroupsock -lBasicUsageEnvironment -lUsageEnvironment -lstdc++
+LDFLAGS += -L$(LIVE555_USAGEENVIRONMENT) -L$(LIVE555_BASICUSAGEENVIRONMENT) -L$(LIVE555_GROUPSOCK) -L$(LIVE555_LIVEMEDIA) -L$(RTSP_SERVER_LIB_PATH) -Wl,--start-group $(RTSP_SERVER_LIBS) -Wl,--end-group
+
 # freetype
 FREETYPE_LIB_PATH = $(BUILD)/freetype
 FREETYPE_LIBS = -lfreetype
@@ -122,7 +139,7 @@ endif
 ifeq ($(MICROPY_PY_SOCKET_CANMV),1)
 CFLAGS += -DMICROPY_PY_SOCKET_CANMV=1 -g
 endif
-CFLAGS += -DHAVE_CCONFIG_H 
+CFLAGS += -DHAVE_CCONFIG_H
 # source files
 SRC_C += \
 	core/main.c \
@@ -142,6 +159,7 @@ AIDEMO_SRC_C = $(wildcard ai_demo/*.c)
 SOCKET_SRC_C = $(wildcard socket_network/*.c)
 MODULES_SRC_C = $(wildcard modules/*.c)
 MODULES_SRC_C += $(wildcard modules/*/*.c)
+MULTIMEDIA_SRC_C = $(wildcard multi_media/*.c)
 
 OMV_SRC_C = $(wildcard omv/*.c)
 OMV_SRC_C += $(wildcard omv/*/*.c)
@@ -175,7 +193,8 @@ SRC_C += \
 	${AICUBE_SRC_C} \
 	${AIDEMO_SRC_C} \
 	${LVGL_SRC_C} \
-	${MODULES_SRC_C}
+	${MODULES_SRC_C} \
+	${MULTIMEDIA_SRC_C}
 
 SHARED_SRC_C += $(addprefix shared/,\
 	runtime/gchelper_generic.c \
@@ -197,6 +216,8 @@ SRC_CXX += ${AIDEMO_TTS_ZH_SRC_CXX}
 MODULES_SRC_CXX = $(wildcard modules/*.cpp)
 MODULES_SRC_CXX += $(wildcard modules/*/*.cpp)
 SRC_CXX += ${MODULES_SRC_CXX}
+MULTIMEDIA_SRC_CXX = $(wildcard multi_media/*.cpp)
+SRC_CXX += ${MULTIMEDIA_SRC_CXX}
 
 OBJ = $(PY_O)
 OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))

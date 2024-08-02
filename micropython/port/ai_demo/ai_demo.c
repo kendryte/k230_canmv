@@ -834,6 +834,45 @@ STATIC mp_obj_t save_wav(size_t n_args, const mp_obj_t *args){
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(aidemo_save_wav_obj, 4, 4, save_wav);
 
+//***********************************for body seg ******************/
+STATIC mp_obj_t aidemo_body_seg_postprocess(size_t n_args, const mp_obj_t *args) {
+    ndarray_obj_t *data_mp = MP_ROM_PTR(args[0]);
+    float *data = data_mp->array;
+    int num_class = mp_obj_get_int(args[1]);
+    mp_obj_list_t *ori_shape_mp = MP_OBJ_TO_PTR(args[2]);
+    mp_obj_list_t *dst_shape_mp = MP_OBJ_TO_PTR(args[3]);
+
+    ndarray_obj_t *data_1_mp=MP_ROM_PTR(args[5]);
+    uint8_t *data_1=data_1_mp->array;
+
+    FrameSize ori_shape;
+    FrameSize dst_shape;
+
+    ori_shape.height = mp_obj_get_int(ori_shape_mp->items[0]);
+    ori_shape.width = mp_obj_get_int(ori_shape_mp->items[1]);
+    dst_shape.height = mp_obj_get_int(dst_shape_mp->items[0]);
+    dst_shape.width = mp_obj_get_int(dst_shape_mp->items[1]);
+
+    uint8_t *result = body_seg_postprocess(data, num_class, ori_shape, dst_shape, data_1);
+
+    size_t ndarray_shape[4];
+    ndarray_shape[1] = dst_shape.height;
+    ndarray_shape[2] = dst_shape.width;
+    ndarray_shape[3] = 4;
+    ndarray_obj_t *result_obj = ndarray_new_ndarray(3, ndarray_shape, NULL, NDARRAY_UINT8);
+
+    uint8_t *result_data = (uint8_t *)result_obj->array;
+    for (int i=0; i<dst_shape.height*dst_shape.width*4; i++)
+    {
+        result_data[i] = result[i];
+    }
+
+    free(result);
+    return MP_OBJ_FROM_PTR(result_obj);
+}
+
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(aidemo_body_seg_postprocess_obj, 5, 5, aidemo_body_seg_postprocess);
+
 
 STATIC const mp_rom_map_elem_t aidemo_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_aidemo) },
@@ -858,6 +897,7 @@ STATIC const mp_rom_map_elem_t aidemo_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_tts_zh_destroy), MP_ROM_PTR(&aidemo_tts_zh_destroy_obj) },
     { MP_ROM_QSTR(MP_QSTR_tts_zh_preprocess), MP_ROM_PTR(&aidemo_tts_zh_preprocess_obj) },
     { MP_ROM_QSTR(MP_QSTR_save_wav), MP_ROM_PTR(&aidemo_save_wav_obj) },
+    { MP_ROM_QSTR(MP_QSTR_body_seg_postprocess), MP_ROM_PTR(&aidemo_body_seg_postprocess_obj) },
 
 };
 

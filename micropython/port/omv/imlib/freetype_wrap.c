@@ -1,6 +1,11 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
+#include FT_CACHE_H
+#include FT_CACHE_MANAGER_H
+#include FT_CACHE_IMAGE_H
+#include FT_CACHE_CHARMAP_H
+
 #include <stdio.h>
 
 #include "py/obj.h"
@@ -9,22 +14,38 @@
 #include "imlib.h"
 #include "ff_wrapper.h"
 
+#define CONFIG_FREETYPE_SUPPORT_CACHE 1
+
 #define FREETYPE_DEFAULT_FONT_PATH "/sdcard/res/font/SourceHanSansSC-Normal-Min.ttf"
 
-static FT_Face s_ft_face;
 static FT_Library s_ft_library;
+static FTC_Manager s_ft_cacheManager;
+static FTC_ImageCache s_ft_imageCache;
+static FTC_CMapCache s_ft_cmapCache;
 
 static int s_ft_init_flag = 0;
 static char s_ft_font_path[128];
 static const char *s_ft_dft_font_path = FREETYPE_DEFAULT_FONT_PATH;
 
+static FT_Error ftwrap_face_requester( FTC_FaceID   face_id,
+                      FT_Library   library,
+                      FT_Pointer   request_data,
+                      FT_Face     *face )
+{
+    const char *font = (const char *) face_id;
+
+    return FT_New_Face(library, font, 0, face);
+}
+
 void freetype_deinit(void)
 {
-    if(0x01 == s_ft_init_flag)
-    {
-        // Clean up
-        FT_Done_Face(s_ft_face);
+    if(s_ft_cacheManager) {
+        FTC_Manager_Done(s_ft_cacheManager);
+        s_ft_cacheManager = NULL;
+    }
+    if(s_ft_library) {
         FT_Done_FreeType(s_ft_library);
+        s_ft_library = NULL;
     }
 
     s_ft_init_flag = 0;
@@ -44,8 +65,9 @@ static int imlib_freetype_init(const char *font_path)
     }
 
     if(s_ft_init_flag) {
-        // Clean up
-        FT_Done_Face(s_ft_face);
+        if(s_ft_cacheManager) {
+            FTC_Manager_Done(s_ft_cacheManager);
+        }
         FT_Done_FreeType(s_ft_library);
     }
     s_ft_init_flag = 0;
@@ -63,12 +85,31 @@ static int imlib_freetype_init(const char *font_path)
         return 1;
     }
 
-    // Load a font face from a file
-    error = FT_New_Face(s_ft_library, _font_path, 0, &s_ft_face);
+    error = FTC_Manager_New(s_ft_library, 1, 0, 1024 * 64, &ftwrap_face_requester, NULL, &s_ft_cacheManager);
     if (error) {
-        printf("Could not load font face\n");
+        printf("FTC_Manager_New failed %d\n", error);
+
+        // Handle error
         FT_Done_FreeType(s_ft_library);
         return 2;
+    }
+
+    error = FTC_CMapCache_New(s_ft_cacheManager, &s_ft_cmapCache);
+    if (error) {
+        printf("FTC_CMapCache_New failed %d\n", error);
+        FTC_Manager_Done(s_ft_cacheManager);
+        FT_Done_FreeType(s_ft_library);
+        return 3;
+    }
+
+    error = FTC_ImageCache_New(s_ft_cacheManager, &s_ft_imageCache);
+    if (error) {
+        // Handle error
+        printf("FTC_ImageCache_New failed %d\n", error);
+
+        FTC_Manager_Done(s_ft_cacheManager);
+        FT_Done_FreeType(s_ft_library);
+        return 4;
     }
 
     s_ft_init_flag = 1;
@@ -146,38 +187,66 @@ void imlib_draw_string_advance(image_t *img,
 {
     int error = 0;
 
-    // printf("x %d, y %d, size %d, str \'%s\', color %x, font %s\n", x_off, y_off, char_size, str, color, font_path);
+    int point_x = x_off;
+    int point_y = y_off + char_size;
+    const char *text = str;
 
     if(0x00 != (error = imlib_freetype_init(font_path))) {
         mp_raise_msg_varg(&mp_type_RuntimeError, MP_ERROR_TEXT("Init font %s failed %d."), font_path, error);
     }
 
-    // Set the font size
-    FT_Set_Pixel_Sizes(s_ft_face, 0, char_size);  // Width set to 0 to dynamically adjust based on height
+    FTC_FaceID face_id;
+	FT_Face face;
+	FT_Glyph glyph;
+	FT_UInt glyph_index, previous = 0;
+	FT_Int charmap_index;
+    FTC_ScalerRec scaler;
 
-    int point_x = x_off;
-    int point_y = y_off + char_size;
-    const char *p = str;
+	face_id = (FTC_FaceID)&s_ft_font_path;
 
-    while(*p) {
-        FT_ULong charcode = utf8_to_unicode(&p);
+	FTC_Manager_LookupFace(s_ft_cacheManager, face_id, &face);
+	charmap_index = FT_Get_Charmap_Index(face->charmap);
 
+    FT_Bool use_kerning = FT_HAS_KERNING(face);
+
+    scaler.face_id = face_id;
+    scaler.pixel = 1;
+    scaler.width = char_size;
+    scaler.height = char_size;
+
+    (void)previous;
+    (void)use_kerning;
+
+    while (*text) {
+		if(*text == '\n') {
+			point_x = x_off;
+			point_y += char_size;
+			text++;
+			continue;
+		}
+
+        FT_ULong charcode = utf8_to_unicode(&text);
         if(0x00 == charcode) {
             continue;
         }
 
-        // Load the glyph for the character with the transformation
-        if (0x00 != (error = FT_Load_Char(s_ft_face, charcode, FT_LOAD_RENDER))) {
-            mp_raise_msg_varg(&mp_type_RuntimeError, MP_ERROR_TEXT("Load char(%x) failed, %d."), charcode, error);
-        }
+		glyph_index = FTC_CMapCache_Lookup(s_ft_cmapCache, face_id, charmap_index, charcode);
+        FTC_ImageCache_LookupScaler(s_ft_imageCache, &scaler, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL, glyph_index, &glyph, NULL);
 
-        // Access the bitmap
-        FT_Bitmap *bitmap = &s_ft_face->glyph->bitmap;
+		if (use_kerning && previous && glyph_index) {
+			FT_Vector delta;
+			FT_Get_Kerning(face, previous, glyph_index, FT_KERNING_DEFAULT, &delta);
+			point_x += delta.x >> 6;
+		}
+        previous = glyph_index;
 
+        FT_BitmapGlyph bitmapGlyph = (FT_BitmapGlyph)glyph;
+        FT_Bitmap *bitmap = &bitmapGlyph->bitmap;
         // Draw the bitmap
-        draw_bitmap(img, color, point_x + s_ft_face->glyph->bitmap_left, point_y - s_ft_face->glyph->bitmap_top, bitmap);
+        draw_bitmap(img, color, point_x + bitmapGlyph->left, point_y - bitmapGlyph->top, bitmap);
 
         // Advance the cursor to the start of the next character
-        point_x += s_ft_face->glyph->advance.x >> 6;
-    }
+        // point_x += (face->glyph->advance.x >> 6);
+        point_x += (bitmapGlyph->root.advance.x >> 16);
+	}
 }

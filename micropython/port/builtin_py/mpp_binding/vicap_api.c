@@ -43,9 +43,11 @@ STATIC mp_obj_t _kd_mpi_vicap_dump_frame(size_t n_args, const mp_obj_t *args) {
         mp_raise_msg_varg(&mp_type_TypeError,
             MP_ERROR_TEXT("struct expect size: %u, actual size: %u"),
             sizeof(k_video_frame_info), bufinfo.len);
+    MP_THREAD_GIL_EXIT();
     size_t ret = kd_mpi_vicap_dump_frame(mp_obj_get_int(args[0]),
         mp_obj_get_int(args[1]), mp_obj_get_int(args[2]),
         (k_video_frame_info *)(bufinfo.buf), mp_obj_get_int(args[4]));
+    MP_THREAD_GIL_ENTER();
     return mp_obj_new_int(ret);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(kd_mpi_vicap_dump_frame_obj, 5, 5, _kd_mpi_vicap_dump_frame);
