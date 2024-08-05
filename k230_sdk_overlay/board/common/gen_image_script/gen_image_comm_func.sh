@@ -20,9 +20,9 @@ gz_file_add_ver()
 	sdk_ver="$(awk -F- '/^sdk:/ { print $1}' ${sdk_ver_file} | cut -d: -f2 )"
 	cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2 > /dev/null && \
 		 nncase_ver=$(cat ${nncase_ver_file} | grep NNCASE_VERSION -w | cut -d\" -f 2)
-	rm -rf  ${conf_name}_micropython_${storage}_${sdk_ver}_nncase_v${nncase_ver}.img.gz;
+	rm -rf  ${conf_name}_micropython_${micropython_ver}_${storage}_${sdk_ver}_nncase_v${nncase_ver}.img.gz;
 	rm -rf CanMV-K230_micropython_*;
-	ln -s  $f ${conf_name}_micropython_${storage}_${sdk_ver}_nncase_v${nncase_ver}.img.gz;
+	ln -s  $f ${conf_name}_micropython_${micropython_ver}_${storage}_${sdk_ver}_nncase_v${nncase_ver}.img.gz;
 }
 
 #依赖 BUILD_DIR，K230_SDK_ROOT
