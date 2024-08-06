@@ -408,6 +408,10 @@ release_image_publish:
     - echo "${DST_DIR}/${SUB_DIR}/"
     - ls "${DST_DIR}/${SUB_DIR}/"
     - echo "add latest link for current build"
+    - echo "generate three random numers to sleep and schedule more pipeline job"
+    - sleep $((RANDOM % 9 + 1))
+    - sleep $((RANDOM % 9 + 1))
+    - sleep $((RANDOM % 9 + 1))
     - test -h ${DST_DIR}/latest && sudo rm ${DST_DIR}/latest || { test -h ${DST_DIR}/latest && sudo rm ${DST_DIR}/latest; }
     - sudo ln -s ${DST_DIR}/${SUB_BASE} ${DST_DIR}/latest || exit 1
     - echo "----------save image done----------"
@@ -486,6 +490,10 @@ release_image_publish:
           fi
     - echo "MR ID ${CI_MERGE_REQUEST_IID}"
     - echo "Pipeline ID ${CI_PIPELINE_ID}"
+    - echo "generate three random numers to sleep and schedule more pipeline job"
+    - sleep $((RANDOM % 9 + 1))
+    - sleep $((RANDOM % 9 + 1))
+    - sleep $((RANDOM % 9 + 1))
     - test -d bin || mkdir ./bin
     - test -f ./bin/ailab && rm -rf ./bin/ailab
     - wget -qc https://ai.b-bug.org/k230/test_resources/ci/tools/ailab -O ./bin/ailab
