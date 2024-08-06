@@ -4,6 +4,9 @@ variables:
     TFTP_BASE: /data1/tftp_server
     NFS_BASE: /data/nfs_server
     NFS_SERVER: 10.10.1.94
+    IMAGE_DIR: canmv
+    IMAGE_NAME: "*_micropython_*_nncase_*.img.gz"
+    RELEASE_DIR: canmv_images
     GITLAB_REPO: git@g.a-bug.org:maix_sw/k230_canmv.git
     GITHUB_REPO: git@github.com:kendryte/k230_canmv.git
     GITEE_REPO: git@gitee.com:kendryte/k230_canmv.git
@@ -123,11 +126,11 @@ release_image_publish:
   script:
     - cd $CI_PROJECT_DIR
     - ls -alht
-    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/release/release_k230_canmv_image.sh -O ./release_k230_canmv_image.sh
-    - chmod +x ./release_k230_canmv_image.sh
+    - wget -qc https://ai.b-bug.org/k230/test_resources/ci/release/release_images.sh -O ./release_images.sh
+    - chmod +x ./release_images.sh
     - echo $CI_COMMIT_TAG || exit 1
     - echo $CONF || exit 1
-    - time ./release_k230_canmv_image.sh $CI_COMMIT_TAG $CONF || time ./release_k230_canmv_image.sh $CI_COMMIT_TAG $CONF
+    - time ./release_images.sh $CI_COMMIT_TAG $CONF $IMAGE_DIR $IMAGE_NAME $RELEASE_DIR || time ./release_images.sh $CI_COMMIT_TAG $CONF $IMAGE_DIR $IMAGE_NAME $RELEASE_DIR
     - echo "all release file synced"
 
 .show_vars: &show_vars
@@ -372,7 +375,7 @@ release_image_publish:
     - echo ${DST_BASE}
     - echo ${SUB_BASE}
     - echo "set DST_DIR with different type based on docs/images/src"
-    - DST_DIR="${DST_BASE}/canmv"
+    - DST_DIR="${DST_BASE}/${IMAGE_DIR}"
     - echo ${DST_DIR}
     - echo "---create repo dir---"
     - sudo mkdir -p ${DST_DIR}
@@ -446,13 +449,14 @@ release_image_publish:
         echo "current MR ID ${CI_MERGE_REQUEST_IID}"
         SUB_DIR="${CI_MERGE_REQUEST_IID}_${CI_PIPELINE_ID}/${CONF}";
         sudo mkdir -p ${DST_DIR}/${SUB_DIR}/ || exit 1
-        src_file="${SRC_DIR}/sysimage-sdcard.img.gz"
-        ls "${src_file}" || exit 1
+        src_file="${SRC_DIR}/${IMAGE_NAME}"
+        ls -alht "${SRC_DIR}" || exit 1
         sysimage_md5=$(md5sum ${src_file} | awk '{print $1}')
         echo "sysimage md5 is ${sysimage_md5}"
-        sudo cp -rf --sparse=always ${src_file} ${DST_DIR}/${SUB_DIR}/
+        sudo cp -rf -L --sparse=always ${src_file} ${DST_DIR}/${SUB_DIR}/sysimage-sdcard.img.gz
         echo "${DST_DIR}/${SUB_DIR}/"
         ls -alht "${DST_DIR}/${SUB_DIR}/" || exit 1
+        ls -alht ${DST_DIR}/${SUB_DIR}/sysimage-sdcard.img.gz || exit
         echo "release job works in release_sdk sub dir, use full path"
         echo "sysimage_path=${DST_DIR}/${SUB_DIR}/sysimage-sdcard.img.gz" >> $CI_PROJECT_DIR/build.env
         echo "sysimage_md5=${sysimage_md5}" >> $CI_PROJECT_DIR/build.env
