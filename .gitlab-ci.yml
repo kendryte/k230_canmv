@@ -359,6 +359,15 @@ release_image_publish:
       echo "----------start to run test job----------";
     fi
 
+.generate_md5_file: &generate_md5_file
+  - echo "generate md5  for build image"
+  - pwd
+  - ls
+  - |
+    find . \( -type f -o -type l \) -name "*.img.gz" | while read file; do
+      sudo bash -c "md5sum \"$file\" > \"$file.md5\""
+    done
+
 .common:
   build_image:
     - cd $CI_PROJECT_DIR
@@ -385,6 +394,13 @@ release_image_publish:
     - sudo mkdir -p ${DST_DIR}/${SUB_DIR}/ || exit 1
     - echo "---save sdk build output---"
     - sudo cp -rf --sparse=always ${SRC_DIR}/ ${DST_DIR}/${SUB_DIR}/
+    - pwd
+    - echo "switch to dst dir to generate md5 file"
+    - cd ${DST_DIR}/${SUB_DIR}/images || exit 1
+    - *generate_md5_file
+    - echo "return to work dir"
+    - cd $CI_PROJECT_DIR || exit 1
+    - ls
     - echo "${DST_DIR}/${SUB_DIR}/"
     - |
         echo "check linux and rtsmart should be enable at the same time to cp mpp/cdk demo"
