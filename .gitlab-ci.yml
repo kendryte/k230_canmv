@@ -673,27 +673,20 @@ release_image_publish:
         else
           echo "ERROR:loop $i load image failed, ignore Error and retry again...";
           echo "---start to run device power job after failed job...";
-          if [[ "$HW_MODEL" == "canmv_v2" ]]
-          then
-            echo "---canmv_v2 board will be power reset at the end of loop $i ---";
-            $power_reset;
-            sleep 15;
-            echo "canmv_v2 board power reset done. continue in next loop";
-          elif [[ "$HW_MODEL" == "canmv" ]]
-          then
-            echo "---canmv board will be power reset at the end of loop $i ---";
-            $power_reset;
-            sleep 15;
-            echo "canmv board power reset done. continue in next loop";
-          else
-            echo "---evb board will be power off and power on at the end of loop $i---";
+          if [[ "$HW_MODEL" =~ "evb" ]]; then
+            echo "---$HW_MODEL board will be power off and power on at test start---";
             $power_off;
-            sleep 3;
+            sleep 2;
             $power_on;
-            sleep 15;
-            echo "evb board power off and power on done. continue in next loop";
+            sleep 2;
+            echo "$HW_MODEL board power off and power on done. continue in next loop";
+          else
+            echo "---$HW_MODEL board will be power reset at test start ---";
+            $power_reset;
+            sleep 2;
+            echo "---$HW_MODEL board power reset done. continue to run test job";
           fi
-          echo "---device power action, start to rerun in next loop...";
+          echo "---device power action done, start to rerun in next loop...";
         fi
         endtime=$(date +'%Y-%m-%d %H:%M:%S');
         start_seconds=$(date -d "$starttime" +%s);
@@ -769,8 +762,8 @@ release_image_publish:
     - pwd
     - echo "finished copy test resource in nfs_server"
     - echo "----------Step 7. generate test device yml file for test job----------"
-    - echo "run command ./bin/ailab convert --dest=script --format yaml --file_name=${TEST_ENV}.yml --nfs_server_ip $NFS_SERVER --nfs_case_folder $NFS_CASE_FOLDER --only_rtt ${ONLY_RTT} --conf ${CONF} --pr_id ${CI_MERGE_REQUEST_IID} --job_id ${CI_PIPELINE_ID} --sysimage_md5 ${sysimage_md5} ${available}"
-    - ./bin/ailab convert --dest=script --format yaml --file_name=${TEST_ENV}.yml --nfs_server_ip $NFS_SERVER --nfs_case_folder $NFS_CASE_FOLDER --only_rtt ${ONLY_RTT} --conf ${CONF} --pr_id ${CI_MERGE_REQUEST_IID} --job_id ${CI_PIPELINE_ID} --sysimage_md5 ${sysimage_md5} ${available}
+    - echo "run command ./bin/ailab convert --dest=script --format yaml --file_name=${TEST_ENV}.yml --nfs_server_ip $NFS_SERVER --nfs_case_folder $NFS_CASE_FOLDER --only_rtt ${ONLY_RTT} --only_linux ${ONLY_LINUX} --conf ${CONF} --pr_id ${CI_MERGE_REQUEST_IID} --job_id ${CI_PIPELINE_ID} --sysimage_md5 ${sysimage_md5} ${available}"
+    - ./bin/ailab convert --dest=script --format yaml --file_name=${TEST_ENV}.yml --nfs_server_ip $NFS_SERVER --nfs_case_folder $NFS_CASE_FOLDER --only_rtt ${ONLY_RTT} --only_linux ${ONLY_LINUX} --conf ${CONF} --pr_id ${CI_MERGE_REQUEST_IID} --job_id ${CI_PIPELINE_ID} --sysimage_md5 ${sysimage_md5} ${available}
     - test -f ${TEST_ENV}.yml || exit 1
     - cat ${TEST_ENV}.yml || exit 1
     - echo "cp ${TEST_ENV}.yml to nfs_case_folder for NUC remote PC audio job"
@@ -917,16 +910,30 @@ before_script:
   - git config --global --add safe.directory $CI_PROJECT_DIR/micropython
   - echo '----------fetch all tags----------'
   - timeout 1m git fetch --tags || { echo "timeout matched">&2; sleep 15; timeout 1m git fetch --tags || { echo "timeout2 matched,">&2; timeout 1m git fetch --tags; exit 1; } }
-  - HW_TYPE=$(echo $CONF | awk -F '_'  '{print $1}')
-  - HW_MODEL=$(echo $CONF | awk -F "_"  '{if ($3 == "v2") print $2"_"$3; else print $2}')
-  - echo "HW_TYPE ${HW_TYPE}, HW_MODEL ${HW_MODEL}"
   - |
-      if [[ $CONF =~ "only_rtt_defconfig" ]]; then
+    echo "get hw type and modle based on configs name"
+    if [[ "$CONF" == "BPI-CanMV-K230D-Zero_defconfig" ]]; then
+        HW_TYPE="k230d"
+        HW_MODEL="bpi"
+    else
+        HW_TYPE=$(echo $CONF | awk -F '_'  '{print $1}')
+        HW_MODEL=$(echo $CONF | awk -F "_"  '{if ($3 == "v2") print $2"_"$3; else print $2}')
+    fi
+    echo "HW_TYPE ${HW_TYPE}, HW_MODEL ${HW_MODEL}"
+  - |
+      if [[ "$CONF" == "BPI-CanMV-K230D-Zero_defconfig" ]]; then
+        ONLY_RTT=True
+      elif [[ $CONF =~ "only_rtt_defconfig" ]]; then
         ONLY_RTT=True
       else
         ONLY_RTT=False
       fi
   - echo "ONLY_RTT is ${ONLY_RTT}"
+
+  - echo "k230_canmv always have rtt OS, set ONLY_LINUX to False"
+  - ONLY_LINUX=False
+  - echo "ONLY_LINUX is ${ONLY_LINUX}"
+
 
 
 after_script:
