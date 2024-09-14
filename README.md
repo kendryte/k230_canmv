@@ -1,3 +1,7 @@
+# NOTICE
+
+**THIS REPO IS ARCHIVED, PLEASE VISIT THE NEW REPO [canmv_k230](https://github.com/kendryte/canmv_k230)**
+
 <img height=230 src="images/CanMV_logo_800x260.png">
 
 **CanMV, 让 AIOT 更简单～**
